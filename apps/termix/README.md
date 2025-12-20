@@ -1,5 +1,5 @@
-#Termix
-##Objective
+# Termix
+## Objective
 As home-admin I want to easy and quickly connect to my devices. The devices are running SSH protocol and I want to do that from a web interface. 
 
 ## Implementation
