@@ -7,16 +7,14 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - termix-data:/app/data
+      - /volume1/containers/termix/:/app/data
     networks:
       - vlan200
+    environment:
+      PORT: "3000"
     # env_file:
     #   - .env
-
-volumes:
-  termix-data:
-    driver: local
-
+    
 networks:
   vlan200:
     external: true
