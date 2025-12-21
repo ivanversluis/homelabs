@@ -10,6 +10,7 @@ services:
       - /volume1/containers/termix/:/app/data
     networks:
       - docker-bridge
+      - vlan200
     environment:
       PORT: "3000"
       TZ: 'Europe/Amsterdam'
@@ -19,7 +20,10 @@ services:
 networks:
   docker-bridge:
     driver: bridge
+    name: docker-bridge
     ipam:
       config:
         - subnet: 172.25.0.0/24
           gateway: 172.25.0.1
+  vlan200:
+    external: true
