@@ -10,7 +10,7 @@ services:
       - /volume1/containers/termix/:/app/data
     networks:
       - vlan200
-      - bridge
+    network_mode: bridge
     environment:
       PORT: "3000"
       TZ: 'Europe/Amsterdam'
