@@ -8,6 +8,8 @@ services:
       - "8080:8080"
     volumes:
       - termix-data:/app/data
+    networks:
+      - vlan200
     # env_file:
     #   - .env
 
