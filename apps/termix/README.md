@@ -9,6 +9,8 @@ To facilitate my objective I will be using a self hosted solution called Termix.
 To learn the Termix solution I will initially start with Docker Compose. 
 
 ## LLD
-Network: VLAN200 for now until new VLAN is created for inband management 
+Network: VLAN200 for now until new VLAN is created for inband management
+
 Volume: Create a volume to store /app/data where .env and db.sqlite.encrypted files
+
 Port: tcp/3000
