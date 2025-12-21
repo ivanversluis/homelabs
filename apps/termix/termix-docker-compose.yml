@@ -8,8 +8,8 @@ services:
       - "8080:8080"
     volumes:
       - termix-data:/app/data
-    env_file:
-      - .env
+    # env_file:
+    #   - .env
 
 volumes:
   termix-data:
