@@ -34,8 +34,8 @@ services:
       AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
       AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
     volumes:
-      - ./media:/media
-      - ./custom-templates:/templates
+      - authentik:/media
+      - authentik:/templates
 
   authentik-worker:
     image: ghcr.io/goauthentik/server:latest
@@ -56,3 +56,5 @@ networks:
 
 volumes:
   database:
+  authentik:
+  
