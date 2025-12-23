@@ -26,6 +26,7 @@ services:
     command: server
     networks:
       - auth-net
+      - vlan200
     environment:
       AUTHENTIK_REDIS__HOST: redis
       AUTHENTIK_POSTGRESQL__HOST: postgresql
@@ -49,10 +50,29 @@ services:
       AUTHENTIK_POSTGRESQL__NAME: ${PG_DB}
       AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
       AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+  # --- Gateway ---
+  kong:
+    image: kong:latest
+    networks:
+      - auth-net
+      - vlan200
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /usr/local/etc/kong/kong.yml
+      # Kong OIDC variables can be injected here if not using kong.yml for secrets
+      KONG_OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
+      KONG_OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+    volumes:
+        - /volume1/containers/kong/:/usr/local/etc/kong
 
 networks:
   auth-net:
     driver: bridge
+  vlan200:
+    external: true
 
 volumes:
   database:
