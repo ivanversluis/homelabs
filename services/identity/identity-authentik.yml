@@ -57,8 +57,8 @@ services:
       - auth-net
       - vlan200
     ports:
-      - "80:80"
-      - "443:443"
+      - "11080:80"
+      - "11443:443"
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /usr/local/etc/kong/kong.yml
