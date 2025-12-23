@@ -1,0 +1,58 @@
+services:
+  # --- Redis ---
+  redis:
+    image: redis:alpine
+    networks:
+      - auth-net
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 30s
+
+  # --- Database ---
+  postgresql:
+    image: postgres:16-alpine
+    networks:
+      - auth-net
+    environment:
+      POSTGRES_PASSWORD: ${PG_PASS}
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_DB: ${PG_DB}
+    volumes:
+      - database:/var/lib/postgresql/data
+
+  # --- Authentik ---
+  authentik-server:
+    image: ghcr.io/goauthentik/server:latest
+    command: server
+    networks:
+      - auth-net
+    environment:
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_POSTGRESQL__HOST: postgresql
+      AUTHENTIK_POSTGRESQL__USER: ${PG_USER}
+      AUTHENTIK_POSTGRESQL__NAME: ${PG_DB}
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+    volumes:
+      - ./media:/media
+      - ./custom-templates:/templates
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:latest
+    command: worker
+    networks:
+      - auth-net
+    environment:
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_POSTGRESQL__HOST: postgresql
+      AUTHENTIK_POSTGRESQL__USER: ${PG_USER}
+      AUTHENTIK_POSTGRESQL__NAME: ${PG_DB}
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+
+networks:
+  auth-net:
+    driver: bridge
+
+volumes:
+  database:
