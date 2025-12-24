@@ -55,7 +55,7 @@ services:
     image: kong:latest
     networks:
       - auth-net
-      - vlan200
+      - docker-bridge
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /usr/local/etc/kong/kong.yml
@@ -68,6 +68,8 @@ services:
 networks:
   auth-net:
     driver: bridge
+  docker-bridge:
+    external: true
   vlan200:
     external: true
 
