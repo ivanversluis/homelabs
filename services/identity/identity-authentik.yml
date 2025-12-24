@@ -34,6 +34,7 @@ services:
       AUTHENTIK_POSTGRESQL__NAME: ${PG_DB}
       AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
       AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+      AUTHENTIK_HOST_BROWSER: https://authentik.${CLOUDFLARE_DOMAIN}
     volumes:
       - authentik:/media
       - authentik:/templates
@@ -50,12 +51,14 @@ services:
       AUTHENTIK_POSTGRESQL__NAME: ${PG_DB}
       AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
       AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+      AUTHENTIK_HOST_BROWSER: https://authentik.${CLOUDFLARE_DOMAIN}
   # --- Gateway ---
   kong:
     image: kong:latest
     networks:
       - auth-net
-      - docker-bridge
+      docker-bridge:
+        ipv4_address: 172.25.0.3
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /usr/local/etc/kong/kong.yml
