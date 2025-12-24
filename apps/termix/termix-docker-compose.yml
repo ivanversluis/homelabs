@@ -4,19 +4,14 @@ services:
     container_name: termix
     hostname: termix
     restart: unless-stopped
-    ports:
-      - "8080:8080"
     volumes:
       - /volume1/containers/termix/:/app/data
     networks:
       - docker-bridge
-      - vlan200
     environment:
       PORT: "3000"
       TZ: 'Europe/Amsterdam'
-    # env_file:
-    #   - .env
-    
+# Network bridge for inline-management
 networks:
   docker-bridge:
     driver: bridge
@@ -25,5 +20,3 @@ networks:
       config:
         - subnet: 172.25.0.0/24
           gateway: 172.25.0.1
-  vlan200:
-    external: true
