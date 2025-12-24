@@ -7,7 +7,8 @@ services:
     volumes:
       - /volume1/containers/termix/:/app/data
     networks:
-      - docker-bridge
+      docker-bridge:
+        	ipv4_address: 172.25.0.2
     environment:
       PORT: "3000"
       TZ: 'Europe/Amsterdam'
