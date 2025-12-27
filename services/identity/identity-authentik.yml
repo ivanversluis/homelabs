@@ -10,7 +10,7 @@ services:
 
   # --- Database ---
   postgresql:
-    image: postgres:16-alpine
+    image: postgres:16.11-alpine3.23
     networks:
       - auth-net
     environment:
