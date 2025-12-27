@@ -1,0 +1,18 @@
+services:
+  portainer:
+      image: docker pull portainer/portainer-ee:2.33.6-alpine
+      container_name: portainer
+      hostname: portainer
+      restart: always
+      volumes:
+        - /volume1/containers/core-infra/portainer/run/:/var/run/
+        - /volume1/containers/core-infra/portainer/data:/data
+        - /var/run/docker.sock:/var/run/docker.sock
+      networks:
+        vlan402:
+          ipv4_address: 172.16.19.200
+
+# use VLAN402 macdriver...
+networks:
+  vlan402:
+    external: true
