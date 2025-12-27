@@ -10,9 +10,9 @@ services:
         - /var/run/docker.sock:/var/run/docker.sock
       networks:
         vlan402:
-          ipv4_address: 172.16.19.200
+          ipv4_address: 172.16.19.2
 
-# use VLAN402 macdriver...
+#Use VLAN402 Macdriver
 networks:
   vlan402:
     external: true
