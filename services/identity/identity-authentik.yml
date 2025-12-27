@@ -22,11 +22,11 @@ services:
 
   # --- Authentik ---
   authentik-server:
-    image: ghcr.io/goauthentik/server:latest
+    image: ghcr.io/goauthentik/server:2025.10.3
     command: server
     networks:
       - auth-net
-      - vlan200
+      - docker-bridge
     environment:
       AUTHENTIK_REDIS__HOST: redis
       AUTHENTIK_POSTGRESQL__HOST: postgresql
@@ -34,13 +34,13 @@ services:
       AUTHENTIK_POSTGRESQL__NAME: ${PG_DB}
       AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
       AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
-      AUTHENTIK_HOST_BROWSER: https://authentik.${CLOUDFLARE_DOMAIN}
+      AUTHENTIK_HOST_BROWSER: https://auth.${CLOUDFLARE_DOMAIN}
     volumes:
       - authentik:/media
       - authentik:/templates
 
   authentik-worker:
-    image: ghcr.io/goauthentik/server:latest
+    image: ghcr.io/goauthentik/server:2025.10.3
     command: worker
     networks:
       - auth-net
