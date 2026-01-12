@@ -1,0 +1,47 @@
+# Dependabot configuration for homelabs repository
+# This configuration enables automatic dependency updates for Docker images
+# used in the docker-compose files across the repository.
+
+version: 2
+updates:
+  # Monitor Docker dependencies in the apps/termix directory
+  - package-ecosystem: "docker"
+    directory: "/apps/termix"
+    schedule:
+      interval: "daily"
+      time: "04:00"
+      timezone: "Europe/Amsterdam"
+    target-branch: "main"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "docker"
+      - "termix"
+
+  # Monitor Docker dependencies in the apps/portainer directory
+  - package-ecosystem: "docker"
+    directory: "/apps/portainer"
+    schedule:
+      interval: "daily"
+      time: "04:00"
+      timezone: "Europe/Amsterdam"
+    target-branch: "main"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "docker"
+      - "portainer"
+
+  # Monitor Docker dependencies in the services/identity directory
+  - package-ecosystem: "docker"
+    directory: "/services/identity"
+    schedule:
+      interval: "daily"
+      time: "04:00"
+      timezone: "Europe/Amsterdam"
+    target-branch: "main"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "docker"
+      - "identity"
