@@ -32,9 +32,9 @@ updates:
       - "docker"
       - "portainer"
 
-  # Monitor Docker dependencies in the services/identity directory
+  # Monitor Docker dependencies in the services/tunnel/cloudflare directory
   - package-ecosystem: "docker"
-    directory: "/services/identity"
+    directory: "/services/tunnel/cloudflare/stack"
     schedule:
       interval: "daily"
       time: "04:00"
@@ -44,4 +44,5 @@ updates:
     labels:
       - "dependencies"
       - "docker"
-      - "identity"
+      - "tunnel"
+      - "cloudflare"
