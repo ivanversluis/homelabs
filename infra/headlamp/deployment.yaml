@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: headlamp
+  namespace: headlamp
+  labels:
+    app.kubernetes.io/name: headlamp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: headlamp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: headlamp
+    spec:
+      serviceAccountName: headlamp
+      #flux-plugin
+      initContainers:
+        - name: install-flux-plugin
+          image: ghcr.io/headlamp-k8s/headlamp-plugin-flux:latest
+          imagePullPolicy: Always
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "→ Installing Flux plugin..."
+              cp -r /plugins/* /headlamp/plugins/
+              echo "✓ Done:"
+              ls -la /headlamp/plugins/
+          volumeMounts:
+            - name: plugins
+              mountPath: /headlamp/plugins
+
+      # app
+      containers:
+        - name: headlamp
+          image: ghcr.io/headlamp-k8s/headlamp:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - -in-cluster
+            - -plugins-dir=/headlamp/plugins
+          ports:
+            - name: http
+              containerPort: 4466
+              protocol: TCP
+          volumeMounts:
+            - name: plugins
+              mountPath: /headlamp/plugins
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 10m
+              memory: 128Mi
+            limits:
+              cpu: 50m
+              memory: 256Mi
+
+      volumes:
+        - name: plugins
+          emptyDir: {}

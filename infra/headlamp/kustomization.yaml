@@ -3,3 +3,11 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - serviceaccount.yaml
+  - clusterrole.yaml 
+  - clusterrolebinding.yaml
+  - deployment.yaml
+  - service.yaml
+
+# Verify headlamp config
+# kubectl kustomize infra/headlamp/ | grep kind: | wc -l
+# Should output: 6
