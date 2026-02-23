@@ -3,3 +3,5 @@ kind: Kustomization
 resources:
   - ../../../infra/headlamp
   - ../../../infra/external-secrets
+  - ../../../infra/vault
+  - ../../../infra/vault-config
