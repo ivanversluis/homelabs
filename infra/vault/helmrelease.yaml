@@ -39,6 +39,10 @@ spec:
           storage "file" {
             path = "/vault/data"
           }
+          telemetry {
+            disable_hostname = true
+            prometheus_retention_time = "12h"
+          }
       service:
         enabled: true
         type: ClusterIP
