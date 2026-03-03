@@ -6,3 +6,4 @@ resources:
   - ../../../infra/vault
   - ../../../infra/vault-config
   - ../../../infra/monitoring/kps
+  - ../../../infra/monitoring/metrics-server
