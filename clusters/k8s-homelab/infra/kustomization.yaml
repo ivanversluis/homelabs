@@ -5,3 +5,4 @@ resources:
   - ../../../infra/external-secrets
   - ../../../infra/vault
   - ../../../infra/vault-config
+  - ../../../infra/monitoring/kps
