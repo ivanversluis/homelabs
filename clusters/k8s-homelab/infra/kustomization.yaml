@@ -7,3 +7,4 @@ resources:
   - ../../../infra/vault-config
   - ../../../infra/monitoring/kps
   - ../../../infra/monitoring/metrics-server
+  - ../../../platform/cloudflare-tunnel/k8s/cloudflare-tunnel-deployment.yaml
