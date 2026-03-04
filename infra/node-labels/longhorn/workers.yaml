@@ -1,0 +1,22 @@
+# Label worker nodes so Longhorn creates default disks only on these nodes.
+# Replace wk-01/wk-02/wk-03 with your actual node names (kubectl get nodes).
+apiVersion: v1
+kind: Node
+metadata:
+  name: wk-01
+  labels:
+    node.longhorn.io/create-default-disk: "true"
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: wk-02
+  labels:
+    node.longhorn.io/create-default-disk: "true"
+---
+apiVersion: v1
+kind: Node
+metadata:
+  name: wk-03
+  labels:
+    node.longhorn.io/create-default-disk: "true"

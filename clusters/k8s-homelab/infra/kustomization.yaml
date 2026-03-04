@@ -7,3 +7,5 @@ resources:
   - ../../../infra/vault-config
   - ../../../infra/monitoring/kps
   - ../../../infra/monitoring/metrics-server
+  - ../../../infra/node-labels/longhorn
+  - ../../../infra/longhorn
