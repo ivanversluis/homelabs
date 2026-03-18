@@ -1,20 +1,20 @@
 apiVersion: v1
 kind: Node
 metadata:
-  name: k8s-worker-01
+  name: k8s-worker01
   labels:
     node.longhorn.io/create-default-disk: "true"
 ---
 apiVersion: v1
 kind: Node
 metadata:
-  name: k8s-worker-02
+  name: k8s-worker02
   labels:
     node.longhorn.io/create-default-disk: "true"
 ---
 apiVersion: v1
 kind: Node
 metadata:
-  name: k8s-worker-03
+  name: k8s-worker03
   labels:
     node.longhorn.io/create-default-disk: "true"
