@@ -7,4 +7,5 @@ metadata:
 data:
   default-setting.yaml: |
     create-default-disk-labeled-nodes: true
+    system-managed-components-node-selector: node.longhorn.io/create-default-disk=true
     default-data-path: /var/lib/longhorn/
