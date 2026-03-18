@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # Longhorn v1.11.0 deployment manifests
+  - https://raw.githubusercontent.com/longhorn/longhorn/v1.11.0/deploy/longhorn.yaml
+
+patchesStrategicMerge:
+  - patches/default-setting.yaml
+  - patches/storageclass.yaml
+  - patches/manager-hotfix.yaml
+  - patches/driver-deployer-hotfix.yaml
