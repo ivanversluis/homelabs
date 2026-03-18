@@ -6,6 +6,8 @@ metadata:
 spec:
   template:
     spec:
+      nodeSelector:
+        node.longhorn.io/create-default-disk: "true"
       containers:
         - name: longhorn-manager
           image: docker.io/longhornio/longhorn-manager:v1.11.0-hotfix-1
