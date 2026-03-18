@@ -10,4 +10,4 @@ patchesStrategicMerge:
   - patches/storageclass.yaml
   - patches/manager-hotfix.yaml
   - patches/driver-deployer-hotfix.yaml
-  - patches/csi-plugin-nodeSelector.yaml
+  - patches/csi-plugin-nodeselector.yaml
