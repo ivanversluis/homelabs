@@ -8,4 +8,3 @@ resources:
   - ../../../infra/monitoring/kps
   - ../../../infra/monitoring/metrics-server
   - ../../../infra/nodes/labels 
-  - ../../../platform/cloudflare-tunnel/k8s/
