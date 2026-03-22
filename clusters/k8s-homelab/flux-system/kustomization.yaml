@@ -101,29 +101,3 @@ patches:
   target:
     kind: Deployment
     name: notification-controller
-- patch: |-
-    apiVersion: apps/v1
-    kind: Deployment
-    metadata:
-      name: cloudflare-tunnel
-      namespace: cloudflared
-    spec:
-      template:
-        spec:
-          affinity:
-            nodeAffinity:
-              requiredDuringSchedulingIgnoredDuringExecution:
-                nodeSelectorTerms:
-                - matchExpressions:
-                  - key: kubernetes.io/hostname
-                    operator: In
-                    values:
-                    - k8s-master01
-          tolerations:
-          - key: node-role.kubernetes.io/control-plane
-            operator: Exists
-            effect: NoSchedule
-  target:
-    kind: Deployment
-    name: cloudflare-tunnel
-    namespace: cloudflared
