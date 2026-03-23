@@ -23,7 +23,7 @@ spec:
             - containerPort: 3000
               name: http
           env:
-            - name: port
+            - name: PORT
               value: "3000"
             - name: TZ
               value: 'Europe/Amsterdam'
