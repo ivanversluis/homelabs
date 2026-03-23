@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - ../../../services/storage/longhorn
   - ../../../services/tunnel/cloudflare/k8s
+  - ../../../services
