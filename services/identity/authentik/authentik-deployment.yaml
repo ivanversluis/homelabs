@@ -12,6 +12,23 @@ spec:
       labels:
         app: authentik-server
     spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      initContainers:
+        - name: init-authentik-media-permissions
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - mkdir -p /mnt/authentik-media/media /mnt/authentik-media/templates && chown -R 1000:1000 /mnt/authentik-media
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: authentik-media
+              mountPath: /mnt/authentik-media
       containers:
         - name: authentik-server
           image: ghcr.io/goauthentik/server:2025.10.3
@@ -77,6 +94,23 @@ spec:
       labels:
         app: authentik-worker
     spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      initContainers:
+        - name: init-authentik-media-permissions
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - mkdir -p /mnt/authentik-media/media /mnt/authentik-media/templates && chown -R 1000:1000 /mnt/authentik-media
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: authentik-media
+              mountPath: /mnt/authentik-media
       containers:
         - name: authentik-worker
           image: ghcr.io/goauthentik/server:2025.10.3
