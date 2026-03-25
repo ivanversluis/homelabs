@@ -1,4 +1,17 @@
-# Termix
+# Termix Homelab wiki
+
+## Documentation
+https://termix.site/
+
+## Repo
+https://github.com/goauthentik/authentikhttps://github.com/Termix-SSH/Termix
+
+## Releases
+https://github.com/Termix-SSH/Termix/tags
+
+## Latest version
+
+
 ## Objective
 As home-admin I want to easy and quickly connect to my devices. The devices are running SSH protocol and I want to do that from a web interface. 
 
@@ -14,3 +27,5 @@ Network: VLAN200 for now until new VLAN is created for inband management
 Volume: Create a volume to store /app/data where .env and db.sqlite.encrypted files
 
 Port: tcp/3000
+
+

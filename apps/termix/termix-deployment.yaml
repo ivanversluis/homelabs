@@ -7,6 +7,8 @@ metadata:
     app: termix
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: termix
@@ -17,7 +19,7 @@ spec:
     spec:
       containers:
         - name: termix
-          image: ghcr.io/lukegus/termix:latest
+          image: ghcr.io/lukegus/termix:2.0.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
