@@ -44,5 +44,5 @@ build/production/.env
 # Databases
 *.db
 
-# Docs
-*.md
+# Private docs
+*.md-local
