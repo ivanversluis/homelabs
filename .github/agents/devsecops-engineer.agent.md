@@ -105,6 +105,8 @@ Defaults when user does not specify:
 - storage class: `longhorn`
 - for PVC-backed workloads, schedule pods on worker nodes using:
   - `nodeSelector: node.longhorn.io/create-default-disk: "true"`
+- for PVC-backed `Deployment` workloads, set rollout strategy to:
+  - `strategy: { type: Recreate }`
 
 ### Step 5: Security Inputs
 Ask:
