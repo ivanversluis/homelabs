@@ -36,6 +36,9 @@ spec:
       accessModes:
         - ReadWriteOnce
 
+    nodeSelector:
+      node.longhorn.io/create-default-disk: "true"
+
     database:
       type: postgres
       host: semaphoreui-postgres
@@ -45,6 +48,8 @@ spec:
       existingSecret: semaphoreui-postgres-secrets
       usernameKey: POSTGRES_USER
       passwordKey: POSTGRES_PASSWORD
+      options:
+        sslmode: disable
       persistence:
         enabled: false
 
