@@ -7,7 +7,7 @@ https://termix.site/
 https://github.com/goauthentik/authentikhttps://github.com/Termix-SSH/Termix
 
 ## Releases
-https://github.com/Termix-SSH/Termix/tags
+https://github.com/users/LukeGus/packages/container/package/termix
 
 ## Latest version
 
