@@ -100,6 +100,12 @@ Ask as needed:
   - Reference authentik postgres setup as the pattern
 - required secret keys for ExternalSecret
 
+Defaults when user does not specify:
+- service type: `ClusterIP`
+- storage class: `longhorn`
+- for PVC-backed workloads, schedule pods on worker nodes using:
+  - `nodeSelector: node.longhorn.io/create-default-disk: "true"`
+
 ### Step 5: Security Inputs
 Ask:
 - Vault path for secrets (or confirm standard path `infra/<component>` for infra, `services/<category>/<component>` for services)
