@@ -15,8 +15,15 @@ spec:
       labels:
         app: n8n
     spec:
+      enableServiceLinks: false
       nodeSelector:
         node.longhorn.io/create-default-disk: "true"
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: n8n
           image: n8nio/n8n:2.15.0
@@ -33,6 +40,11 @@ spec:
                 secretKeyRef:
                   name: n8n-secrets
                   key: DB_POSTGRESDB_PASSWORD
+            - name: N8N_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secrets
+                  key: N8N_ENCRYPTION_KEY
             - name: N8N_BASIC_AUTH_USER
               valueFrom:
                 secretKeyRef:
