@@ -6,3 +6,5 @@ resources:
   - vault/
   - vault-config/
   - semaphoreui/
+  - monitoring/
+  - nodes/
