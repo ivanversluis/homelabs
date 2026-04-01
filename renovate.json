@@ -1,0 +1,201 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+
+  // ---------------------------------------------------------------------------
+  // Base preset + behaviour
+  // ---------------------------------------------------------------------------
+  // config:recommended is the current (v35+) standard base; it enables
+  // separateMajorReleases, prHourlyLimit, and a sensible set of defaults.
+  // :semanticCommits produces conventional-commit PR titles so the git log
+  // stays readable alongside Flux CD reconciliation events.
+  "extends": [
+    "config:recommended",
+    ":semanticCommits"
+  ],
+
+  // Run once a week, early Monday morning (Amsterdam time), to keep PR noise low
+  // while still catching updates within a reasonable window.
+  "timezone": "Europe/Amsterdam",
+  "schedule": ["before 6am on monday"],
+
+  // Labels applied to every Renovate PR for easy triage in the issue tracker.
+  "labels": ["renovate", "dependencies"],
+
+  // Rate-limiting guards — avoids flooding the repo with dozens of PRs at once.
+  "prConcurrentLimit": 10,
+  "prHourlyLimit": 4,
+
+  // Security advisories get a dedicated label so they can be prioritised above
+  // the weekly schedule.
+  "vulnerabilityAlerts": {
+    "labels": ["security", "renovate"]
+  },
+
+  // ---------------------------------------------------------------------------
+  // Manager: flux
+  // Tracks HelmRelease chart.spec.version fields and Flux CD controller images
+  // inside clusters/k8s-homelab/flux-system/gotk-components.yaml.
+  //
+  // Covered files:
+  //   infra/vault/helmrelease.yaml                          vault 0.32.0
+  //   infra/external-secrets/helmrelease.yaml               external-secrets 0.9.11
+  //   infra/semaphoreui/semaphoreui-helmrelease.yaml         semaphore 16.0.11
+  //   infra/monitoring/kps/helmrelease.yaml                  kube-prometheus-stack 62.*
+  //   infra/monitoring/metrics-server/helmrelease.yaml       metrics-server 3.*
+  //   clusters/k8s-homelab/flux-system/gotk-components.yaml  Flux controllers
+  // ---------------------------------------------------------------------------
+  "flux": {
+    "fileMatch": [
+      "(^|/)infra/.+\\.ya?ml$",
+      "(^|/)clusters/.+\\.ya?ml$"
+    ]
+  },
+
+  // ---------------------------------------------------------------------------
+  // Manager: kubernetes
+  // Extracts inline "image: repo:tag" references from raw Kubernetes manifests.
+  //
+  // Covered images (examples):
+  //   ghcr.io/goauthentik/server:2026.2.1    (authentik-deployment.yaml)
+  //   ghcr.io/headlamp-k8s/headlamp:latest   (infra/headlamp/deployment.yaml)
+  //   ghcr.io/headlamp-k8s/headlamp-plugin-flux:latest  (initContainer)
+  //   postgres:16.11-alpine3.23              (authentik + semaphoreui postgres)
+  //   redis:alpine                           (authentik-redis-deployment.yaml)
+  //   sissbruecker/linkding:latest           (apps/linkding/linkding-deployment.yaml)
+  // ---------------------------------------------------------------------------
+  "kubernetes": {
+    "fileMatch": [
+      "(^|/)apps/.+\\.ya?ml$",
+      "(^|/)services/.+\\.ya?ml$",
+      "(^|/)infra/.+\\.ya?ml$",
+      "(^|/)clusters/.+\\.ya?ml$"
+    ]
+  },
+
+  // ---------------------------------------------------------------------------
+  // Manager: docker-compose
+  // The default Renovate pattern only matches files literally named
+  // docker-compose[.*].ya?ml.  This repo uses non-standard stack filenames:
+  //
+  //   apps/termix/termix-docker-compose.yml            → rule 1 (contains "docker-compose")
+  //   apps/portainer/stack-portainer-ee.yml            → rule 2 (starts with "stack-")
+  //   services/tunnel/cloudflare/docker-stack/stack-cloudflare.yml  → rules 2 & 3
+  //   services/identity/authentik/docker-stack/identity-authentik.yml → rule 3
+  // ---------------------------------------------------------------------------
+  "docker-compose": {
+    "fileMatch": [
+      "(^|/)[^/]*docker-compose[^/]*\\.ya?ml$",
+      "(^|/)stack-[^/]+\\.ya?ml$",
+      "(^|/)docker-stack/[^/]+\\.ya?ml$"
+    ]
+  },
+
+  // ---------------------------------------------------------------------------
+  // Manager: github-actions
+  // No .github/workflows/ directory exists today; this is enabled so any
+  // workflow files added in the future are tracked automatically.
+  // ---------------------------------------------------------------------------
+  "github-actions": {
+    "enabled": true
+  },
+
+  // ---------------------------------------------------------------------------
+  // Explicitly restrict which managers run.
+  // Prevents unintentional matches from npm, pip, etc. managers that would
+  // produce false positives in a pure GitOps/infrastructure repo.
+  // ---------------------------------------------------------------------------
+  "enabledManagers": [
+    "flux",
+    "kubernetes",
+    "docker-compose",
+    "github-actions",
+    "custom.regex"
+  ],
+
+  // ---------------------------------------------------------------------------
+  // Custom regex manager
+  // The semaphoreui HelmRelease pins the application image using the Helm
+  // values split pattern:
+  //
+  //   image:
+  //     repository: semaphoreui/semaphore
+  //     tag: "v2.16.47"
+  //
+  // Neither the flux manager (which tracks chart versions) nor the kubernetes
+  // manager (which expects a single "image: repo:tag" line) will detect this.
+  // The regex below handles it explicitly.
+  // ---------------------------------------------------------------------------
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Track split repository+tag image references in HelmRelease values blocks",
+      "fileMatch": [
+        "(^|/)infra/[^/]+/[^/]*helmrelease\\.ya?ml$"
+      ],
+      "matchStrings": [
+        "repository:\\s+(?<depName>\\S+)\\n\\s+tag:\\s+[\"']?(?<currentValue>[\\w][\\w.\\-]*)[\"']?"
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ],
+
+  // ---------------------------------------------------------------------------
+  // Package rules
+  // Applied in order; first matching rule wins per-field (labels, groupName,
+  // automerge) unless the field is an array (labels are merged).
+  // ---------------------------------------------------------------------------
+  "packageRules": [
+    // --- Flux CD controller images (gotk-components.yaml) -------------------
+    // These images are managed by `flux bootstrap` / Renovate's flux manager.
+    // Group them so a single PR updates all controllers atomically.
+    {
+      "description": "Group Flux CD system controller image updates",
+      "matchManagers": ["kubernetes"],
+      "matchPackagePatterns": ["^ghcr\\.io/fluxcd/"],
+      "groupName": "Flux CD controllers",
+      "automerge": false
+    },
+
+    // --- Helm chart updates (minor + patch) ---------------------------------
+    // All HelmRelease chart.spec.version bumps that are non-breaking are
+    // grouped into a single weekly PR for efficient review.
+    {
+      "description": "Group all Helm chart minor and patch version bumps",
+      "matchManagers": ["flux"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "Helm charts (minor & patch)",
+      "automerge": false
+    },
+
+    // --- Authentik images ---------------------------------------------------
+    // The server image appears in both K8s manifests (2026.2.1) and the
+    // docker-stack Compose file (2025.10.3).  Grouping keeps them in sync.
+    {
+      "description": "Group Authentik server image updates across K8s and Docker Compose",
+      "matchPackagePatterns": ["^ghcr\\.io/goauthentik/"],
+      "groupName": "Authentik images",
+      "automerge": false
+    },
+
+    // --- Base images (postgres, redis) -------------------------------------
+    // These appear in multiple manifests; a single grouped PR avoids version
+    // drift between the authentik and semaphoreui postgres instances.
+    {
+      "description": "Group postgres and redis base image minor and patch updates",
+      "matchPackageNames": ["postgres", "redis"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "Base images (postgres & redis)",
+      "automerge": false
+    },
+
+    // --- Major version updates (all managers) -------------------------------
+    // Any major bump — chart, image, or action — gets an additional label
+    // for extra visibility and is never automerged.
+    {
+      "description": "Label and isolate all major version updates for manual review",
+      "matchUpdateTypes": ["major"],
+      "labels": ["major-update", "renovate", "dependencies"],
+      "automerge": false
+    }
+  ]
+}
