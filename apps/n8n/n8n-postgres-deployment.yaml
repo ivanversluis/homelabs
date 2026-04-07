@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: semaphoreui-postgres
-  namespace: semaphoreui
+  name: n8n-postgres
+  namespace: n8n
 spec:
-  serviceName: semaphoreui-postgres
+  serviceName: n8n-postgres
   replicas: 1
   selector:
     matchLabels:
-      app: semaphoreui-postgres
+      app: n8n-postgres
   template:
     metadata:
       labels:
-        app: semaphoreui-postgres
+        app: n8n-postgres
     spec:
       nodeSelector:
         node.longhorn.io/create-default-disk: "true"
@@ -23,17 +23,17 @@ spec:
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: semaphoreui-postgres-secrets
+                  name: n8n-postgres-secrets
                   key: POSTGRES_USER
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: semaphoreui-postgres-secrets
+                  name: n8n-postgres-secrets
                   key: POSTGRES_PASSWORD
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
-                  name: semaphoreui-postgres-secrets
+                  name: n8n-postgres-secrets
                   key: POSTGRES_DB
           ports:
             - containerPort: 5432
@@ -41,14 +41,7 @@ spec:
             - name: postgres-data
               mountPath: /var/lib/postgresql/data
               subPath: pgdata
-          resources:
-            requests:
-              memory: 128Mi
-              cpu: 100m
-            limits:
-              memory: 256Mi
-              cpu: 500m
       volumes:
         - name: postgres-data
           persistentVolumeClaim:
-            claimName: semaphoreui-postgres-pvc
+            claimName: n8n-postgres-pvc

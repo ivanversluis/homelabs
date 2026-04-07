@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - n8n-namespace.yaml
+  - n8n-configmap.yaml
+  - n8n-externalsecret.yaml
+  - n8n-postgres-externalsecret.yaml
+  - n8n-pvc.yaml
+  - n8n-postgres-pvc.yaml
+  - n8n-postgres-deployment.yaml
+  - n8n-postgres-service.yaml
+  - n8n-deployment.yaml
+  - n8n-service.yaml
