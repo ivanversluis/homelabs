@@ -2,12 +2,8 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - namespace.yaml
-  - serviceaccount.yaml
-  - clusterrole.yaml 
+  - headlamp-externalsecret.yaml
   - clusterrolebinding.yaml
   - deployment.yaml
   - service.yaml
-
-# Verify headlamp config
-# kubectl kustomize infra/headlamp/ | grep kind: | wc -l
-# Should output: 6
+  - oidc-admin-binding.yaml
