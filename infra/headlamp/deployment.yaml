@@ -40,32 +40,29 @@ spec:
           args:
             - -in-cluster
             - -plugins-dir=/headlamp/plugins
-            - -oidc-client-id=$(OIDC_CLIENT_ID)
-            - -oidc-client-secret=$(OIDC_CLIENT_SECRET)
-            - -oidc-idp-issuer-url=$(OIDC_IDP_ISSUER_URL)
-            - -oidc-scopes=openid,profile,email,groups
-            - -oidc-callback-url=$(OIDC_CALLBACK_URL)
           env:
-            - name: OIDC_CLIENT_ID
+            - name: HEADLAMP_CONFIG_OIDC_CLIENT_ID
               valueFrom:
                 secretKeyRef:
                   name: headlamp-oidc
                   key: client-id
-            - name: OIDC_CLIENT_SECRET
+            - name: HEADLAMP_CONFIG_OIDC_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: headlamp-oidc
                   key: client-secret
-            - name: OIDC_IDP_ISSUER_URL
+            - name: HEADLAMP_CONFIG_OIDC_IDP_ISSUER_URL
               valueFrom:
                 secretKeyRef:
                   name: headlamp-oidc
                   key: idp-issuer-url
-            - name: OIDC_CALLBACK_URL
+            - name: HEADLAMP_CONFIG_OIDC_CALLBACK_URL
               valueFrom:
                 secretKeyRef:
                   name: headlamp-oidc
                   key: oidc-callback-url
+            - name: HEADLAMP_CONFIG_OIDC_SCOPES
+              value: openid,profile,email,groups
           ports:
             - name: http
               containerPort: 4466
