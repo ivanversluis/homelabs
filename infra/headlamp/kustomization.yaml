@@ -3,6 +3,8 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - headlamp-externalsecret.yaml
+  - serviceaccount.yaml
+  - clusterrole.yaml
   - clusterrolebinding.yaml
   - deployment.yaml
   - service.yaml
