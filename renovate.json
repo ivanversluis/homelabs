@@ -197,5 +197,7 @@
       "labels": ["major-update", "renovate", "dependencies"],
       "automerge": false
     }
+  "extends": [
+    "config:recommended"
   ]
 }
