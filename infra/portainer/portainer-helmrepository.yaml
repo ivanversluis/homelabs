@@ -1,0 +1,8 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: portainer
+  namespace: portainer
+spec:
+  interval: 12h
+  url: https://portainer.github.io/k8s/

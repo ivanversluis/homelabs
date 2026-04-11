@@ -8,3 +8,4 @@ resources:
   - semaphoreui/
   - monitoring/
   - nodes/
+  - portainer/
