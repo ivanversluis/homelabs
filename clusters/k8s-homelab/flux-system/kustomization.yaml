@@ -3,6 +3,8 @@ kind: Kustomization
 resources:
 - gotk-components.yaml
 - gotk-sync.yaml
+- metallb-install-kustomization.yaml
+- metallb-config-kustomization.yaml
 #Added patch for affinity to k8s-master01 for now to keep all control stuff from the master node
 patches:
 - patch: |-
