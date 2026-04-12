@@ -43,6 +43,7 @@ Primary mission:
 11. For any workload that may call `chroot`, user/group switching, or other privileged startup operations, explicitly set compatible app config (for example `chroot: ""` when needed), and run the main process directly with explicit `command`/`args` instead of relying on opaque image entrypoint side effects.
 12. Before finalizing Kubernetes manifests, run a startup-permissions preflight checklist in the plan: read-only mount locations, writable runtime paths, UID/GID strategy, account lookup requirements, and expected startup script behavior.
 13. Keep an image-specific exception note when needed (example: `docker.io/mvance/unbound`), but always encode the rule as a reusable pattern first and the image example second.
+14. For any sensitive application setting, prefer `ExternalSecret` + `ClusterSecretStore/vault-backend` over a plaintext `Secret` manifest. Use a plaintext `Secret` only as a generated target of ExternalSecret, not as the source of truth.
 
 ## Canonical References In This Repo
 
