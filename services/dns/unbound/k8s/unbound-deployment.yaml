@@ -26,6 +26,7 @@ spec:
         - name: unbound
           image: docker.io/mvance/unbound:1.22.0
           imagePullPolicy: IfNotPresent
+          command: ["unbound", "-d", "-c", "/opt/unbound/etc/unbound/unbound.conf"]
           ports:
             - name: dns-udp
               containerPort: 53
