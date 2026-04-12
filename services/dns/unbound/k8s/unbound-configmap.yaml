@@ -9,8 +9,9 @@ metadata:
 data:
   unbound.conf: |
     server:
-      username: "unbound"
-      directory: "/etc/unbound"
+      directory: "/opt/unbound/etc/unbound"
+      chroot: ""
+      pidfile: ""
       logfile: ""
       verbosity: 1
 

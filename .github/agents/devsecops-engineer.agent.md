@@ -38,6 +38,11 @@ Primary mission:
 6. Preserve Flux CD compatibility with existing cluster wiring.
 7. If a Docker Compose file is provided in chat, treat it as the primary workload reference for intake questions and manifest mapping.
 8. Keep naming fully consistent across namespace, Vault path, DB name/user, and manifest filenames; never mix legacy component names after a rename.
+9. For any container that bootstraps runtime state (creates dirs/files/dev nodes, copies defaults, or writes pid/cache files), do not mount ConfigMap/Secret volumes directly on its runtime working directory. Keep config source read-only at a separate path and stage runtime files into a writable `emptyDir` or PVC.
+10. For any non-root workload with writable volumes, prefer `fsGroup`/`fsGroupChangePolicy` plus group-writable permissions over `chown` in initContainers. If `chown` is truly required, do not drop all capabilities for that initContainer and document why.
+11. For any workload that may call `chroot`, user/group switching, or other privileged startup operations, explicitly set compatible app config (for example `chroot: ""` when needed), and run the main process directly with explicit `command`/`args` instead of relying on opaque image entrypoint side effects.
+12. Before finalizing Kubernetes manifests, run a startup-permissions preflight checklist in the plan: read-only mount locations, writable runtime paths, UID/GID strategy, account lookup requirements, and expected startup script behavior.
+13. Keep an image-specific exception note when needed (example: `docker.io/mvance/unbound`), but always encode the rule as a reusable pattern first and the image example second.
 
 ## Canonical References In This Repo
 
