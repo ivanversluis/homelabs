@@ -29,6 +29,8 @@ spec:
           env:
             - name: TZ
               value: Europe/Amsterdam
+            - name: VIRTUAL_HOST
+              value: 172.16.20.215
             - name: FTLCONF_dns_upstreams
               value: "unbound.dns.svc.cluster.local"
             - name: FTLCONF_dns_listeningMode
