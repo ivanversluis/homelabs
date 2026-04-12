@@ -8,6 +8,7 @@ metadata:
     app.kubernetes.io/part-of: homelab-dns
 spec:
   loadBalancerIP: 172.16.20.215
+  externalTrafficPolicy: Local
   selector:
     app.kubernetes.io/name: pihole
   ports:
