@@ -18,10 +18,7 @@ spec:
         app.kubernetes.io/name: pihole
         app.kubernetes.io/part-of: homelab-dns
     spec:
-      dnsPolicy: None
-      dnsConfig:
-        nameservers:
-          - 10.43.0.10
+      dnsPolicy: ClusterFirst
       securityContext:
         seccompProfile:
           type: RuntimeDefault
