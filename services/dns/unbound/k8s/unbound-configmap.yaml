@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: unbound-config
+  namespace: dns
+  labels:
+    app.kubernetes.io/name: unbound
+    app.kubernetes.io/part-of: homelab-dns
+data:
+  unbound.conf: |
+    server:
+      username: "unbound"
+      directory: "/etc/unbound"
+      logfile: ""
+      verbosity: 1
+
+      interface: 0.0.0.0
+      interface: ::0
+      port: 53
+      do-ip4: yes
+      do-ip6: yes
+      do-udp: yes
+      do-tcp: yes
+      prefer-ip6: no
+
+      access-control: 0.0.0.0/0 allow
+      access-control: ::0/0 allow
+
+      hide-identity: yes
+      hide-version: yes
+      harden-glue: yes
+      harden-dnssec-stripped: yes
+      harden-large-queries: yes
+      harden-short-bufsize: yes
+      qname-minimisation: yes
+      aggressive-nsec: yes
+      minimal-responses: yes
+      rrset-roundrobin: yes
+      edns-buffer-size: 1232
+      prefetch: yes
+      prefetch-key: yes
+      cache-min-ttl: 300
+      cache-max-ttl: 86400
+      num-threads: 2
+      so-reuseport: yes
+      msg-cache-size: 64m
+      rrset-cache-size: 128m
+      outgoing-range: 256
+      num-queries-per-thread: 512
+      unwanted-reply-threshold: 10000000
+      val-clean-additional: yes
+      tls-cert-bundle: /etc/ssl/certs/ca-certificates.crt
+
+      private-address: 10.0.0.0/8
+      private-address: 172.16.0.0/12
+      private-address: 192.168.0.0/16
+      private-address: 169.254.0.0/16
+      private-address: fd00::/8
+      private-address: fe80::/10
+
+    forward-zone:
+      name: "."
+      forward-tls-upstream: yes
+      # Preferred: DNS4EU unfiltered
+      forward-addr: 86.54.11.100@853#unfiltered.joindns4.eu
+      forward-addr: 86.54.11.200@853#unfiltered.joindns4.eu
+      forward-addr: 2a13:1001::86:54:11:100@853#unfiltered.joindns4.eu
+      forward-addr: 2a13:1001::86:54:11:200@853#unfiltered.joindns4.eu
+      # Fallback 1: Mullvad base / extended
+      forward-addr: 194.242.2.4@853#base.dns.mullvad.net
+      forward-addr: 194.242.2.5@853#extended.dns.mullvad.net
+      forward-addr: 2a07:e340::4@853#base.dns.mullvad.net
+      forward-addr: 2a07:e340::5@853#extended.dns.mullvad.net
+      # Fallback 2: Quad9 unsecured-filter variant disabled here; use unfiltered-ish security tradeoff if desired later
