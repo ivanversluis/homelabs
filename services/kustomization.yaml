@@ -4,3 +4,4 @@ resources:
   - identity/authentik/k8s
   - storage/longhorn/k8s
   - tunnel/cloudflare/k8s
+  - dns/unbound/k8s

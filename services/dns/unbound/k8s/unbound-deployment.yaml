@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unbound
+  namespace: dns
+  labels:
+    app.kubernetes.io/name: unbound
+    app.kubernetes.io/part-of: homelab-dns
+spec:
+  replicas: 2
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: unbound
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: unbound
+        app.kubernetes.io/part-of: homelab-dns
+    spec:
+      dnsPolicy: Default
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: unbound
+          image: docker.io/mvance/unbound:1.22.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: dns-udp
+              containerPort: 53
+              protocol: UDP
+            - name: dns-tcp
+              containerPort: 53
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            tcpSocket:
+              port: 53
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 53
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+          volumeMounts:
+            - name: config
+              mountPath: /opt/unbound/etc/unbound/unbound.conf
+              subPath: unbound.conf
+      volumes:
+        - name: config
+          configMap:
+            name: unbound-config
