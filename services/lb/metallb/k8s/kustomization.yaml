@@ -4,5 +4,3 @@ resources:
   - metallb-namespace.yaml
   - metallb-helmrepository.yaml
   - metallb-helmrelease.yaml
-  - metallb-ipaddresspool.yaml
-  - metallb-l2advertisement.yaml
