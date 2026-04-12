@@ -9,4 +9,3 @@ resources:
   - monitoring/
   - nodes/
   - portainer/
-  - metallb/

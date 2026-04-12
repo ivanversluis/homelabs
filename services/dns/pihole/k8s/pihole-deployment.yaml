@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pihole
-  namespace: dns
+  namespace: pihole
   labels:
     app.kubernetes.io/name: pihole
     app.kubernetes.io/part-of: homelab-dns
@@ -27,7 +27,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: pihole
-          image: docker.io/pihole/pihole:2024.07.0
+          image: docker.io/pihole/pihole:2026.04.0
           imagePullPolicy: IfNotPresent
           env:
             - name: TZ
