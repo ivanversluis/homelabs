@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pihole-lan
+  namespace: pihole
+  labels:
+    app.kubernetes.io/name: pihole
+    app.kubernetes.io/part-of: homelab-dns
+spec:
+  loadBalancerIP: 172.16.20.215
+  selector:
+    app.kubernetes.io/name: pihole
+  ports:
+    - name: dns-udp
+      port: 53
+      targetPort: dns-udp
+      protocol: UDP
+    - name: dns-tcp
+      port: 53
+      targetPort: dns-tcp
+      protocol: TCP
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+  type: LoadBalancer
