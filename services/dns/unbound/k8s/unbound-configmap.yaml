@@ -13,8 +13,10 @@ data:
       chroot: ""
       pidfile: ""
       logfile: ""
-      verbosity: 1
-
+      verbosity: 3
+      log-queries: yes
+      log-replies: yes
+      log-servfail: yes
       interface: 0.0.0.0
       interface: ::0
       port: 53
