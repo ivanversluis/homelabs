@@ -5,3 +5,4 @@ resources:
   - storage/longhorn/k8s
   - tunnel/cloudflare/k8s
   - dns/unbound/k8s
+  - dns/pihole/k8s

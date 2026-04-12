@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pihole
+  namespace: dns
+  labels:
+    app.kubernetes.io/name: pihole
+    app.kubernetes.io/part-of: homelab-dns
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pihole
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pihole
+        app.kubernetes.io/part-of: homelab-dns
+    spec:
+      dnsPolicy: None
+      dnsConfig:
+        nameservers:
+          - 10.43.0.10
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: pihole
+          image: docker.io/pihole/pihole:2024.07.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: TZ
+              value: Europe/Amsterdam
+            - name: FTLCONF_dns_upstreams
+              value: "unbound.dns.svc.cluster.local"
+            - name: FTLCONF_dns_listeningMode
+              value: "all"
+            - name: FTLCONF_webserver_interface_theme
+              value: "default-auto"
+            - name: FTLCONF_dns_dnssec
+              value: "true"
+            - name: FTLCONF_dns_queryLogging
+              value: "true"
+            - name: FTLCONF_misc_etc_dnsmasq_d
+              value: "true"
+            - name: FTLCONF_webserver_api_password
+              valueFrom:
+                secretKeyRef:
+                  name: pihole-secret
+                  key: FTLCONF_webserver_api_password
+          ports:
+            - name: dns-udp
+              containerPort: 53
+              protocol: UDP
+            - name: dns-tcp
+              containerPort: 53
+              protocol: TCP
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /admin/login
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket:
+              port: 53
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: pihole-data
+              mountPath: /etc/pihole
+            - name: pihole-dnsmasq
+              mountPath: /etc/dnsmasq.d
+      volumes:
+        - name: pihole-data
+          persistentVolumeClaim:
+            claimName: pihole-data
+        - name: pihole-dnsmasq
+          emptyDir: {}

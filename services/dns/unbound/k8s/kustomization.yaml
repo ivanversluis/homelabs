@@ -5,5 +5,4 @@ resources:
   - unbound-configmap.yaml
   - unbound-deployment.yaml
   - unbound-service.yaml
-  - unbound-service-lan.yaml
   - unbound-pdb.yaml
