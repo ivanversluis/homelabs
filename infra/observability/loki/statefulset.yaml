@@ -20,8 +20,6 @@ spec:
       annotations:
         checksum/config: "loki-config"
     spec:
-      nodeSelector:
-        node.longhorn.io/create-default-disk: "true"
       securityContext:
         fsGroup: 10001
         runAsGroup: 10001

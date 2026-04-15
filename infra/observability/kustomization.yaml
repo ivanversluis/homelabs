@@ -31,5 +31,4 @@ resources:
   - grafana/deployment.yaml
   - grafana/service.yaml
   # Vault integration
-  - vault/grafana-admin-external-secret.yaml
   - vault/external-secret.yaml
