@@ -1,0 +1,40 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: observability
+
+resources:
+  - namespace.yaml
+  # Prometheus
+  - prometheus/configmap.yaml
+  - prometheus/alerts-configmap.yaml
+  - prometheus/rbac.yaml
+  - prometheus/deployment.yaml
+  - prometheus/service.yaml
+  # Loki
+  - loki/configmap.yaml
+  - loki/statefulset.yaml
+  - loki/service.yaml
+  # Promtail
+  - promtail/configmap.yaml
+  - promtail/daemonset.yaml
+  - promtail/rbac.yaml
+  # Grafana
+  - grafana/configmap.yaml
+  - grafana/datasources-configmap.yaml
+  - grafana/dashboards-provider-configmap.yaml
+  - grafana/dashboard-overview-configmap.yaml
+  - grafana/dashboard-golden-signals-configmap.yaml
+  - grafana/dashboard-red-method-configmap.yaml
+  - grafana/dashboard-use-method-configmap.yaml
+  - grafana/dashboard-hashicorp-vault-configmap.yaml
+  - grafana/deployment.yaml
+  - grafana/service.yaml
+  # Vault integration
+  - vault/grafana-admin-external-secret.yaml
+  - vault/external-secret.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: homelabs
+  app.kubernetes.io/managed-by: fluxcd
+  stack: observability
