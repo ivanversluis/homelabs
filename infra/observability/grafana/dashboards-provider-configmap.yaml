@@ -11,9 +11,9 @@ data:
     apiVersion: 1
 
     providers:
-      - name: 'Firewall Manager'
+      - name: 'Homelab'
         orgId: 1
-        folder: 'Firewall Manager'
+        folder: 'Homelab'
         type: file
         disableDeletion: false
         updateIntervalSeconds: 30
