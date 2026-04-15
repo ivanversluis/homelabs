@@ -1,0 +1,189 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openclaw-config
+  namespace: openclaw
+data:
+  openclaw.json: |
+    {
+      "agent": {
+        "name": "Claw",
+        "persona": "homelab-k8s-ops"
+      },
+      "model": {
+        "provider": "anthropic",
+        "name": "claude-sonnet-4-5",
+        "maxTokens": 8192
+      },
+      "communications": {
+        "discord": {
+          "enabled": true,
+          "channels": {
+            "alerts": "k8s-alerts",
+            "general": "general"
+          }
+        }
+      },
+      "heartbeat": {
+        "enabled": true,
+        "intervalMinutes": 30,
+        "message": "Run the k8s-monitor skill and report any errors or anomalies found in the cluster."
+      },
+      "skills": {
+        "autoLoad": [
+          "kubectl",
+          "k8s-monitor"
+        ]
+      }
+    }
+  AGENTS.md: |
+    # Homelab K8s Ops Agent
+
+    You are **Claw**, a senior Kubernetes SRE running inside the homelab cluster
+    on a HP EliteDesk 800 G9 (i5-12600, 16 GB RAM, Arch Linux).
+    The cluster has 1 control node; 3 worker nodes are planned but not yet added.
+
+    ## Your primary job
+    Every 30 minutes (heartbeat) and whenever asked, you:
+    1. **Scan** the cluster for errors, warnings, and anomalies using the k8s-monitor skill.
+    2. **Analyse** what you find — distinguish real problems from noise.
+    3. **Decide** on a severity level:
+       - 🟢 **OK** — Nothing actionable, stay quiet.
+       - 🟡 **Warning** — Post a brief update to #k8s-alerts in Discord.
+       - 🔴 **Error / Critical** — Post a detailed alert to #k8s-alerts AND suggest
+         whether a ticket should be created (the human decides to confirm).
+    4. **Suggest a fix** — always include concrete next steps the human can take
+       or that you can execute if given the go-ahead.
+
+    ## Rules
+    - Never restart or delete pods without explicit human approval.
+    - Keep alerts concise: one embed per issue, not a wall of text.
+    - Include the namespace, resource name, and relevant log snippet in every alert.
+    - If you see an issue you already reported in the last 2 hours, do NOT re-alert
+      unless it has worsened. Avoid alert fatigue.
+    - You have read-only kubectl access. Ask the human before using write operations.
+  k8s-monitor.js: |
+    const { execSync } = require("child_process");
+
+    const SEV = { OK: "ok", WARN: "warn", ERROR: "error", CRITICAL: "critical" };
+
+    function run(cmd) {
+      try {
+        return execSync(cmd, { encoding: "utf8", timeout: 15000 });
+      } catch (e) {
+        return e.stdout || "";
+      }
+    }
+
+    function parseEvents() {
+      const raw = run(
+        "kubectl get events --all-namespaces --field-selector type!=Normal " +
+        "--sort-by=.lastTimestamp -o json 2>/dev/null"
+      );
+      try {
+        const items = JSON.parse(raw).items || [];
+        return items.map((e) => ({
+          namespace: e.metadata.namespace,
+          name: e.involvedObject?.name,
+          kind: e.involvedObject?.kind,
+          reason: e.reason,
+          message: e.message,
+          count: e.count,
+          lastSeen: e.lastTimestamp,
+        }));
+      } catch {
+        return [];
+      }
+    }
+
+    function parseNotReadyPods() {
+      const raw = run(
+        "kubectl get pods --all-namespaces " +
+        "--field-selector status.phase!=Running,status.phase!=Succeeded " +
+        "-o json 2>/dev/null"
+      );
+      try {
+        const items = JSON.parse(raw).items || [];
+        return items
+          .filter((p) =>
+            p.status?.containerStatuses?.some(
+              (c) =>
+                c.state?.waiting?.reason === "CrashLoopBackOff" ||
+                c.state?.waiting?.reason === "ImagePullBackOff" ||
+                c.state?.terminated?.reason === "OOMKilled"
+            )
+          )
+          .map((p) => ({
+            namespace: p.metadata.namespace,
+            name: p.metadata.name,
+            phase: p.status?.phase,
+            containers: (p.status?.containerStatuses || []).map((c) => ({
+              name: c.name,
+              ready: c.ready,
+              restarts: c.restartCount,
+              state: c.state,
+            })),
+          }));
+      } catch {
+        return [];
+      }
+    }
+
+    function parseNodeStatus() {
+      const raw = run("kubectl get nodes -o json 2>/dev/null");
+      try {
+        const items = JSON.parse(raw).items || [];
+        return items.map((n) => ({
+          name: n.metadata.name,
+          ready: n.status?.conditions?.find((c) => c.type === "Ready")?.status,
+          pressure: n.status?.conditions
+            ?.filter(
+              (c) =>
+                ["MemoryPressure", "DiskPressure", "PIDPressure"].includes(c.type) &&
+                c.status === "True"
+            )
+            .map((c) => c.type),
+        }));
+      } catch {
+        return [];
+      }
+    }
+
+    const events = parseEvents();
+    const badPods = parseNotReadyPods();
+    const nodes = parseNodeStatus();
+
+    const criticalEvents = events.filter((e) =>
+      ["OOMKilling", "Failed", "BackOff", "Evicted", "NodeNotReady"].includes(e.reason)
+    );
+    const warnEvents = events.filter((e) => !criticalEvents.includes(e) && e.count >= 3);
+    const nodesNotReady = nodes.filter((n) => n.ready !== "True");
+    const nodesWithPressure = nodes.filter((n) => n.pressure?.length > 0);
+
+    let severity = SEV.OK;
+    if (criticalEvents.length > 0 || badPods.length > 0 || nodesNotReady.length > 0) {
+      severity = SEV.ERROR;
+    } else if (warnEvents.length > 0 || nodesWithPressure.length > 0) {
+      severity = SEV.WARN;
+    }
+
+    module.exports = {
+      report: {
+        severity,
+        scannedAt: new Date().toISOString(),
+        summary: {
+          criticalEvents: criticalEvents.length,
+          warningEvents: warnEvents.length,
+          unhealthyPods: badPods.length,
+          nodesNotReady: nodesNotReady.length,
+          nodesWithPressure: nodesWithPressure.length,
+        },
+        details: {
+          criticalEvents,
+          warnEvents,
+          badPods,
+          nodesNotReady,
+          nodesWithPressure,
+        },
+      },
+    };
