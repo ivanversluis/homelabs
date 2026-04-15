@@ -28,6 +28,8 @@ resources:
   - grafana/dashboard-red-method-configmap.yaml
   - grafana/dashboard-use-method-configmap.yaml
   - grafana/dashboard-hashicorp-vault-configmap.yaml
+  - grafana/dashboard-kubernetes-platform-configmap.yaml
+  - grafana/dashboard-kubernetes-nodes-configmap.yaml
   - grafana/deployment.yaml
   - grafana/service.yaml
   # Vault integration
