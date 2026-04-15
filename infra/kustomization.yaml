@@ -7,5 +7,6 @@ resources:
   - vault-config/
   - semaphoreui/
   - monitoring/
+  - observability/
   - nodes/
   - portainer/
