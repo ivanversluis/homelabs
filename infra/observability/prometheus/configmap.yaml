@@ -118,3 +118,29 @@ data:
               app: 'hashicorp-vault'
         scrape_interval: 30s
         scrape_timeout: 15s
+
+      # Kubernetes state metrics from kube-prometheus-stack
+      - job_name: 'kube-state-metrics'
+        static_configs:
+          - targets: ['kube-prometheus-stack-kube-state-metrics.monitoring.svc.cluster.local:8080']
+            labels:
+              service: 'kube-state-metrics'
+              app: 'kubernetes'
+
+      # Node exporter metrics from kube-prometheus-stack
+      - job_name: 'node-exporter'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - monitoring
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            regex: kube-prometheus-stack-prometheus-node-exporter
+            action: keep
+          - source_labels: [__meta_kubernetes_endpoint_address_target_name]
+            target_label: node
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+        scrape_interval: 15s
+        scrape_timeout: 10s
