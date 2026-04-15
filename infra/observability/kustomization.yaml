@@ -33,8 +33,3 @@ resources:
   # Vault integration
   - vault/grafana-admin-external-secret.yaml
   - vault/external-secret.yaml
-
-commonLabels:
-  app.kubernetes.io/part-of: homelabs
-  app.kubernetes.io/managed-by: fluxcd
-  stack: observability
