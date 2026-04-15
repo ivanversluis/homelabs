@@ -74,6 +74,14 @@ spec:
               mountPath: /etc/grafana/provisioning/dashboards/hashicorp-vault.json
               subPath: hashicorp-vault.json
               readOnly: true
+            - name: dashboard-kubernetes-platform
+              mountPath: /etc/grafana/provisioning/dashboards/kubernetes-platform-overview.json
+              subPath: kubernetes-platform-overview.json
+              readOnly: true
+            - name: dashboard-kubernetes-nodes
+              mountPath: /etc/grafana/provisioning/dashboards/kubernetes-node-health.json
+              subPath: kubernetes-node-health.json
+              readOnly: true
             - name: data
               mountPath: /var/lib/grafana
           resources:
@@ -122,6 +130,12 @@ spec:
         - name: dashboard-hashicorp-vault
           configMap:
             name: grafana-dashboard-hashicorp-vault
+        - name: dashboard-kubernetes-platform
+          configMap:
+            name: grafana-dashboard-kubernetes-platform
+        - name: dashboard-kubernetes-nodes
+          configMap:
+            name: grafana-dashboard-kubernetes-nodes
         - name: data
           persistentVolumeClaim:
             claimName: grafana-data
