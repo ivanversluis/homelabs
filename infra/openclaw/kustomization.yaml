@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - openclaw-namespace.yaml
+  - openclaw-pvc.yaml
+  - openclaw-serviceaccount.yaml
+  - openclaw-clusterrole.yaml
+  - openclaw-clusterrolebinding.yaml
+  - openclaw-externalsecret.yaml
+  - openclaw-configmap.yaml
+  - openclaw-deployment.yaml
+  - openclaw-service.yaml
