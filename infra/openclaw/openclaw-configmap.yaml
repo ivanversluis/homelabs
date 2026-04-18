@@ -11,8 +11,8 @@ data:
         "persona": "homelab-k8s-ops"
       },
       "model": {
-        "provider": "anthropic",
-        "name": "claude-sonnet-4-5",
+        "provider": "openrouter",
+        "name": "deepseek/deepseek-r1",
         "maxTokens": 8192
       },
       "communications": {
