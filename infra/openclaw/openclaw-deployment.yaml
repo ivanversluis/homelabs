@@ -59,6 +59,7 @@ spec:
             - /app/dist/index.js
             - gateway
             - run
+            - --allow-unconfigured
           ports:
             - name: gateway
               containerPort: 18789
