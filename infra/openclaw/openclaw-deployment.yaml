@@ -69,10 +69,14 @@ spec:
           env:
             - name: HOME
               value: /home/node
+            - name: OPENCLAW_HOME
+              value: /home/node/.openclaw
             - name: OPENCLAW_CONFIG_DIR
               value: /home/node/.openclaw
             - name: NODE_ENV
               value: production
+            - name: KUBERNETES_IN_CLUSTER
+              value: "true"
           resources:
             requests:
               cpu: 250m

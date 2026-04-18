@@ -26,8 +26,7 @@ Store the OpenClaw secret at path `infra/openclaw` in Vault with these propertie
 
 - `OPENCLAW_GATEWAY_TOKEN` (required)
 - `DISCORD_TOKEN` (required)
-- `ANTHROPIC_API_KEY` (required if Anthropic provider is used)
-- `OPENAI_API_KEY` (required if OpenAI provider is used)
+- `OPENROUTER_API_KEY` (required for OpenRouter model provider)
 
 Example:
 
@@ -35,11 +34,10 @@ Example:
 vault kv put kv/infra/openclaw \
   OPENCLAW_GATEWAY_TOKEN="<generated-token>" \
   DISCORD_TOKEN="<discord-bot-token>" \
-  ANTHROPIC_API_KEY="<anthropic-api-key>" \
-  OPENAI_API_KEY="<openai-api-key>"
+  OPENROUTER_API_KEY="<openrouter-api-key>"
 ```
 
-At least one model provider key (`ANTHROPIC_API_KEY` or `OPENAI_API_KEY`) must be valid.
+Only the OpenRouter key is used for LLM calls.
 
 ## Validation commands
 
