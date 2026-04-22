@@ -28,7 +28,8 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: forgejo
-          image: codeberg.org/forgejo/forgejo:15.0.0
+          # Rootless image avoids s6 startup lock permission issues under non-root policy.
+          image: codeberg.org/forgejo/forgejo:15.0.0-rootless
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -54,7 +55,7 @@ spec:
                   key: FORGEJO__oauth2__JWT_SECRET
           volumeMounts:
             - name: forgejo-data
-              mountPath: /data
+              mountPath: /var/lib/gitea
       volumes:
         - name: forgejo-data
           persistentVolumeClaim:
