@@ -24,8 +24,11 @@ data:
         ]
       },
       "editable": true,
+      "fiscalYearStartMonth": 0,
       "graphTooltip": 1,
-      "id": null,
+      "id": 22,
+      "links": [],
+      "liveNow": false,
       "panels": [
         {
           "datasource": "Prometheus",
@@ -33,6 +36,38 @@ data:
             "defaults": {
               "color": {
                 "mode": "thresholds"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
               },
               "mappings": [],
               "thresholds": {
@@ -57,7 +92,7 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 7,
+            "h": 10,
             "w": 12,
             "x": 0,
             "y": 0
@@ -126,7 +161,7 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 7,
+            "h": 10,
             "w": 12,
             "x": 12,
             "y": 0
@@ -144,8 +179,10 @@ data:
               "fields": "",
               "values": false
             },
-            "textMode": "name"
+            "textMode": "name",
+            "wideLayout": true
           },
+          "pluginVersion": "10.2.2",
           "targets": [
             {
               "expr": "node_timex_sync_status{job=\"node-exporter\"}",
@@ -163,6 +200,38 @@ data:
               "color": {
                 "mode": "palette-classic"
               },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
               "mappings": [],
               "thresholds": {
                 "mode": "absolute",
@@ -178,10 +247,10 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 7,
+            "h": 12,
             "w": 12,
             "x": 0,
-            "y": 7
+            "y": 10
           },
           "id": 3,
           "options": {
@@ -215,6 +284,38 @@ data:
               "color": {
                 "mode": "thresholds"
               },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
               "mappings": [],
               "thresholds": {
                 "mode": "absolute",
@@ -238,10 +339,10 @@ data:
             "overrides": []
           },
           "gridPos": {
-            "h": 7,
+            "h": 12,
             "w": 12,
             "x": 12,
-            "y": 7
+            "y": 10
           },
           "id": 4,
           "options": {
@@ -270,8 +371,8 @@ data:
           "type": "timeseries"
         }
       ],
+      "refresh": "",
       "schemaVersion": 38,
-      "style": "dark",
       "tags": [
         "kubernetes",
         "timing",
@@ -282,13 +383,13 @@ data:
         "list": []
       },
       "time": {
-        "from": "now-6h",
+        "from": "now-1h",
         "to": "now"
       },
       "timepicker": {},
       "timezone": "",
       "title": "Kubernetes Time Sync",
       "uid": "k8s-time-sync",
-      "version": 1,
+      "version": 2,
       "weekStart": ""
     }

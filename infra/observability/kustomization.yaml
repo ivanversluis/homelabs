@@ -23,6 +23,9 @@ resources:
   - grafana/configmap.yaml
   - grafana/datasources-configmap.yaml
   - grafana/dashboards-provider-configmap.yaml
+  - grafana/alerting-contact-points-configmap.yaml
+  - grafana/alerting-notification-policies-configmap.yaml
+  - grafana/alerting-rules-time-sync-configmap.yaml
   - grafana/dashboard-overview-configmap.yaml
   - grafana/dashboard-golden-signals-configmap.yaml
   - grafana/dashboard-red-method-configmap.yaml
@@ -35,3 +38,4 @@ resources:
   - grafana/service.yaml
   # Vault integration
   - vault/external-secret.yaml
+  - vault/grafana-alerting-externalsecret.yaml
