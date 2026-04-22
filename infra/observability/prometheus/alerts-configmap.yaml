@@ -277,3 +277,4 @@ data:
             annotations:
               summary: "Sync taking too long for firewall {{ $labels.firewall_id }}"
               description: "P95 sync duration is {{ $value | humanize }}s"
+

@@ -39,6 +39,11 @@ spec:
                   name: grafana-admin
                   key: password
                   optional: true
+            - name: GRAFANA_DISCORD_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-alerting-secrets
+                  key: DISCORD_WEBHOOK_URL
             - name: GF_INSTALL_PLUGINS
               value: ""
           volumeMounts:
@@ -53,6 +58,18 @@ spec:
             - name: dashboards-provider
               mountPath: /etc/grafana/provisioning/dashboards/default.yaml
               subPath: default.yaml
+              readOnly: true
+            - name: alerting-contact-points
+              mountPath: /etc/grafana/provisioning/alerting/contact-points.yaml
+              subPath: contact-points.yaml
+              readOnly: true
+            - name: alerting-notification-policies
+              mountPath: /etc/grafana/provisioning/alerting/notification-policies.yaml
+              subPath: notification-policies.yaml
+              readOnly: true
+            - name: alerting-rules-time-sync
+              mountPath: /etc/grafana/provisioning/alerting/rules-time-sync.yaml
+              subPath: rules-time-sync.yaml
               readOnly: true
             - name: dashboard-overview
               mountPath: /etc/grafana/provisioning/dashboards/firewall-manager-overview.json
@@ -119,6 +136,15 @@ spec:
         - name: dashboards-provider
           configMap:
             name: grafana-dashboards-provider
+        - name: alerting-contact-points
+          configMap:
+            name: grafana-alerting-contact-points
+        - name: alerting-notification-policies
+          configMap:
+            name: grafana-alerting-notification-policies
+        - name: alerting-rules-time-sync
+          configMap:
+            name: grafana-alerting-rules-time-sync
         - name: dashboard-overview
           configMap:
             name: grafana-dashboard-overview

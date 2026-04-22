@@ -33,7 +33,7 @@ data:
     level = info
 
     [alerting]
-    enabled = false
+    enabled = true
 
     [unified_alerting]
-    enabled = false
+    enabled = true
