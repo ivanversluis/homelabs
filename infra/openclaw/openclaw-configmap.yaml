@@ -10,6 +10,11 @@ data:
         "name": "Claw",
         "persona": "homelab-k8s-ops"
       },
+      "agents": {
+        "defaults": {
+          "model": "openrouter/deepseek/deepseek-r1"
+        }
+      },
       "gateway": {
         "mode": "local"
       },
