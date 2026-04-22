@@ -18,5 +18,18 @@ data:
             type: discord
             settings:
               url: $GRAFANA_DISCORD_WEBHOOK_URL
-              title: "[Homelab] {{ .CommonLabels.alertname }}"
-              message: "{{ template \"default.message\" . }}"
+              title: "[Homelab][{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}"
+              message: |
+                {{- if gt (len .Alerts.Firing) 0 -}}
+                Firing: {{ len .Alerts.Firing }}
+                {{- range .Alerts.Firing }}
+                - {{ .Labels.alertname }} on {{ .Labels.instance }} ({{ .Labels.severity }})
+                  {{ .Annotations.summary }}
+                {{- end }}
+                {{- end }}
+                {{- if gt (len .Alerts.Resolved) 0 }}
+                Resolved: {{ len .Alerts.Resolved }}
+                {{- range .Alerts.Resolved }}
+                - {{ .Labels.alertname }} on {{ .Labels.instance }}
+                {{- end }}
+                {{- end }}
