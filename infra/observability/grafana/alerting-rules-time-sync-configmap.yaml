@@ -30,7 +30,7 @@ data:
                     type: prometheus
                     uid: prometheus
                   editorMode: code
-                  expr: node_timex_sync_status{job="node-exporter"} == 0
+                  expr: node_timex_sync_status{job="node-exporter"}
                   instant: true
                   intervalMs: 1000
                   maxDataPoints: 43200
@@ -60,8 +60,8 @@ data:
                   conditions:
                     - evaluator:
                         params:
-                          - 0
-                        type: gt
+                          - 1
+                        type: lt
                       operator:
                         type: and
                       query:
@@ -79,7 +79,7 @@ data:
                   maxDataPoints: 43200
                   refId: C
                   type: threshold
-            noDataState: NoData
+            noDataState: OK
             execErrState: Alerting
             for: 2m
             labels:
