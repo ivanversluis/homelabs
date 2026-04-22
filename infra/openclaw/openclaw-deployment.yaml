@@ -28,7 +28,7 @@ spec:
           type: RuntimeDefault
       initContainers:
         - name: install-skills
-          image: ghcr.io/openclaw/openclaw:2026.4.14
+          image: ghcr.io/openclaw/openclaw:2026.4.21
           imagePullPolicy: IfNotPresent
           command:
             - sh
@@ -52,7 +52,7 @@ spec:
               mountPath: /config
       containers:
         - name: openclaw
-          image: ghcr.io/openclaw/openclaw:2026.4.14
+          image: ghcr.io/openclaw/openclaw:2026.4.21
           imagePullPolicy: IfNotPresent
           command:
             - node
