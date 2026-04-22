@@ -82,6 +82,10 @@ spec:
               mountPath: /etc/grafana/provisioning/dashboards/kubernetes-node-health.json
               subPath: kubernetes-node-health.json
               readOnly: true
+            - name: dashboard-kubernetes-time-sync
+              mountPath: /etc/grafana/provisioning/dashboards/kubernetes-time-sync.json
+              subPath: kubernetes-time-sync.json
+              readOnly: true
             - name: data
               mountPath: /var/lib/grafana
           resources:
@@ -136,6 +140,9 @@ spec:
         - name: dashboard-kubernetes-nodes
           configMap:
             name: grafana-dashboard-kubernetes-nodes
+        - name: dashboard-kubernetes-time-sync
+          configMap:
+            name: grafana-dashboard-kubernetes-time-sync
         - name: data
           persistentVolumeClaim:
             claimName: grafana-data
