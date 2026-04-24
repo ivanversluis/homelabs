@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: n8n-config
+  namespace: n8n
+data:
+  DB_TYPE: postgresdb
+  DB_POSTGRESDB_HOST: n8n-postgres
+  DB_POSTGRESDB_PORT: "5432"
+  DB_POSTGRESDB_DATABASE: n8n_db
+  DB_POSTGRESDB_USER: n8n
+  N8N_PORT: "5678"
+  N8N_BASIC_AUTH_ACTIVE: "true"
+  TZ: Europe/Amsterdam
+  GENERIC_TIMEZONE: Europe/Amsterdam

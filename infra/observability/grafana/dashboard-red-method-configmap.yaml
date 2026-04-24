@@ -1,0 +1,513 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-red-method
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: dashboard
+    grafana_dashboard: "true"
+data:
+  fm-red-method.json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": "-- Grafana --",
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "description": "RED Method dashboard: Rate, Errors, Duration - for monitoring services",
+      "editable": true,
+      "gnetId": null,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [
+        {
+          "asDropdown": true,
+          "icon": "external link",
+          "includeVars": true,
+          "keepTime": true,
+          "tags": ["firewall-manager"],
+          "targetBlank": false,
+          "title": "FM Dashboards",
+          "type": "dashboards"
+        }
+      ],
+      "panels": [
+        {
+          "collapsed": false,
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+          "id": 100,
+          "panels": [],
+          "title": "📊 RED Overview - All Services",
+          "type": "row"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "Current request rate across all services",
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "blue", "value": null}
+                ]
+              },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": {"h": 4, "w": 8, "x": 0, "y": 1},
+          "id": 1,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "auto"
+          },
+          "targets": [
+            {"expr": "sum(rate(http_requests_total{job=\"fm-api\"}[5m]))", "legendFormat": "API", "refId": "A"},
+            {"expr": "sum(rate(http_requests_total{job=\"fm-webui\"}[5m]))", "legendFormat": "WebUI", "refId": "B"},
+            {"expr": "sum(rate(http_requests_total{job=\"fm-worker\"}[5m]))", "legendFormat": "Worker", "refId": "C"}
+          ],
+          "title": "🚀 Rate - Requests/sec",
+          "type": "stat"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "Current error rate across all services",
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 0.01},
+                  {"color": "red", "value": 0.1}
+                ]
+              },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": {"h": 4, "w": 8, "x": 8, "y": 1},
+          "id": 2,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "auto"
+          },
+          "targets": [
+            {"expr": "sum(rate(http_errors_total{job=\"fm-api\"}[5m]))", "legendFormat": "API", "refId": "A"},
+            {"expr": "sum(rate(http_errors_total{job=\"fm-webui\"}[5m]))", "legendFormat": "WebUI", "refId": "B"},
+            {"expr": "sum(rate(http_errors_total{job=\"fm-worker\"}[5m]))", "legendFormat": "Worker", "refId": "C"}
+          ],
+          "title": "❌ Errors - Errors/sec",
+          "type": "stat"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "P95 response time across all services",
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 0.5},
+                  {"color": "red", "value": 1}
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {"h": 4, "w": 8, "x": 16, "y": 1},
+          "id": 3,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "auto"
+          },
+          "targets": [
+            {"expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"fm-api\"}[5m])) by (le))", "legendFormat": "API", "refId": "A"},
+            {"expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"fm-webui\"}[5m])) by (le))", "legendFormat": "WebUI", "refId": "B"},
+            {"expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"fm-worker\"}[5m])) by (le))", "legendFormat": "Worker", "refId": "C"}
+          ],
+          "title": "⏱️ Duration - P95 Response Time",
+          "type": "stat"
+        },
+        {
+          "collapsed": false,
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5},
+          "id": 101,
+          "panels": [],
+          "title": "🚀 Rate - Request Volume",
+          "type": "row"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "Request rate over time by service",
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "Requests/sec",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "opacity",
+                "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {"type": "linear"},
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {"group": "A", "mode": "none"},
+                "thresholdsStyle": {"mode": "off"}
+              },
+              "mappings": [],
+              "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+          "id": 4,
+          "options": {
+            "legend": {"calcs": ["mean", "max", "last"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+            "tooltip": {"mode": "multi", "sort": "desc"}
+          },
+          "targets": [
+            {"expr": "sum(rate(http_requests_total{job=~\"fm-.*\"}[5m])) by (job)", "legendFormat": "{{job}}", "refId": "A"}
+          ],
+          "title": "Request Rate by Service",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "Request rate by endpoint (top 10)",
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "Requests/sec",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "bars",
+                "fillOpacity": 100,
+                "gradientMode": "none",
+                "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {"type": "linear"},
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {"group": "A", "mode": "normal"},
+                "thresholdsStyle": {"mode": "off"}
+              },
+              "mappings": [],
+              "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+          "id": 5,
+          "options": {
+            "legend": {"calcs": ["mean"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+            "tooltip": {"mode": "multi", "sort": "desc"}
+          },
+          "targets": [
+            {"expr": "topk(10, sum by (endpoint) (rate(http_requests_total{job=~\"fm-.*\"}[5m])))", "legendFormat": "{{endpoint}}", "refId": "A"}
+          ],
+          "title": "Top 10 Endpoints by Request Rate",
+          "type": "timeseries"
+        },
+        {
+          "collapsed": false,
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 14},
+          "id": 102,
+          "panels": [],
+          "title": "❌ Errors - Error Analysis",
+          "type": "row"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "Error rate by type",
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "Errors/sec",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 30,
+                "gradientMode": "opacity",
+                "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {"type": "linear"},
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {"group": "A", "mode": "none"},
+                "thresholdsStyle": {"mode": "off"}
+              },
+              "mappings": [],
+              "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+              "unit": "reqps"
+            },
+            "overrides": [
+              {"matcher": {"id": "byRegexp", "options": ".*server.*"}, "properties": [{"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}]},
+              {"matcher": {"id": "byRegexp", "options": ".*client.*"}, "properties": [{"id": "color", "value": {"fixedColor": "yellow", "mode": "fixed"}}]}
+            ]
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 15},
+          "id": 6,
+          "options": {
+            "legend": {"calcs": ["mean", "sum"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+            "tooltip": {"mode": "multi", "sort": "desc"}
+          },
+          "targets": [
+            {"expr": "sum(rate(http_errors_total{job=~\"fm-.*\"}[5m])) by (error_type, job)", "legendFormat": "{{job}} - {{error_type}}", "refId": "A"}
+          ],
+          "title": "Error Rate by Type",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "Error rate by HTTP status code",
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "Errors/sec",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "bars",
+                "fillOpacity": 100,
+                "gradientMode": "none",
+                "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {"type": "linear"},
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {"group": "A", "mode": "normal"},
+                "thresholdsStyle": {"mode": "off"}
+              },
+              "mappings": [],
+              "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 15},
+          "id": 7,
+          "options": {
+            "legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+            "tooltip": {"mode": "multi", "sort": "desc"}
+          },
+          "targets": [
+            {"expr": "sum(rate(http_requests_total{job=~\"fm-.*\", status=~\"[45]..\"}[5m])) by (status)", "legendFormat": "{{status}}", "refId": "A"}
+          ],
+          "title": "Errors by HTTP Status Code",
+          "type": "timeseries"
+        },
+        {
+          "collapsed": false,
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 23},
+          "id": 103,
+          "panels": [],
+          "title": "⏱️ Duration - Response Times",
+          "type": "row"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "Response time percentiles by service",
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "Response Time",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {"type": "linear"},
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {"group": "A", "mode": "none"},
+                "thresholdsStyle": {"mode": "line+area"}
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 0.5},
+                  {"color": "red", "value": 1}
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+          "id": 8,
+          "options": {
+            "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+            "tooltip": {"mode": "multi", "sort": "desc"}
+          },
+          "targets": [
+            {"expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=~\"fm-.*\"}[5m])) by (le, job))", "legendFormat": "{{job}} p50", "refId": "A"},
+            {"expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=~\"fm-.*\"}[5m])) by (le, job))", "legendFormat": "{{job}} p95", "refId": "B"},
+            {"expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=~\"fm-.*\"}[5m])) by (le, job))", "legendFormat": "{{job}} p99", "refId": "C"}
+          ],
+          "title": "Response Time Percentiles",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "Average response time by endpoint",
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "Avg Response Time",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {"type": "linear"},
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {"group": "A", "mode": "none"},
+                "thresholdsStyle": {"mode": "off"}
+              },
+              "mappings": [],
+              "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+          "id": 9,
+          "options": {
+            "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+            "tooltip": {"mode": "multi", "sort": "desc"}
+          },
+          "targets": [
+            {"expr": "topk(10, sum by (endpoint) (rate(http_request_duration_seconds_sum{job=~\"fm-.*\"}[5m])) / sum by (endpoint) (rate(http_request_duration_seconds_count{job=~\"fm-.*\"}[5m])))", "legendFormat": "{{endpoint}}", "refId": "A"}
+          ],
+          "title": "Top 10 Slowest Endpoints (Avg)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "Response time distribution heatmap",
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "fillOpacity": 80,
+                "gradientMode": "scheme",
+                "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+                "lineWidth": 1,
+                "scaleDistribution": {"type": "linear"}
+              },
+              "mappings": [],
+              "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 32},
+          "id": 10,
+          "options": {
+            "calculate": false,
+            "cellGap": 1,
+            "color": {
+              "exponent": 0.5,
+              "fill": "dark-orange",
+              "mode": "scheme",
+              "reverse": false,
+              "scale": "exponential",
+              "scheme": "Spectral",
+              "steps": 64
+            },
+            "exemplars": {"color": "rgba(255,0,255,0.7)"},
+            "filterValues": {"le": 1e-9},
+            "legend": {"show": true},
+            "rowsFrame": {"layout": "auto"},
+            "tooltip": {"show": true, "yHistogram": true},
+            "yAxis": {"axisPlacement": "left", "reverse": false, "unit": "s"}
+          },
+          "targets": [
+            {"expr": "sum(increase(http_request_duration_seconds_bucket{job=~\"fm-.*\"}[5m])) by (le)", "format": "heatmap", "legendFormat": "{{le}}", "refId": "A"}
+          ],
+          "title": "Response Time Distribution (Heatmap)",
+          "type": "heatmap"
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "style": "dark",
+      "tags": ["firewall-manager", "red-method"],
+      "templating": {"list": []},
+      "time": {"from": "now-1h", "to": "now"},
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "FM - RED Method (Services)",
+      "uid": "fm-red-method",
+      "version": 1
+    }

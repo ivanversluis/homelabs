@@ -1,0 +1,41 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: observability
+
+resources:
+  - namespace.yaml
+  # Prometheus
+  - prometheus/configmap.yaml
+  - prometheus/alerts-configmap.yaml
+  - prometheus/rbac.yaml
+  - prometheus/deployment.yaml
+  - prometheus/service.yaml
+  # Loki
+  - loki/configmap.yaml
+  - loki/statefulset.yaml
+  - loki/service.yaml
+  # Promtail
+  - promtail/configmap.yaml
+  - promtail/daemonset.yaml
+  - promtail/rbac.yaml
+  # Grafana
+  - grafana/configmap.yaml
+  - grafana/datasources-configmap.yaml
+  - grafana/dashboards-provider-configmap.yaml
+  - grafana/alerting-contact-points-configmap.yaml
+  - grafana/alerting-notification-policies-configmap.yaml
+  - grafana/alerting-rules-time-sync-configmap.yaml
+  - grafana/dashboard-overview-configmap.yaml
+  - grafana/dashboard-golden-signals-configmap.yaml
+  - grafana/dashboard-red-method-configmap.yaml
+  - grafana/dashboard-use-method-configmap.yaml
+  - grafana/dashboard-hashicorp-vault-configmap.yaml
+  - grafana/dashboard-kubernetes-platform-configmap.yaml
+  - grafana/dashboard-kubernetes-nodes-configmap.yaml
+  - grafana/dashboard-kubernetes-time-sync-configmap.yaml
+  - grafana/deployment.yaml
+  - grafana/service.yaml
+  # Vault integration
+  - vault/external-secret.yaml
+  - vault/grafana-alerting-externalsecret.yaml

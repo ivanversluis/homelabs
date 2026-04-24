@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: authentik-config
+data:
+  AUTHENTIK_REDIS__HOST: redis
+  AUTHENTIK_POSTGRESQL__HOST: postgresql

@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: n8n
+  namespace: n8n
+  labels:
+    app: n8n
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: n8n
+  template:
+    metadata:
+      labels:
+        app: n8n
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        node.longhorn.io/create-default-disk: "true"
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      # initContainers:
+      #   - name: init-n8n-permissions
+      #     image: busybox:1.36
+      #     command:
+      #       - sh
+      #       - -c
+      #       - mkdir -p /home/node/.n8n && chown -R 1000:1000 /home/node/.n8n
+      #     securityContext:
+      #       runAsUser: 0
+      #       runAsGroup: 0
+      #     volumeMounts:
+      #       - name: n8n-data
+      #         mountPath: /home/node/.n8n
+      containers:
+        - name: n8n
+          image: n8nio/n8n:2.18.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5678
+              name: http
+          envFrom:
+            - configMapRef:
+                name: n8n-config
+          env:
+            - name: N8N_PORT
+              value: "5678"
+            - name: DB_POSTGRESDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secrets
+                  key: DB_POSTGRESDB_PASSWORD
+            - name: N8N_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secrets
+                  key: N8N_ENCRYPTION_KEY
+            - name: N8N_BASIC_AUTH_USER
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secrets
+                  key: N8N_BASIC_AUTH_USER
+            - name: N8N_BASIC_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secrets
+                  key: N8N_BASIC_AUTH_PASSWORD
+          volumeMounts:
+            - name: n8n-data
+              mountPath: /home/node/.n8n
+      volumes:
+        - name: n8n-data
+          persistentVolumeClaim:
+            claimName: n8n-pvc

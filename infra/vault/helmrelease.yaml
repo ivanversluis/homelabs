@@ -1,0 +1,77 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: vault
+  namespace: vault
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: vault
+      version: "0.32.0"
+      sourceRef:
+        kind: HelmRepository
+        name: hashicorp
+      interval: 12h
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 5
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 5
+  # Vault starts sealed — do not uninstall on upgrade failure
+  uninstall:
+    keepHistory: true
+  values:
+    server:
+      enabled: true
+      standalone:
+        enabled: true
+        config: |
+          ui = true
+          listener "tcp" {
+            tls_disable = 1
+            address = "[::]:8200"
+            cluster_address = "[::]:8201"
+          }
+          storage "file" {
+            path = "/vault/data"
+          }
+          telemetry {
+            disable_hostname = true
+            prometheus_retention_time = "12h"
+          }
+      service:
+        enabled: true
+        type: ClusterIP
+        port: 8200
+      dataStorage:
+        enabled: true
+        size: 10Gi
+        # Use null to inherit the cluster default StorageClass.
+        # Change to "local-path" if your cluster uses Rancher local-path-provisioner.
+        storageClass: null
+        accessMode: ReadWriteOnce
+      resources:
+        requests:
+          memory: 256Mi
+          cpu: 250m
+        limits:
+          memory: 512Mi
+          cpu: 500m
+      # Probes tuned for sealed Vault: return 204 when sealed/uninit so
+      # the pod stays up and can be unsealed without Kubernetes killing it.
+      readinessProbe:
+        enabled: true
+        path: "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
+      livenessProbe:
+        enabled: true
+        path: "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
+        initialDelaySeconds: 60
+    ui:
+      enabled: true
+      serviceType: ClusterIP
+    injector:
+      enabled: false

@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: semaphoreui-postgres
+  namespace: semaphoreui
+spec:
+  serviceName: semaphoreui-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: semaphoreui-postgres
+  template:
+    metadata:
+      labels:
+        app: semaphoreui-postgres
+    spec:
+      nodeSelector:
+        node.longhorn.io/create-default-disk: "true"
+      containers:
+        - name: postgres
+          image: postgres:16.11-alpine3.23
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: semaphoreui-postgres-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: semaphoreui-postgres-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: semaphoreui-postgres-secrets
+                  key: POSTGRES_DB
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+              subPath: pgdata
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 256Mi
+              cpu: 500m
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: semaphoreui-postgres-pvc

@@ -1,0 +1,72 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: semaphoreui
+  namespace: semaphoreui
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: semaphore
+      version: "16.0.11"
+      sourceRef:
+        kind: HelmRepository
+        name: semaphoreui
+      interval: 12h
+  install:
+    remediation:
+      retries: 5
+  upgrade:
+    remediation:
+      retries: 5
+  values:
+    replicaCount: 1
+
+    image:
+      repository: semaphoreui/semaphore
+      tag: "v2.17.38"
+
+    service:
+      type: ClusterIP
+
+    persistence:
+      enabled: true
+      size: 250Mi
+      storageClass: longhorn
+      accessModes:
+        - ReadWriteOnce
+
+    nodeSelector:
+      node.longhorn.io/create-default-disk: "true"
+
+    database:
+      type: postgres
+      host: semaphoreui-postgres
+      port: 5432
+      name: semaphoreui
+      usernameFromSecret: true
+      existingSecret: semaphoreui-postgres-secrets
+      usernameKey: POSTGRES_USER
+      passwordKey: POSTGRES_PASSWORD
+      options:
+        sslmode: disable
+      persistence:
+        enabled: false
+
+    admin:
+      create: true
+      existingSecret: semaphoreui-secrets
+      usernameKey: username
+      passwordKey: password
+      emailKey: email
+      fullnameKey: fullname
+
+    secrets:
+      existingSecret: semaphoreui-secrets
+      cookieHashKey: cookieHash
+      cookieEncryptionKey: cookieEncryption
+      accesskeyEncryptionKey: accesskeyEncryption
+
+    runner:
+      existingSecret: semaphoreui-secrets
+      tokenKey: token
