@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forgejo
+  namespace: forgejo
+  labels:
+    app: forgejo
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: forgejo
+  template:
+    metadata:
+      labels:
+        app: forgejo
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        node.longhorn.io/create-default-disk: "true"
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: forgejo
+          # Rootless image avoids s6 startup lock permission issues under non-root policy.
+          image: codeberg.org/forgejo/forgejo:15.0.0-rootless
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: forgejo-config
+          env:
+            - name: FORGEJO__security__SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: forgejo-secrets
+                  key: FORGEJO__security__SECRET_KEY
+            - name: FORGEJO__security__INTERNAL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: forgejo-secrets
+                  key: FORGEJO__security__INTERNAL_TOKEN
+            - name: FORGEJO__oauth2__JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: forgejo-secrets
+                  key: FORGEJO__oauth2__JWT_SECRET
+          volumeMounts:
+            - name: forgejo-data
+              mountPath: /var/lib/gitea
+      volumes:
+        - name: forgejo-data
+          persistentVolumeClaim:
+            claimName: forgejo-pvc

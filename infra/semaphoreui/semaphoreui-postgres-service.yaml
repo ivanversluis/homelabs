@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: semaphoreui-postgres
+  namespace: semaphoreui
+spec:
+  selector:
+    app: semaphoreui-postgres
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432

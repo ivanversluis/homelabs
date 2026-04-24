@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-alerting-notification-policies
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: alerting
+data:
+  notification-policies.yaml: |
+    apiVersion: 1
+
+    policies:
+      - orgId: 1
+        receiver: discord-primary
+        group_by:
+          - alertname
+          - instance
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 4h

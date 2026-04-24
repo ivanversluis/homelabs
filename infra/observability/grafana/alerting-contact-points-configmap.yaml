@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-alerting-contact-points
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: alerting
+data:
+  contact-points.yaml: |
+    apiVersion: 1
+
+    contactPoints:
+      - orgId: 1
+        name: discord-primary
+        receivers:
+          - uid: discord-primary
+            type: discord
+            settings:
+              url: $GRAFANA_DISCORD_WEBHOOK_URL
+              title: "[Homelab][{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}"
+              message: |
+                {{- if gt (len .Alerts.Firing) 0 -}}
+                Firing: {{ len .Alerts.Firing }}
+                {{- range .Alerts.Firing }}
+                - {{ .Labels.alertname }} on {{ .Labels.instance }} ({{ .Labels.severity }})
+                  {{ .Annotations.summary }}
+                {{- end }}
+                {{- end }}
+                {{- if gt (len .Alerts.Resolved) 0 }}
+                Resolved: {{ len .Alerts.Resolved }}
+                {{- range .Alerts.Resolved }}
+                - {{ .Labels.alertname }} on {{ .Labels.instance }}
+                {{- end }}
+                {{- end }}

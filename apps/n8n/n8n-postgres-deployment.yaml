@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: n8n-postgres
+  namespace: n8n
+spec:
+  serviceName: n8n-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: n8n-postgres
+  template:
+    metadata:
+      labels:
+        app: n8n-postgres
+    spec:
+      nodeSelector:
+        node.longhorn.io/create-default-disk: "true"
+      containers:
+        - name: postgres
+          image: postgres:16.11-alpine3.23
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-postgres-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-postgres-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-postgres-secrets
+                  key: POSTGRES_DB
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+              subPath: pgdata
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: n8n-postgres-pvc

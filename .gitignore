@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+coverage.xml
+*.cover
+
+# Pytest cache
+.pytest_cache/
+__pycache__/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment files (secrets)
+.env
+.env.local
+.env.*.local
+build/dev-local/.env
+build/staging/.env
+build/production/.env
+
+# Keep example template files
+!.env.example
+!build/**/.env.example
+
+# Docker
+.docker/
+
+# Databases
+*.db
+
+# Private docs
+*.md-local

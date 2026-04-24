@@ -1,0 +1,49 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: portainer
+  namespace: portainer
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: portainer
+      version: "2.33.6"
+      sourceRef:
+        kind: HelmRepository
+        name: portainer
+      interval: 12h
+  install:
+    remediation:
+      retries: 5
+  upgrade:
+    remediation:
+      retries: 5
+  values:
+    enterpriseEdition:
+      enabled: true
+
+    image:
+      repository: portainer/portainer-ee
+      tag: "2.33.6-alpine"
+
+    service:
+      type: ClusterIP
+      httpPort: 9000
+      httpsPort: 9443
+      edgePort: 8000
+
+    serviceAccount:
+      name: portainer-sa
+
+    persistence:
+      enabled: true
+      size: 1Gi
+      storageClass: longhorn
+      accessMode: ReadWriteOnce
+
+    nodeSelector:
+      node.longhorn.io/create-default-disk: "true"
+
+    tls:
+      force: true

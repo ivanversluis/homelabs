@@ -1,0 +1,11 @@
+# Enable "Create Default Disk on Labeled Nodes" on homelab workers only
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: longhorn-default-setting
+  namespace: longhorn-system
+data:
+  default-setting.yaml: |
+    create-default-disk-labeled-nodes: true
+    system-managed-components-node-selector: node.longhorn.io/create-default-disk=true
+    default-data-path: /var/lib/longhorn/

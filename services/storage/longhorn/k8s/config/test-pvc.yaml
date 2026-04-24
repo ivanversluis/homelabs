@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-with-pvc
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-with-pvc
+  template:
+    metadata:
+      labels:
+        app: app-with-pvc
+    spec:
+      nodeSelector:
+        node.longhorn.io/create-default-disk: "true"
+      containers:
+        - name: app
+          image: nginx:1.27
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: app-data

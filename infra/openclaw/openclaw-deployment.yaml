@@ -1,0 +1,131 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openclaw
+  namespace: openclaw
+  labels:
+    app.kubernetes.io/name: openclaw
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: openclaw
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: openclaw
+    spec:
+      serviceAccountName: openclaw
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      securityContext:
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: install-skills
+          image: ghcr.io/openclaw/openclaw:2026.4.21
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              mkdir -p /home/node/.openclaw/skills
+              cp /config/k8s-monitor.js /home/node/.openclaw/skills/k8s-monitor.js
+              cp /config/AGENTS.md /home/node/.openclaw/AGENTS.md
+              cp /config/openclaw.json /home/node/.openclaw/openclaw.json
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /home/node/.openclaw
+            - name: config
+              mountPath: /config
+      containers:
+        - name: openclaw
+          image: ghcr.io/openclaw/openclaw:2026.4.21
+          imagePullPolicy: IfNotPresent
+          command:
+            - node
+            - /app/dist/index.js
+            - gateway
+            - run
+            - --allow-unconfigured
+          ports:
+            - name: gateway
+              containerPort: 18789
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: openclaw-secrets
+          env:
+            - name: HOME
+              value: /home/node
+            - name: OPENCLAW_HOME
+              value: /home/node/.openclaw
+            - name: OPENCLAW_CONFIG_DIR
+              value: /home/node/.openclaw
+            - name: NODE_ENV
+              value: production
+            - name: KUBERNETES_IN_CLUSTER
+              value: "true"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          livenessProbe:
+            exec:
+              command:
+                - node
+                - -e
+                - require('http').get('http://127.0.0.1:18789/healthz',r=>process.exit(r.statusCode<400?0:1)).on('error',()=>process.exit(1))
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - node
+                - -e
+                - require('http').get('http://127.0.0.1:18789/readyz',r=>process.exit(r.statusCode<400?0:1)).on('error',()=>process.exit(1))
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /home/node/.openclaw
+            - name: workspace
+              mountPath: /home/node/workspace
+            - name: tmp-volume
+              mountPath: /tmp
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: openclaw-data
+        - name: workspace
+          emptyDir: {}
+        - name: tmp-volume
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: openclaw-config

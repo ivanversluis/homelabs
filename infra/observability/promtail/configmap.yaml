@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: promtail-config
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: promtail
+    app.kubernetes.io/component: log-collector
+data:
+  promtail.yaml: |
+    server:
+      http_listen_port: 9080
+      grpc_listen_port: 0
+      log_level: info
+
+    positions:
+      filename: /tmp/positions.yaml
+
+    clients:
+      - url: http://loki:3100/loki/api/v1/push
+        tenant_id: ""
+        batchwait: 1s
+        batchsize: 1048576
+        timeout: 10s
+
+    scrape_configs:
+      # Collect logs from all pods
+      - job_name: kubernetes-pods
+        kubernetes_sd_configs:
+          - role: pod
+        pipeline_stages:
+          - cri: {}
+          - match:
+              selector: '{app=~"fm-.*"}'
+              stages:
+                - regex:
+                    expression: '(?P<level>(DEBUG|INFO|WARNING|ERROR|CRITICAL))'
+                - labels:
+                    level:
+        relabel_configs:
+          # Keep pods from firewall-manager namespaces, observability, and kube-system
+          # Broad enough to always find some logs (prevents readiness probe failures)
+          - source_labels: [__meta_kubernetes_namespace]
+            regex: (firewall-manager-.*|observability|kube-system|flux-system)
+            action: keep
+
+          # Use pod name as instance label
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: instance
+
+          # Use namespace label
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+
+          # Use container name
+          - source_labels: [__meta_kubernetes_pod_container_name]
+            target_label: container
+
+          # Use pod labels for app identification
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            target_label: app
+
+          # Use pod labels for component identification
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            target_label: component
+
+          # Set the log file path
+          - replacement: /var/log/pods/*$1/*.log
+            separator: /
+            source_labels:
+              - __meta_kubernetes_pod_uid
+              - __meta_kubernetes_pod_container_name
+            target_label: __path__

@@ -1,0 +1,280 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-alerts
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/component: alerts
+data:
+  prometheus-alerts.yml: |
+    # Prometheus alerting rules for Firewall Manager
+    # Organized by USE, RED, and Golden Signals methodologies
+
+    groups:
+      # ========================================================================
+      # Golden Signals Alerts (Google SRE)
+      # ========================================================================
+      - name: golden-signals
+        interval: 15s
+        rules:
+          - alert: HighLatencyP95
+            expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=~"fm-.*"}[5m])) by (le, job)) > 0.5
+            for: 5m
+            labels:
+              severity: warning
+              signal: latency
+              method: golden-signals
+            annotations:
+              summary: "High P95 latency on {{ $labels.job }}"
+              description: "95th percentile latency is {{ $value | humanize }}s on {{ $labels.job }}"
+
+          - alert: CriticalLatencyP99
+            expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=~"fm-.*"}[5m])) by (le, job)) > 2
+            for: 2m
+            labels:
+              severity: critical
+              signal: latency
+              method: golden-signals
+            annotations:
+              summary: "Critical P99 latency on {{ $labels.job }}"
+              description: "99th percentile latency is {{ $value | humanize }}s on {{ $labels.job }}"
+
+          - alert: TrafficSpike
+            expr: sum(rate(http_requests_total{job=~"fm-.*"}[5m])) by (job) > 100
+            for: 5m
+            labels:
+              severity: warning
+              signal: traffic
+              method: golden-signals
+            annotations:
+              summary: "Traffic spike detected on {{ $labels.job }}"
+              description: "Request rate is {{ $value | humanize }}/sec on {{ $labels.job }}"
+
+          - alert: NoTraffic
+            expr: sum(rate(http_requests_total{job=~"fm-.*"}[10m])) by (job) == 0
+            for: 10m
+            labels:
+              severity: warning
+              signal: traffic
+              method: golden-signals
+            annotations:
+              summary: "No traffic on {{ $labels.job }}"
+              description: "{{ $labels.job }} has received no requests for 10 minutes"
+
+          - alert: HighErrorRate
+            expr: 100 * sum(rate(http_requests_total{job=~"fm-.*", status=~"5.."}[5m])) by (job) / sum(rate(http_requests_total{job=~"fm-.*"}[5m])) by (job) > 1
+            for: 5m
+            labels:
+              severity: warning
+              signal: errors
+              method: golden-signals
+            annotations:
+              summary: "High error rate on {{ $labels.job }}"
+              description: "Error rate is {{ $value | humanize }}% on {{ $labels.job }}"
+
+          - alert: CriticalErrorRate
+            expr: 100 * sum(rate(http_requests_total{job=~"fm-.*", status=~"5.."}[5m])) by (job) / sum(rate(http_requests_total{job=~"fm-.*"}[5m])) by (job) > 5
+            for: 2m
+            labels:
+              severity: critical
+              signal: errors
+              method: golden-signals
+            annotations:
+              summary: "Critical error rate on {{ $labels.job }}"
+              description: "Error rate is {{ $value | humanize }}% on {{ $labels.job }}"
+
+          - alert: HighSaturation
+            expr: active_requests{job=~"fm-.*"} > 50
+            for: 5m
+            labels:
+              severity: warning
+              signal: saturation
+              method: golden-signals
+            annotations:
+              summary: "High saturation on {{ $labels.job }}"
+              description: "{{ $value }} active requests on {{ $labels.job }}"
+
+      # ========================================================================
+      # RED Method Alerts (Rate, Errors, Duration)
+      # ========================================================================
+      - name: red-method
+        interval: 15s
+        rules:
+          - alert: LowRequestRate
+            expr: sum(rate(http_requests_total{job="fm-api"}[5m])) < 0.01
+            for: 15m
+            labels:
+              severity: info
+              component: rate
+              method: red
+            annotations:
+              summary: "Very low request rate on API"
+              description: "API request rate is only {{ $value | humanize }}/sec"
+
+          - alert: ClientErrorSpike
+            expr: sum(rate(http_errors_total{job=~"fm-.*", error_type="client_error"}[5m])) by (job) > 1
+            for: 5m
+            labels:
+              severity: info
+              component: errors
+              method: red
+            annotations:
+              summary: "Client error spike on {{ $labels.job }}"
+              description: "Client error rate is {{ $value | humanize }}/sec on {{ $labels.job }}"
+
+          - alert: ServerErrorSpike
+            expr: sum(rate(http_errors_total{job=~"fm-.*", error_type="server_error"}[5m])) by (job) > 0.1
+            for: 2m
+            labels:
+              severity: critical
+              component: errors
+              method: red
+            annotations:
+              summary: "Server error spike on {{ $labels.job }}"
+              description: "Server error rate is {{ $value | humanize }}/sec on {{ $labels.job }}"
+
+          - alert: SlowEndpoint
+            expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=~"fm-.*"}[5m])) by (le, endpoint, job)) > 1
+            for: 5m
+            labels:
+              severity: warning
+              component: duration
+              method: red
+            annotations:
+              summary: "Slow endpoint {{ $labels.endpoint }} on {{ $labels.job }}"
+              description: "P95 latency for {{ $labels.endpoint }} is {{ $value | humanize }}s"
+
+      # ========================================================================
+      # USE Method Alerts (Utilization, Saturation, Errors)
+      # ========================================================================
+      - name: use-method
+        interval: 15s
+        rules:
+          - alert: HighActiveRequests
+            expr: active_requests{job=~"fm-.*"} > 25
+            for: 5m
+            labels:
+              severity: warning
+              component: utilization
+              method: use
+            annotations:
+              summary: "High active request count on {{ $labels.job }}"
+              description: "{{ $value }} concurrent requests on {{ $labels.job }}"
+
+          - alert: DatabaseConnectionExhaustion
+            expr: db_connections_active{job="fm-api"} / db_connections_pool_size{job="fm-api"} > 0.8
+            for: 5m
+            labels:
+              severity: warning
+              component: utilization
+              method: use
+            annotations:
+              summary: "Database connection pool near exhaustion"
+              description: "Using {{ $value | humanizePercentage }} of database connection pool"
+
+          - alert: RequestQueueBuildup
+            expr: request_queue_size{job=~"fm-.*"} > 10
+            for: 2m
+            labels:
+              severity: warning
+              component: saturation
+              method: use
+            annotations:
+              summary: "Request queue building up on {{ $labels.job }}"
+              description: "{{ $value }} requests queued on {{ $labels.job }}"
+
+          - alert: DatabaseQueryErrors
+            expr: sum(rate(database_query_errors_total{job="fm-api"}[5m])) > 0.1
+            for: 2m
+            labels:
+              severity: critical
+              component: errors
+              method: use
+            annotations:
+              summary: "Database query errors detected"
+              description: "Database error rate is {{ $value | humanize }}/sec"
+
+          - alert: SyncOperationFailures
+            expr: sum(rate(sync_operations_total{job="fm-worker", status="failure"}[15m])) > 0
+            for: 5m
+            labels:
+              severity: warning
+              component: errors
+              method: use
+            annotations:
+              summary: "Sync operation failures detected"
+              description: "Sync failures at {{ $value | humanize }}/sec"
+
+      # ========================================================================
+      # Service Health Alerts
+      # ========================================================================
+      - name: service-health
+        interval: 30s
+        rules:
+          - alert: ServiceDown
+            expr: up{job=~"fm-.*"} == 0
+            for: 1m
+            labels:
+              severity: critical
+              component: availability
+            annotations:
+              summary: "{{ $labels.job }} is down"
+              description: "{{ $labels.job }} has been down for more than 1 minute"
+
+          - alert: DatabaseDisconnected
+            expr: database_connection_status{job="fm-api"} == 0
+            for: 1m
+            labels:
+              severity: critical
+              component: database
+            annotations:
+              summary: "Database connection lost"
+              description: "fm-api cannot connect to the database"
+
+          - alert: WorkerNotSyncing
+            expr: increase(sync_operations_total{job="fm-worker"}[1h]) == 0
+            for: 2h
+            labels:
+              severity: warning
+              component: worker
+            annotations:
+              summary: "Worker has not synced in 2 hours"
+              description: "No sync operations recorded for fm-worker in the last 2 hours"
+
+      # ========================================================================
+      # Capacity Planning Alerts
+      # ========================================================================
+      - name: capacity-planning
+        interval: 1m
+        rules:
+          - alert: HighPolicyCount
+            expr: firewall_policies_total{job="fm-api"} > 1000
+            for: 5m
+            labels:
+              severity: warning
+              component: capacity
+            annotations:
+              summary: "High number of firewall policies"
+              description: "{{ $value }} policies may impact performance"
+
+          - alert: VeryHighAddressCount
+            expr: firewall_addresses_total{job="fm-api"} > 5000
+            for: 5m
+            labels:
+              severity: warning
+              component: capacity
+            annotations:
+              summary: "Very high number of firewall addresses"
+              description: "{{ $value }} addresses, consider optimization"
+
+          - alert: LongSyncDuration
+            expr: histogram_quantile(0.95, sum(rate(sync_duration_seconds_bucket{job="fm-worker"}[1h])) by (le, firewall_id)) > 300
+            for: 15m
+            labels:
+              severity: warning
+              component: capacity
+            annotations:
+              summary: "Sync taking too long for firewall {{ $labels.firewall_id }}"
+              description: "P95 sync duration is {{ $value | humanize }}s"
+

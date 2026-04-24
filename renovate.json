@@ -1,0 +1,124 @@
+{
+  "extends": [
+    "config:recommended",
+    ":semanticCommits"
+  ],
+  "timezone": "Europe/Amsterdam",
+  "schedule": [
+    "before 6am on monday"
+  ],
+  "labels": [
+    "renovate",
+    "dependencies"
+  ],
+  "prConcurrentLimit": 10,
+  "prHourlyLimit": 4,
+  "vulnerabilityAlerts": {
+    "labels": [
+      "security",
+      "renovate"
+    ]
+  },
+  "flux": {
+    "fileMatch": [
+      "(^|/)infra/.+\\.ya?ml$",
+      "(^|/)clusters/.+\\.ya?ml$"
+    ]
+  },
+  "kubernetes": {
+    "fileMatch": [
+      "(^|/)apps/.+\\.ya?ml$",
+      "(^|/)services/.+\\.ya?ml$",
+      "(^|/)infra/.+\\.ya?ml$",
+      "(^|/)clusters/.+\\.ya?ml$"
+    ]
+  },
+  "docker-compose": {
+    "fileMatch": [
+      "(^|/)[^/]*docker-compose[^/]*\\.ya?ml$",
+      "(^|/)stack-[^/]+\\.ya?ml$",
+      "(^|/)docker-stack/[^/]+\\.ya?ml$"
+    ]
+  },
+  "github-actions": {
+    "enabled": true
+  },
+  "enabledManagers": [
+    "flux",
+    "kubernetes",
+    "docker-compose",
+    "github-actions",
+    "custom.regex"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Track split repository+tag image references in HelmRelease values blocks",
+      "fileMatch": [
+        "(^|/)infra/[^/]+/[^/]*helmrelease\\.ya?ml$"
+      ],
+      "matchStrings": [
+        "repository:\\s+(?<depName>\\S+)\\n\\s+tag:\\s+[\"']?(?<currentValue>[\\w][\\w.\\-]*)[\"']?"
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Group Flux CD system controller image updates",
+      "matchManagers": [
+        "kubernetes"
+      ],
+      "matchPackagePatterns": [
+        "^ghcr\\.io/fluxcd/"
+      ],
+      "groupName": "Flux CD controllers",
+      "automerge": false
+    },
+    {
+      "description": "Group all Helm chart minor and patch version bumps",
+      "matchManagers": [
+        "flux"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "Helm charts (minor & patch)",
+      "automerge": false
+    },
+    {
+      "description": "Group Authentik server image updates across K8s and Docker Compose",
+      "matchPackagePatterns": [
+        "^ghcr\\.io/goauthentik/"
+      ],
+      "groupName": "Authentik images",
+      "automerge": false
+    },
+    {
+      "description": "Group postgres and redis base image minor and patch updates",
+      "matchPackageNames": [
+        "postgres",
+        "redis"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "Base images (postgres & redis)",
+      "automerge": false
+    },
+    {
+      "description": "Label and isolate all major version updates for manual review",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "labels": [
+        "major-update",
+        "renovate",
+        "dependencies"
+      ],
+      "automerge": false
+    }
+  ]
+}
