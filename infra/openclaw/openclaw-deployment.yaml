@@ -35,9 +35,34 @@ spec:
             - -c
             - |
               mkdir -p /home/node/.openclaw/skills
+              mkdir -p /home/node/.openclaw/.openclaw
               cp /config/k8s-monitor.js /home/node/.openclaw/skills/k8s-monitor.js
               cp /config/AGENTS.md /home/node/.openclaw/AGENTS.md
               cp /config/openclaw.json /home/node/.openclaw/openclaw.json
+              cp /config/openclaw.json /home/node/.openclaw/.openclaw/openclaw.json
+              node -e '
+              const fs = require("fs");
+              const raw = process.env.OPENCLAW_ALLOWED_ORIGINS || "";
+              const origins = raw.split(",").map((s) => s.trim()).filter(Boolean);
+              if (!origins.length) process.exit(0);
+              const paths = [
+                "/home/node/.openclaw/openclaw.json",
+                "/home/node/.openclaw/.openclaw/openclaw.json",
+              ];
+              for (const p of paths) {
+                const cfg = JSON.parse(fs.readFileSync(p, "utf8"));
+                cfg.gateway = cfg.gateway || {};
+                cfg.gateway.controlUi = cfg.gateway.controlUi || {};
+                cfg.gateway.controlUi.allowedOrigins = origins;
+                fs.writeFileSync(p, JSON.stringify(cfg, null, 2));
+              }
+              '
+          env:
+            - name: OPENCLAW_ALLOWED_ORIGINS
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: OPENCLAW_ALLOWED_ORIGINS
           securityContext:
             runAsUser: 1000
             runAsGroup: 1000
@@ -75,7 +100,11 @@ spec:
             - name: OPENCLAW_HOME
               value: /home/node/.openclaw
             - name: OPENCLAW_CONFIG_DIR
-              value: /home/node/.openclaw
+              value: /home/node/.openclaw/.openclaw
+            - name: NPM_CONFIG_CACHE
+              value: /tmp/.npm
+            - name: npm_config_cache
+              value: /tmp/.npm
             - name: NODE_ENV
               value: production
             - name: KUBERNETES_IN_CLUSTER
@@ -112,6 +141,8 @@ spec:
               mountPath: /home/node/workspace
             - name: tmp-volume
               mountPath: /tmp
+            - name: npm-cache
+              mountPath: /home/node/.npm
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
@@ -127,6 +158,8 @@ spec:
         - name: workspace
           emptyDir: {}
         - name: tmp-volume
+          emptyDir: {}
+        - name: npm-cache
           emptyDir: {}
         - name: config
           configMap:
