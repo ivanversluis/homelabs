@@ -6,42 +6,13 @@ metadata:
 data:
   openclaw.json: |
     {
-      "agent": {
-        "name": "Claw",
-        "persona": "homelab-k8s-ops"
-      },
-      "agents": {
-        "defaults": {
-          "model": "openrouter/deepseek/deepseek-r1"
-        }
-      },
       "gateway": {
-        "mode": "local"
-      },
-      "model": {
-        "provider": "openrouter",
-        "name": "deepseek/deepseek-r1",
-        "maxTokens": 8192
-      },
-      "communications": {
-        "discord": {
-          "enabled": true,
-          "channels": {
-            "alerts": "k8s-alerts",
-            "general": "general"
-          }
+        "mode": "local",
+        "bind": "lan",
+        "controlUi": {
+          "dangerouslyAllowHostHeaderOriginFallback": true,
+          "allowedOrigins": []
         }
-      },
-      "heartbeat": {
-        "enabled": true,
-        "intervalMinutes": 30,
-        "message": "Run the k8s-monitor skill and report any errors or anomalies found in the cluster."
-      },
-      "skills": {
-        "autoLoad": [
-          "kubectl",
-          "k8s-monitor"
-        ]
       }
     }
   AGENTS.md: |
