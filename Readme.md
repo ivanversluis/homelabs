@@ -1,4 +1,5 @@
-My personal bare-metal Kubernetes homelab, managed with Flux GitOps and slowly optimized as an enterprise grade instance. Focus on core services and later on hardening the services and having meaningful observability on top.
+My personal bare-metal Kubernetes homelab, managed with Flux GitOps and slowly optimized as an enterprise-grade instance. Focus on core services and later on hardening the services and having meaningful observability on top.
+
 ## Architecture
 
 ```mermaid
@@ -22,16 +23,39 @@ flowchart LR
   end
  subgraph CoreServices["Storage & Networking Layer"]
     direction LR
-        LH["Longhorn - Persistent storage"]
+        LH["Longhorn - Persistent Storage"]
         CL["Calico - CNI"]
         LB["MetalLB - Load Balancer"]
   end
- subgraph Infra["Apps & Infrastructure Services"]
+ subgraph Infra["Infrastructure Services"]
     direction LR
         ID["Authentik (Identity)"]
         DNS["Pi-hole + Unbound (DNS)"]
-        VAULT["Vault"]
+        VAULT["Vault (Secrets)"]
         TUN["Cloudflare Tunnel"]
+        EXT["External Secrets"]
+  end
+ subgraph Observability["Observability & Monitoring"]
+    direction LR
+        PROM["kube-prometheus-stack"]
+        GRAF["Grafana"]
+        LOKI["Loki"]
+        PRTL["Promtail"]
+        MS["metrics-server"]
+  end
+ subgraph Management["Cluster Management"]
+    direction LR
+        PORT["Portainer EE"]
+        HEAD["Headlamp"]
+        SEM["SemaphoreUI"]
+        OC["OpenClaw (AI Ops)"]
+  end
+ subgraph Apps["User Applications"]
+    direction LR
+        N8N["n8n"]
+        FGJ["Forgejo"]
+        LKD["Linkding"]
+        TMX["Termix"]
   end
  subgraph K8S["Kubernetes Cluster · Arch Linux"]
     direction TB
@@ -39,6 +63,9 @@ flowchart LR
         Workers
         CoreServices
         Infra
+        Observability
+        Management
+        Apps
   end
  subgraph GitOps["GitOps · Deployment Management"]
     direction TB
@@ -46,8 +73,11 @@ flowchart LR
   end
     CP --> Workers
     Workers --> CoreServices
-    FLUX --> CoreServices & Infra
+    FLUX --> CoreServices & Infra & Observability & Management & Apps
     CoreServices --> Infra
+    Infra --> Observability
+    Infra --> Management
+    Infra --> Apps
   style CP fill:#0088cc
   style W1 fill:#0088cc
   style W2 fill:#0088cc
@@ -68,25 +98,36 @@ flowchart LR
 ## Repo layout
 
 - `clusters/k8s-homelab` — cluster entrypoint + Flux bootstrap
-- `infra` — shared platform components (vault, monitoring, external-secrets, etc.)
+- `infra` — shared platform components (vault, monitoring, external-secrets, headlamp, portainer, semaphoreui, openclaw, etc.)
 - `services` — core services (DNS, storage, LB, identity, tunnel)
-- `apps` — user workloads (`linkding`, `n8n`, `termix`)
+- `apps` — user workloads (`linkding`, `n8n`, `termix`, `forgejo`)
 - `scripts` — host/bootstrap helper scripts
 
 ## Stack
 
-| Component      | Current in repo                     | Roadmap |
-|----------------|-------------------------------------|---------|
-| OS             | Arch Linux                          | —       |
-| CNI            | Calico                              | Cilium  |
-| GitOps         | Flux (Kustomize + HelmRelease)      | —       |
-| LB             | MetalLB                             | kube-vip (planned) |
-| Storage        | Longhorn                            | —       |
-| DNS            | Pi-hole + Unbound                   | —       |
-| Secrets        | Vault + External Secrets            | —       |
-| Identity       | Authentik                           | —       |
-| Tunnel         | Cloudflare Tunnel                   | —       |
-| Monitoring     | kube-prometheus-stack + metrics-server | —    |
+| Component      | Current in repo                              | Roadmap              |
+|----------------|----------------------------------------------|----------------------|
+| OS             | Arch Linux                                   | —                    |
+| CNI            | Calico                                       | Cilium               |
+| GitOps         | Flux CD (Kustomize + HelmRelease)            | —                    |
+| Load Balancer  | MetalLB                                      | kube-vip (planned)   |
+| Storage        | Longhorn                                     | —                    |
+| DNS            | Pi-hole + Unbound                            | —                    |
+| Secrets        | Vault + External Secrets                     | —                    |
+| Identity       | Authentik                                    | —                    |
+| Tunnel         | Cloudflare Tunnel                            | —                    |
+| Monitoring     | kube-prometheus-stack + metrics-server       | —                    |
+| Observability  | Grafana + Loki + Promtail                    | —                    |
+| Automation     | SemaphoreUI                                  | —                    |
+| Container Mgmt | Portainer EE                                 | —                    |
+| K8s Dashboard  | Headlamp                                     | —                    |
+| AI Ops Agent   | OpenClaw                                     | —                    |
 
+## Apps
 
-
+| App      | Image                                    |
+|----------|------------------------------------------|
+| n8n      | `n8nio/n8n`                              |
+| Forgejo  | `codeberg.org/forgejo/forgejo`           |
+| Linkding | `sissbruecker/linkding`                  |
+| Termix   | `ghcr.io/lukegus/termix`                 |
