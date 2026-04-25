@@ -17,8 +17,6 @@ spec:
       labels:
         app.kubernetes.io/name: loki
         app.kubernetes.io/component: logging
-      annotations:
-        checksum/config: "loki-config"
     spec:
       securityContext:
         fsGroup: 10001

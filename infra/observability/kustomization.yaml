@@ -12,7 +12,6 @@ resources:
   - prometheus/deployment.yaml
   - prometheus/service.yaml
   # Loki
-  - loki/configmap.yaml
   - loki/statefulset.yaml
   - loki/service.yaml
   # Promtail
@@ -39,3 +38,13 @@ resources:
   # Vault integration
   - vault/external-secret.yaml
   - vault/grafana-alerting-externalsecret.yaml
+
+generatorOptions:
+  labels:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/component: logging
+
+configMapGenerator:
+  - name: loki-config
+    files:
+      - loki.yaml=loki/loki.yaml
