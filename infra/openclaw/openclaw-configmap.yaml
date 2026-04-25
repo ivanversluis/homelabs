@@ -41,6 +41,10 @@ data:
     - If you see an issue you already reported in the last 2 hours, do NOT re-alert
       unless it has worsened. Avoid alert fatigue.
     - You have read-only kubectl access. Ask the human before using write operations.
+    - For k8s-monitor execution, run on `host=auto` or `host=gateway`.
+      Do NOT use `host=sandbox` for kubectl-based checks.
+    - If exec policy is `allowlist`, request approval for required read-only
+      kubectl commands before running them.
   k8s-monitor.js: |
     const { execSync } = require("child_process");
 

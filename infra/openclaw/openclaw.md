@@ -50,3 +50,36 @@ kubectl kustomize infra/openclaw >/dev/null
 kubectl kustomize infra >/dev/null
 kubectl kustomize clusters/k8s-homelab >/dev/null
 ```
+
+## Run k8s-monitor report directly
+
+If the OpenClaw skill list is not showing `k8s-monitor`, run the mounted skill file
+directly from this repo helper script:
+
+```bash
+./scripts/openclaw-k8s-monitor-report.sh
+```
+
+Optional environment overrides:
+
+- `OPENCLAW_NAMESPACE` (default: `openclaw`)
+- `OPENCLAW_SELECTOR` (default: `app.kubernetes.io/name=openclaw`)
+
+## OpenClaw UI chat prompts (recommended)
+
+Use these prompts in Control UI chat to avoid sandbox runtime issues:
+
+```text
+Run the k8s-monitor skill now using host=gateway and return only report JSON.
+```
+
+```text
+If exec policy blocks commands, request allowlist approval for read-only kubectl commands and then continue.
+```
+
+If UI skill execution is blocked by sandbox/auth errors, keep using the script runner
+as fallback:
+
+```bash
+./scripts/openclaw-k8s-monitor-report.sh
+```
