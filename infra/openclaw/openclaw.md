@@ -28,6 +28,7 @@ Store the OpenClaw secret at path `infra/openclaw` in Vault with these propertie
 - `DISCORD_TOKEN` (required)
 - `OPENROUTER_API_KEY` (required for OpenRouter model provider)
 - `OPENCLAW_ALLOWED_ORIGINS` (required when binding gateway on LAN; comma-separated origins)
+- `OPENCLAW_TRUSTED_PROXIES` (recommended behind Cloudflare Tunnel; comma-separated CIDRs)
 
 Example:
 
@@ -36,7 +37,8 @@ vault kv put kv/infra/openclaw \
   OPENCLAW_GATEWAY_TOKEN="<generated-token>" \
   DISCORD_TOKEN="<discord-bot-token>" \
   OPENROUTER_API_KEY="<openrouter-api-key>" \
-  OPENCLAW_ALLOWED_ORIGINS="https://openclaw.example.invalid,http://127.0.0.1:18789,http://localhost:18789"
+  OPENCLAW_ALLOWED_ORIGINS="https://openclaw.example.invalid,http://127.0.0.1:18789,http://localhost:18789" \
+  OPENCLAW_TRUSTED_PROXIES="10.244.0.0/16"
 ```
 
 Only the OpenRouter key is used for LLM calls.
