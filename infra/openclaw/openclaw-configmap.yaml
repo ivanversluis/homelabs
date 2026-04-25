@@ -91,7 +91,8 @@ data:
               (c) =>
                 c.state?.waiting?.reason === "CrashLoopBackOff" ||
                 c.state?.waiting?.reason === "ImagePullBackOff" ||
-                c.state?.terminated?.reason === "OOMKilled"
+                c.state?.terminated?.reason === "OOMKilled" ||
+                (c.restartCount > 0 && c.ready === false && c.state?.terminated && c.state.terminated.reason !== "Completed")
             )
           )
           .map((p) => ({
