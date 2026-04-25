@@ -26,6 +26,7 @@ Store the OpenClaw secret at path `infra/openclaw` in Vault with these propertie
 
 - `OPENCLAW_GATEWAY_TOKEN` (required)
 - `DISCORD_TOKEN` (required)
+- `DISCORD_BOT_TOKEN` is injected into the pod from `DISCORD_TOKEN` for OpenClaw's Discord send path
 - `OPENROUTER_API_KEY` (required for OpenRouter model provider)
 - `OPENCLAW_ALLOWED_ORIGINS` (required when binding gateway on LAN; comma-separated origins)
 - `OPENCLAW_TRUSTED_PROXIES` (recommended behind Cloudflare Tunnel; comma-separated CIDRs)

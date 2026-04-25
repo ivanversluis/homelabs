@@ -116,6 +116,11 @@ spec:
               value: /home/node/.openclaw
             - name: OPENCLAW_CONFIG_DIR
               value: /home/node/.openclaw/.openclaw
+            - name: DISCORD_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: DISCORD_TOKEN
             - name: NPM_CONFIG_CACHE
               value: /tmp/.npm
             - name: npm_config_cache
