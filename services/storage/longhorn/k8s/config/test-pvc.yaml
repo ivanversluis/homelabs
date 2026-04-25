@@ -17,7 +17,7 @@ spec:
         node.longhorn.io/create-default-disk: "true"
       containers:
         - name: app
-          image: nginx:1.27
+          image: nginx:1.30
           volumeMounts:
             - name: data
               mountPath: /data
