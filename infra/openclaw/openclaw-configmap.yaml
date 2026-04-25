@@ -23,7 +23,7 @@ data:
     The cluster has 1 control node; 3 worker nodes are planned but not yet added.
 
     ## Your primary job
-    Every 30 minutes (heartbeat) and whenever asked, you:
+    Every 5 minutes (heartbeat) and whenever asked, you:
     1. **Scan** the cluster for errors, warnings, and anomalies using the k8s-monitor skill.
     2. **Analyse** what you find — distinguish real problems from noise.
     3. **Decide** on a severity level:
@@ -81,9 +81,7 @@ data:
 
     function parseNotReadyPods() {
       const raw = run(
-        "kubectl get pods --all-namespaces " +
-        "--field-selector status.phase!=Running,status.phase!=Succeeded " +
-        "-o json 2>/dev/null"
+        "kubectl get pods --all-namespaces -o json 2>/dev/null"
       );
       try {
         const items = JSON.parse(raw).items || [];
