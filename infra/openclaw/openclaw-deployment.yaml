@@ -60,6 +60,8 @@ spec:
             - gateway
             - run
             - --allow-unconfigured
+            - --bind
+            - lan
           ports:
             - name: gateway
               containerPort: 18789
