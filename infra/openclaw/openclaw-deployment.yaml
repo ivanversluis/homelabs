@@ -44,8 +44,6 @@ spec:
               const fs = require("fs");
               const originsRaw = process.env.OPENCLAW_ALLOWED_ORIGINS || "";
               const proxiesRaw = process.env.OPENCLAW_TRUSTED_PROXIES || "";
-              const discordUserId = process.env.DISCORD_USER_ID || "";
-              const discordGuildId = process.env.DISCORD_GUILD_ID || "";
               const origins = originsRaw.split(",").map((s) => s.trim()).filter(Boolean);
               const trustedProxies = proxiesRaw.split(",").map((s) => s.trim()).filter(Boolean);
               const paths = [
@@ -65,20 +63,29 @@ spec:
                 if (trustedProxies.length) {
                   cfg.gateway.trustedProxies = trustedProxies;
                 }
-                cfg.channels = cfg.channels || {};
-                cfg.channels.discord = cfg.channels.discord || {};
-                if (discordUserId) {
-                  cfg.channels.discord.allowFrom = [discordUserId];
-                  cfg.channels.discord.dmPolicy = "open";
-                }
-                if (discordGuildId) {
-                  cfg.channels.discord.groupPolicy = "allowlist";
-                  cfg.channels.discord.guilds = cfg.channels.discord.guilds || {};
-                  cfg.channels.discord.guilds[discordGuildId] = { allowlist: ["*"] };
-                }
                 fs.writeFileSync(p, JSON.stringify(cfg, null, 2));
               }
               '
+              HOME=/home/node OPENCLAW_HOME=/home/node/.openclaw \
+              OPENCLAW_CONFIG_DIR=/home/node/.openclaw/.openclaw \
+              NPM_CONFIG_CACHE=/tmp/.npm \
+              node /app/dist/index.js config set channels.discord.dmPolicy open 2>/dev/null || true
+              HOME=/home/node OPENCLAW_HOME=/home/node/.openclaw \
+              OPENCLAW_CONFIG_DIR=/home/node/.openclaw/.openclaw \
+              NPM_CONFIG_CACHE=/tmp/.npm \
+              node /app/dist/index.js config set channels.discord.groupPolicy allowlist 2>/dev/null || true
+              if [ -n "$DISCORD_USER_ID" ]; then
+                HOME=/home/node OPENCLAW_HOME=/home/node/.openclaw \
+                OPENCLAW_CONFIG_DIR=/home/node/.openclaw/.openclaw \
+                NPM_CONFIG_CACHE=/tmp/.npm \
+                node /app/dist/index.js config set channels.discord.allowFrom "[\"$DISCORD_USER_ID\"]" --strict-json 2>/dev/null || true
+              fi
+              if [ -n "$DISCORD_GUILD_ID" ]; then
+                HOME=/home/node OPENCLAW_HOME=/home/node/.openclaw \
+                OPENCLAW_CONFIG_DIR=/home/node/.openclaw/.openclaw \
+                NPM_CONFIG_CACHE=/tmp/.npm \
+                node /app/dist/index.js config set channels.discord.guilds "{\"$DISCORD_GUILD_ID\":{\"allowlist\":[\"*\"]}}" --strict-json 2>/dev/null || true
+              fi
           env:
             - name: OPENCLAW_ALLOWED_ORIGINS
               valueFrom:
@@ -113,7 +120,8 @@ spec:
               mountPath: /home/node/.openclaw
             - name: config
               mountPath: /config
-      containers:
+            - name: tmp-volume
+              mountPath: /tmp
         - name: openclaw
           image: ghcr.io/openclaw/openclaw:2026.4.23
           imagePullPolicy: IfNotPresent
