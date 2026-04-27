@@ -122,6 +122,7 @@ spec:
               mountPath: /config
             - name: tmp-volume
               mountPath: /tmp
+      containers:
         - name: openclaw
           image: ghcr.io/openclaw/openclaw:2026.4.23
           imagePullPolicy: IfNotPresent
