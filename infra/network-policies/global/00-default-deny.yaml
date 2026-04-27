@@ -1,0 +1,25 @@
+---
+# Zero Trust baseline: default-deny ingress + egress for every namespace
+# except the system namespaces explicitly excluded below.
+# Order 1000 is evaluated last; namespace NetworkPolicies (with implicit
+# higher priority for explicit allow rules) and lower-order Calico policies
+# (DNS carve-out at order 20) take precedence.
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: zt-default-deny
+spec:
+  order: 1000
+  namespaceSelector: >
+    kubernetes.io/metadata.name not in {
+      "kube-system",
+      "kube-public",
+      "kube-node-lease",
+      "calico-system",
+      "tigera-operator",
+      "longhorn-system",
+      "metallb-system"
+    }
+  types:
+    - Ingress
+    - Egress

@@ -11,3 +11,4 @@ resources:
   - nodes/
   - portainer/
   - openclaw/
+  - network-policies/
