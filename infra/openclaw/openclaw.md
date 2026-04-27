@@ -78,7 +78,7 @@ kubectl logs -n openclaw deployment/openclaw -f | grep discord
 
 The agent must use `channel:<id>` prefix when calling the message tool.
 Bare numeric IDs are rejected by openclaw as ambiguous.
-The `#k8s-alerts` channel ID is hardcoded in AGENTS.md as `channel:1060626854429610045`.
+The `#homelab` channel ID is hardcoded in the skill as `1498285999552204810`.
 
 
 

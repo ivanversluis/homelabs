@@ -255,7 +255,7 @@ data:
       const r = spawnSync("node", ["-e", inner], {
         encoding: "utf8",
         timeout: 15000,
-        env: { ...process.env, TOK: token, CHAN: "1060626854429610045", MSG: buildAlertMessage(sev, sum, det) },
+        env: { ...process.env, TOK: token, CHAN: "1498285999552204810", MSG: buildAlertMessage(sev, sum, det) },
       });
       try { return JSON.parse(r.stdout || "{}"); }
       catch { return { sent: false, error: r.stderr || "parse error" }; }
