@@ -44,6 +44,8 @@ spec:
               const fs = require("fs");
               const originsRaw = process.env.OPENCLAW_ALLOWED_ORIGINS || "";
               const proxiesRaw = process.env.OPENCLAW_TRUSTED_PROXIES || "";
+              const discordUserId = process.env.DISCORD_USER_ID || "";
+              const discordGuildId = process.env.DISCORD_GUILD_ID || "";
               const origins = originsRaw.split(",").map((s) => s.trim()).filter(Boolean);
               const trustedProxies = proxiesRaw.split(",").map((s) => s.trim()).filter(Boolean);
               const paths = [
@@ -63,6 +65,14 @@ spec:
                 if (trustedProxies.length) {
                   cfg.gateway.trustedProxies = trustedProxies;
                 }
+                cfg.channels = cfg.channels || {};
+                cfg.channels.discord = cfg.channels.discord || {};
+                if (discordUserId) {
+                  cfg.channels.discord.allowFrom = [discordUserId];
+                }
+                if (discordGuildId) {
+                  cfg.channels.discord.guildAllowlist = [discordGuildId];
+                }
                 fs.writeFileSync(p, JSON.stringify(cfg, null, 2));
               }
               '
@@ -78,6 +88,16 @@ spec:
                   name: openclaw-secrets
                   key: OPENCLAW_TRUSTED_PROXIES
                   optional: true
+            - name: DISCORD_USER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: DISCORD_USER_ID
+            - name: DISCORD_GUILD_ID
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: DISCORD_GUILD_ID
           securityContext:
             runAsUser: 1000
             runAsGroup: 1000
