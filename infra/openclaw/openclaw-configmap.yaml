@@ -14,6 +14,11 @@ data:
           "allowedOrigins": []
         }
       },
+      "agents": {
+        "defaults": {
+          "model": "openrouter/meta-llama/llama-3.3-70b-instruct:free"
+        }
+      },
       "channels": {
         "discord": {
           "enabled": true,
