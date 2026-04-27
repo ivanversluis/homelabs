@@ -33,7 +33,7 @@ resources:
   - ns-linkding.yaml
   # - ns-n8n.yaml
   # - ns-termix.yaml
-  # - ns-forgejo.yaml
+  - ns-forgejo.yaml
 
   # --- Phase 3: identity + tunnel ---
   # - ns-identity.yaml

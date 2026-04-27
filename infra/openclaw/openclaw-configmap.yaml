@@ -16,7 +16,7 @@ data:
       },
       "agents": {
         "defaults": {
-          "model": "openrouter/meta-llama/llama-3.3-70b-instruct:free"
+          "model": "openrouter/auto"
         }
       },
       "channels": {
