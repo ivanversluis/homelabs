@@ -16,7 +16,8 @@ data:
       },
       "channels": {
         "discord": {
-          "enabled": true
+          "enabled": true,
+          "dmPolicy": "open"
         }
       },
       "cron": [
