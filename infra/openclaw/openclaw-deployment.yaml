@@ -69,9 +69,12 @@ spec:
                 cfg.channels.discord = cfg.channels.discord || {};
                 if (discordUserId) {
                   cfg.channels.discord.allowFrom = [discordUserId];
+                  cfg.channels.discord.dmPolicy = "open";
                 }
                 if (discordGuildId) {
-                  cfg.channels.discord.guildAllowlist = [discordGuildId];
+                  cfg.channels.discord.groupPolicy = "allowlist";
+                  cfg.channels.discord.guilds = cfg.channels.discord.guilds || {};
+                  cfg.channels.discord.guilds[discordGuildId] = { allowlist: ["*"] };
                 }
                 fs.writeFileSync(p, JSON.stringify(cfg, null, 2));
               }
