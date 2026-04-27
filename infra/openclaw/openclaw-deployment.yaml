@@ -66,6 +66,9 @@ spec:
                 node /app/dist/index.js config set gateway.trustedProxies "$PROXIES" --strict-json 2>/dev/null || true
               fi
 
+              # Default model: use OpenRouter free model (OPENROUTER_API_KEY env fallback is auto-picked up)
+              node /app/dist/index.js config set agents.defaults.model openrouter/meta-llama/llama-3.3-70b-instruct:free 2>/dev/null || true
+
               # Discord: DM allowlist and guild access without @mention
               if [ -n "$DISCORD_USER_ID" ]; then
                 node /app/dist/index.js config set channels.discord.allowFrom \
