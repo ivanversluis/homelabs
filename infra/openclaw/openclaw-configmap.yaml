@@ -18,7 +18,14 @@ data:
         "discord": {
           "enabled": true
         }
-      }
+      },
+      "cron": [
+        {
+          "id": "k8s-monitor-every-5-min",
+          "schedule": "*/5 * * * *",
+          "message": "Run the k8s-monitor skill on host=gateway. Load skill at /home/node/.openclaw/skills/k8s-monitor.js and call module.exports.report. If severity is not 'ok', call the message tool with action=send, channel=discord, target=channel:1060626854429610045. Include a summary of the issues in the message. Return the report JSON."
+        }
+      ]
     }
   AGENTS.md: |
     # Homelab K8s Ops Agent
@@ -49,8 +56,11 @@ data:
     - The k8s-monitor skill uses the pod service account to call the K8s API
       directly over HTTPS — no kubectl binary is required or used.
       Run on `host=auto` or `host=gateway`. Do NOT use `host=sandbox`.
-    - When sending Discord alerts, always use target `channel:1060626854429610045`
-      (the #k8s-alerts channel). Do NOT use a bare numeric ID.
+    - When sending Discord alerts, the message tool `target` parameter MUST be
+      the literal string `channel:1060626854429610045` — including the `channel:`
+      prefix. NEVER pass a bare number like `1060626854429610045` alone.
+      Correct:   target="channel:1060626854429610045"
+      WRONG:     target="1060626854429610045"
   k8s-monitor.js: |
     "use strict";
     const { spawnSync } = require("child_process");
