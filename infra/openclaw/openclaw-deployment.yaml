@@ -67,7 +67,7 @@ spec:
               fi
 
               # Default model: use OpenRouter free model (OPENROUTER_API_KEY env fallback is auto-picked up)
-              node /app/dist/index.js config set agents.defaults.model openrouter/auto 2>/dev/null || true
+              node /app/dist/index.js config set agents.defaults.model openrouter/free 2>/dev/null || true
 
               # Discord: DM allowlist and guild access without @mention
               if [ -n "$DISCORD_USER_ID" ]; then

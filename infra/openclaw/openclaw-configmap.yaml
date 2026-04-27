@@ -16,7 +16,7 @@ data:
       },
       "agents": {
         "defaults": {
-          "model": "openrouter/auto"
+          "model": "openrouter/free"
         }
       },
       "channels": {
