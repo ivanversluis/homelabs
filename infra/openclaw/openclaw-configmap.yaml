@@ -16,7 +16,14 @@ data:
       },
       "channels": {
         "discord": {
-          "enabled": true
+          "enabled": true,
+          "token": {
+            "$ref": {
+              "provider": "default",
+              "source": "env",
+              "id": "DISCORD_TOKEN"
+            }
+          }
         }
       },
       "cron": [

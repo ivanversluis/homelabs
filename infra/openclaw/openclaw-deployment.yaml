@@ -75,16 +75,25 @@ spec:
                 cfg.channels = cfg.channels || {};
                 cfg.channels.discord = cfg.channels.discord || {};
                 cfg.channels.discord.enabled = true;
-                cfg.channels.discord.dmPolicy = cfg.channels.discord.dmPolicy || "open";
-                cfg.channels.discord.groupPolicy = cfg.channels.discord.groupPolicy || "allowlist";
+                // Only patch allowFrom/dmPolicy — these are safe to set on every boot.
+                // token, groupPolicy and guilds are either in the seed config or
+                // managed by OpenClaw after first boot. Do not overwrite them here.
                 if (discordUserId && !(cfg.channels.discord.allowFrom || []).includes(discordUserId)) {
                   cfg.channels.discord.allowFrom = [discordUserId];
                 }
-                if (discordGuildId) {
-                  cfg.channels.discord.guilds = cfg.channels.discord.guilds || {};
-                  if (!cfg.channels.discord.guilds[discordGuildId]) {
-                    cfg.channels.discord.guilds[discordGuildId] = { allowlist: ["*"] };
-                  }
+                if (!cfg.channels.discord.dmPolicy) {
+                  cfg.channels.discord.dmPolicy = "open";
+                }
+                // Remove stale groupPolicy that blocks guild messages when guilds is not yet set.
+                if (cfg.channels.discord.groupPolicy === "allowlist" &&
+                    !cfg.channels.discord.guilds) {
+                  delete cfg.channels.discord.groupPolicy;
+                }
+                // Ensure guilds allowlist is set from secret env var if provided.
+                if (discordGuildId && !cfg.channels.discord.guilds) {
+                  cfg.channels.discord.guilds = {};
+                  cfg.channels.discord.guilds[discordGuildId] = { allowlist: ["*"] };
+                  cfg.channels.discord.groupPolicy = "allowlist";
                 }
                 fs.writeFileSync(p, JSON.stringify(cfg, null, 2));
               }
