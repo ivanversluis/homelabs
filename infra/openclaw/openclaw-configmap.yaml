@@ -23,7 +23,7 @@ data:
         {
           "id": "k8s-monitor-every-5-min",
           "schedule": "*/5 * * * *",
-          "message": "Run the k8s-monitor skill on host=gateway. Load skill at /home/node/.openclaw/skills/k8s-monitor.js and call module.exports.report. If severity is not 'ok', call the message tool with action=send, channel=discord, target=channel:1060626854429610045. Include a summary of the issues in the message. Return the report JSON."
+          "message": "Run the k8s-monitor skill on host=gateway. Load the skill at /home/node/.openclaw/skills/k8s-monitor.js using: const m = require('/home/node/.openclaw/skills/k8s-monitor.js'); The skill sends Discord alerts automatically when severity is not ok. Return the report JSON and confirm whether discordAlert.status is 200."
         }
       ]
     }
@@ -56,11 +56,11 @@ data:
     - The k8s-monitor skill uses the pod service account to call the K8s API
       directly over HTTPS — no kubectl binary is required or used.
       Run on `host=auto` or `host=gateway`. Do NOT use `host=sandbox`.
-    - When sending Discord alerts, the message tool `target` parameter MUST be
-      the literal string `channel:1060626854429610045` — including the `channel:`
-      prefix. NEVER pass a bare number like `1060626854429610045` alone.
-      Correct:   target="channel:1060626854429610045"
-      WRONG:     target="1060626854429610045"
+    - The k8s-monitor skill sends Discord alerts automatically via the Discord
+      REST API when severity is not ok. Do NOT call the message tool for k8s
+      alerts — it is already handled. After running the skill, check
+      `discordAlert.status` in the returned report (200 = delivered successfully)
+      and confirm back to the user with what was found.
   k8s-monitor.js: |
     "use strict";
     const { spawnSync } = require("child_process");
@@ -203,23 +203,84 @@ data:
       severity = SEV.WARN;
     }
 
+    function buildAlertMessage(sev, sum, det) {
+      const icon = (sev === SEV.ERROR || sev === SEV.CRITICAL) ? "\uD83D\uDD34" : "\uD83D\uDFE1";
+      let msg = `${icon} **K8s Alert** \u2014 Severity: **${sev.toUpperCase()}**\n`;
+      msg += `\n**Summary:** ${sum.criticalEvents} critical events | ${sum.unhealthyPods} unhealthy pods | ${sum.nodesNotReady} nodes not ready\n`;
+      if (det.criticalEvents.length > 0) {
+        msg += `\n**Critical Events:**\n`;
+        det.criticalEvents.slice(0, 3).forEach((e) => {
+          msg += `\u2022 \`${e.name}\` (${e.namespace}) \u2014 ${e.reason}: ${String(e.message || "").substring(0, 100)} (${e.count || 1}\u00d7)\n`;
+        });
+      }
+      if (det.badPods.length > 0) {
+        msg += `\n**Unhealthy Pods:**\n`;
+        det.badPods.slice(0, 5).forEach((p) => {
+          const reason = p.containers[0]?.state?.waiting?.reason
+            || p.containers[0]?.state?.terminated?.reason
+            || "unknown";
+          msg += `\u2022 \`${p.name}\` (${p.namespace}) \u2014 ${reason}\n`;
+        });
+      }
+      return msg.substring(0, 2000);
+    }
+
+    function sendDiscordAlert(sev, sum, det) {
+      const token = process.env.DISCORD_BOT_TOKEN;
+      if (!token || token.startsWith("https://")) {
+        return { sent: false, error: "DISCORD_BOT_TOKEN not set or is a webhook URL" };
+      }
+      const inner = [
+        'const https = require("https");',
+        'const body = JSON.stringify({ content: process.env.MSG });',
+        'const req = https.request({',
+        '  hostname: "discord.com", port: 443,',
+        '  path: "/api/v10/channels/" + process.env.CHAN + "/messages",',
+        '  method: "POST",',
+        '  headers: {',
+        '    Authorization: "Bot " + process.env.TOK,',
+        '    "Content-Type": "application/json",',
+        '    "Content-Length": Buffer.byteLength(body),',
+        '  },',
+        '}, (res) => {',
+        '  const c = []; res.on("data", d => c.push(d));',
+        '  res.on("end", () => {',
+        '    process.stdout.write(JSON.stringify({ status: res.statusCode, body: Buffer.concat(c).toString().substring(0, 300) }));',
+        '  });',
+        '});',
+        'req.on("error", e => process.stdout.write(JSON.stringify({ error: e.message })));',
+        'req.setTimeout(10000, () => { req.destroy(); process.stdout.write(JSON.stringify({ error: "timeout" })); });',
+        'req.write(body); req.end();',
+      ].join("\n");
+      const r = spawnSync("node", ["-e", inner], {
+        encoding: "utf8",
+        timeout: 15000,
+        env: { ...process.env, TOK: token, CHAN: "1060626854429610045", MSG: buildAlertMessage(sev, sum, det) },
+      });
+      try { return JSON.parse(r.stdout || "{}"); }
+      catch { return { sent: false, error: r.stderr || "parse error" }; }
+    }
+
+    const scannedAt = new Date().toISOString();
+    const summary = {
+      criticalEvents:    criticalEvents.length,
+      warningEvents:     warnEvents.length,
+      unhealthyPods:     badPods.length,
+      nodesNotReady:     nodesNotReady.length,
+      nodesWithPressure: nodesWithPressure.length,
+    };
+    const details = { criticalEvents, warnEvents, badPods, nodesNotReady, nodesWithPressure };
+
+    const discordAlert = severity !== SEV.OK
+      ? sendDiscordAlert(severity, summary, details)
+      : null;
+
     module.exports = {
       report: {
         severity,
-        scannedAt: new Date().toISOString(),
-        summary: {
-          criticalEvents:    criticalEvents.length,
-          warningEvents:     warnEvents.length,
-          unhealthyPods:     badPods.length,
-          nodesNotReady:     nodesNotReady.length,
-          nodesWithPressure: nodesWithPressure.length,
-        },
-        details: {
-          criticalEvents,
-          warnEvents,
-          badPods,
-          nodesNotReady,
-          nodesWithPressure,
-        },
+        scannedAt,
+        discordAlert,
+        summary,
+        details,
       },
     };
