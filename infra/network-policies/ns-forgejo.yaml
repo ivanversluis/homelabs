@@ -51,7 +51,15 @@ spec:
         - protocol: TCP
           port: 3000
 ---
-# Forgejo -> internet (HTTPS for federation/OAuth, SSH for git mirror push)
+# Forgejo -> internet (HTTPS for federation/OAuth, SSH for git mirror push).
+#
+# NOTE: FQDN-based egress filtering (e.g. allow only github.com) is NOT
+# available in open-source Calico — it is a Calico Enterprise feature.
+# The CIDR rule below is the tightest option with standard NetworkPolicy:
+# ports :443 and :22 to the internet, with private RFC-1918 ranges excluded.
+#
+# FQDN filtering will become available after the planned Cilium migration via:
+#   CiliumNetworkPolicy.toFQDNs[].matchName / matchPattern
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
