@@ -52,7 +52,35 @@ kubectl kustomize infra >/dev/null
 kubectl kustomize clusters/k8s-homelab >/dev/null
 ```
 
-## Run k8s-monitor report directly
+## Discord troubleshooting
+
+### `Failed to resolve Discord application id` / `message failed: 401`
+
+**Cause**: `DISCORD_TOKEN` in Vault is a webhook URL, not a Discord bot token.
+OpenClaw connects to Discord via the WebSocket gateway and requires a bot token.
+
+**Fix**: Create a Discord bot (see `openclaw-secrets.md-local` for full steps),
+then update Vault:
+
+```bash
+vault kv patch kv/infra/openclaw DISCORD_TOKEN="<bot-token>"
+kubectl rollout restart deployment/openclaw -n openclaw
+```
+
+After restart, watch logs to confirm the channel connects:
+
+```bash
+kubectl logs -n openclaw deployment/openclaw -f | grep discord
+# Expected: [discord] [default] ready
+```
+
+### Target channel format
+
+The agent must use `channel:<id>` prefix when calling the message tool.
+Bare numeric IDs are rejected by openclaw as ambiguous.
+The `#k8s-alerts` channel ID is hardcoded in AGENTS.md as `channel:1060626854429610045`.
+
+
 
 The k8s-monitor skill calls the Kubernetes API directly using the pod's service
 account (no `kubectl` binary needed). Use the helper script to test it:
