@@ -40,64 +40,42 @@ spec:
               cp /config/AGENTS.md /home/node/.openclaw/AGENTS.md
 
               # Only seed openclaw.json from ConfigMap on first boot.
-              # On subsequent restarts, preserve the existing file so OpenClaw's
-              # managed state (guild allowlists, dmPolicy, etc.) is not wiped.
               if [ ! -f /home/node/.openclaw/.openclaw/openclaw.json ]; then
                 cp /config/openclaw.json /home/node/.openclaw/openclaw.json
                 cp /config/openclaw.json /home/node/.openclaw/.openclaw/openclaw.json
               fi
 
-              node -e '
-              const fs = require("fs");
-              const originsRaw = process.env.OPENCLAW_ALLOWED_ORIGINS || "";
-              const proxiesRaw = process.env.OPENCLAW_TRUSTED_PROXIES || "";
-              const discordUserId = process.env.DISCORD_USER_ID || "";
-              const discordGuildId = process.env.DISCORD_GUILD_ID || "";
-              const origins = originsRaw.split(",").map((s) => s.trim()).filter(Boolean);
-              const trustedProxies = proxiesRaw.split(",").map((s) => s.trim()).filter(Boolean);
-              const paths = [
-                "/home/node/.openclaw/openclaw.json",
-                "/home/node/.openclaw/.openclaw/openclaw.json",
-              ];
-              for (const p of paths) {
-                const cfg = JSON.parse(fs.readFileSync(p, "utf8"));
-                cfg.gateway = cfg.gateway || {};
-                cfg.gateway.controlUi = cfg.gateway.controlUi || {};
-                if (origins.length) {
-                  cfg.gateway.controlUi.allowedOrigins = origins;
-                  cfg.gateway.controlUi.dangerouslyAllowHostHeaderOriginFallback = false;
-                } else {
-                  cfg.gateway.controlUi.dangerouslyAllowHostHeaderOriginFallback = true;
-                }
-                if (trustedProxies.length) {
-                  cfg.gateway.trustedProxies = trustedProxies;
-                }
-                cfg.channels = cfg.channels || {};
-                cfg.channels.discord = cfg.channels.discord || {};
-                cfg.channels.discord.enabled = true;
-                // Only patch allowFrom/dmPolicy — these are safe to set on every boot.
-                // token, groupPolicy and guilds are either in the seed config or
-                // managed by OpenClaw after first boot. Do not overwrite them here.
-                if (discordUserId && !(cfg.channels.discord.allowFrom || []).includes(discordUserId)) {
-                  cfg.channels.discord.allowFrom = [discordUserId];
-                }
-                if (!cfg.channels.discord.dmPolicy) {
-                  cfg.channels.discord.dmPolicy = "open";
-                }
-                // Remove stale groupPolicy that blocks guild messages when guilds is not yet set.
-                if (cfg.channels.discord.groupPolicy === "allowlist" &&
-                    !cfg.channels.discord.guilds) {
-                  delete cfg.channels.discord.groupPolicy;
-                }
-                // Ensure guilds allowlist is set from secret env var if provided.
-                if (discordGuildId && !cfg.channels.discord.guilds) {
-                  cfg.channels.discord.guilds = {};
-                  cfg.channels.discord.guilds[discordGuildId] = { allowlist: ["*"] };
-                  cfg.channels.discord.groupPolicy = "allowlist";
-                }
-                fs.writeFileSync(p, JSON.stringify(cfg, null, 2));
-              }
-              '
+              # Use openclaw config set for all patching so writes include proper
+              # meta (sha256 / last-good tracking). This prevents OpenClaw from
+              # treating our writes as external edits and restoring from backup.
+              export HOME=/home/node
+              export OPENCLAW_HOME=/home/node/.openclaw
+              export OPENCLAW_CONFIG_DIR=/home/node/.openclaw/.openclaw
+              export NPM_CONFIG_CACHE=/tmp/.npm
+
+              # Gateway: allowed origins and trusted proxies
+              if [ -n "$OPENCLAW_ALLOWED_ORIGINS" ]; then
+                ORIGINS=$(node -e "console.log(JSON.stringify((process.env.OPENCLAW_ALLOWED_ORIGINS||'').split(',').map(s=>s.trim()).filter(Boolean)))")
+                node /app/dist/index.js config set gateway.controlUi.allowedOrigins "$ORIGINS" --strict-json 2>/dev/null || true
+                node /app/dist/index.js config set gateway.controlUi.dangerouslyAllowHostHeaderOriginFallback false --strict-json 2>/dev/null || true
+              else
+                node /app/dist/index.js config set gateway.controlUi.dangerouslyAllowHostHeaderOriginFallback true --strict-json 2>/dev/null || true
+              fi
+              if [ -n "$OPENCLAW_TRUSTED_PROXIES" ]; then
+                PROXIES=$(node -e "console.log(JSON.stringify((process.env.OPENCLAW_TRUSTED_PROXIES||'').split(',').map(s=>s.trim()).filter(Boolean)))")
+                node /app/dist/index.js config set gateway.trustedProxies "$PROXIES" --strict-json 2>/dev/null || true
+              fi
+
+              # Discord: DM allowlist and guild access without @mention
+              if [ -n "$DISCORD_USER_ID" ]; then
+                node /app/dist/index.js config set channels.discord.allowFrom \
+                  "[\"$DISCORD_USER_ID\"]" --strict-json 2>/dev/null || true
+              fi
+              if [ -n "$DISCORD_GUILD_ID" ]; then
+                node /app/dist/index.js config set channels.discord.groupPolicy allowlist 2>/dev/null || true
+                node /app/dist/index.js config set channels.discord.guilds \
+                  "{\"$DISCORD_GUILD_ID\":{\"requireMention\":false}}" --strict-json 2>/dev/null || true
+              fi
           env:
             - name: OPENCLAW_ALLOWED_ORIGINS
               valueFrom:

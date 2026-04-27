@@ -18,21 +18,12 @@ data:
         "discord": {
           "enabled": true,
           "token": {
-            "$ref": {
-              "provider": "default",
-              "source": "env",
-              "id": "DISCORD_TOKEN"
-            }
+            "source": "env",
+            "provider": "default",
+            "id": "DISCORD_TOKEN"
           }
         }
-      },
-      "cron": [
-        {
-          "id": "k8s-monitor-every-5-min",
-          "schedule": "*/5 * * * *",
-          "message": "Run the k8s-monitor skill on host=gateway. Load the skill at /home/node/.openclaw/skills/k8s-monitor.js using: const m = require('/home/node/.openclaw/skills/k8s-monitor.js'); The skill sends Discord alerts automatically when severity is not ok. Return the report JSON and confirm whether discordAlert.status is 200."
-        }
-      ]
+      }
     }
   AGENTS.md: |
     # Homelab K8s Ops Agent
