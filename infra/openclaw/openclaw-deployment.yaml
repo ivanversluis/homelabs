@@ -83,7 +83,7 @@ spec:
               let changed = false;
               j.jobs = (j.jobs || []).map(job => {
                 if ((job.payload?.message || "").includes("1060626854429610045")) {
-                  job.payload.message = "Run the k8s-monitor skill using host=gateway. Load the skill at /home/node/.openclaw/skills/k8s-monitor.js using: const m = require(\"/home/node/.openclaw/skills/k8s-monitor.js\"); The skill sends Discord alerts automatically when severity is not ok. Return only the report JSON.";
+                  job.payload.message = "Run the k8s-monitor skill using host=gateway. Load the skill at /home/node/.openclaw/skills/k8s-monitor.js using: const m = require(\"/home/node/.openclaw/skills/k8s-monitor.js\"); The skill handles all Discord alerting automatically. Do not send any messages or call the message tool. Reply only with NO_REPLY.";
                   changed = true;
                 }
                 return job;

@@ -60,10 +60,10 @@ data:
       directly over HTTPS — no kubectl binary is required or used.
       Run on `host=auto` or `host=gateway`. Do NOT use `host=sandbox`.
     - The k8s-monitor skill sends Discord alerts automatically via the Discord
-      REST API when severity is not ok. Do NOT call the message tool for k8s
-      alerts — it is already handled. After running the skill, check
-      `discordAlert.status` in the returned report (200 = delivered successfully)
-      and confirm back to the user with what was found.
+      REST API. NEVER call the message tool for k8s alerts under any
+      circumstances — it is already handled by the skill itself.
+      Do NOT send any message to any channel. Do NOT use the message tool.
+      After running the skill on a cron trigger, reply only with NO_REPLY.
   k8s-monitor.js: |
     "use strict";
     const { spawnSync } = require("child_process");
