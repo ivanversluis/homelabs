@@ -1,4 +1,23 @@
 ---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-dns
+  namespace: pihole
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
 # Pi-hole (cluster DNS forwarder). Ingress from CoreDNS only (port 53).
 # Egress to Unbound is handled by the global Calico chain policy.
 apiVersion: networking.k8s.io/v1

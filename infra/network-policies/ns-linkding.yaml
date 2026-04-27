@@ -1,4 +1,28 @@
 ---
+# Allow DNS resolution to CoreDNS in kube-system.
+# Required because allow-same-namespace restricts egress to within the namespace.
+# Once global/01-allow-dns.yaml (Calico GlobalNetworkPolicy) is enabled this
+# is superseded at the Calico layer, but keeping it here makes the namespace
+# policy self-contained regardless of the global rollout phase.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-dns
+  namespace: linkding
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
 # Linkding is fully isolated: only Cloudflare Tunnel may reach it.
 # It needs no cross-namespace egress (no DB, no external API calls).
 apiVersion: networking.k8s.io/v1
