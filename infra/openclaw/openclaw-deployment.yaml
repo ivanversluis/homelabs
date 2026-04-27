@@ -74,6 +74,23 @@ spec:
                 node /app/dist/index.js config set channels.discord.allowFrom \
                   "[\"$DISCORD_USER_ID\"]" --strict-json 2>/dev/null || true
               fi
+              # Fix any stored cron job that has the old wrong channel ID in its message
+              node -e '
+              const fs = require("fs");
+              const p = "/home/node/.openclaw/.openclaw/cron/jobs.json";
+              if (!fs.existsSync(p)) process.exit(0);
+              const j = JSON.parse(fs.readFileSync(p, "utf8"));
+              let changed = false;
+              j.jobs = (j.jobs || []).map(job => {
+                if ((job.payload?.message || "").includes("1060626854429610045")) {
+                  job.payload.message = "Run the k8s-monitor skill using host=gateway. Load the skill at /home/node/.openclaw/skills/k8s-monitor.js using: const m = require(\"/home/node/.openclaw/skills/k8s-monitor.js\"); The skill sends Discord alerts automatically when severity is not ok. Return only the report JSON.";
+                  changed = true;
+                }
+                return job;
+              });
+              if (changed) fs.writeFileSync(p, JSON.stringify(j, null, 2));
+              ' 2>/dev/null || true
+
               if [ -n "$DISCORD_GUILD_ID" ]; then
                 node /app/dist/index.js config set channels.discord.groupPolicy allowlist 2>/dev/null || true
                 node /app/dist/index.js config set channels.discord.guilds \
