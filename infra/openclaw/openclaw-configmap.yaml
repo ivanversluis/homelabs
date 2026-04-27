@@ -40,107 +40,144 @@ data:
     - Include the namespace, resource name, and relevant log snippet in every alert.
     - If you see an issue you already reported in the last 2 hours, do NOT re-alert
       unless it has worsened. Avoid alert fatigue.
-    - You have read-only kubectl access. Ask the human before using write operations.
-    - For k8s-monitor execution, run on `host=auto` or `host=gateway`.
-      Do NOT use `host=sandbox` for kubectl-based checks.
-    - If exec policy is `allowlist`, request approval for required read-only
-      kubectl commands before running them.
+    - You have read-only access to cluster state. Ask the human before any write.
+    - The k8s-monitor skill uses the pod service account to call the K8s API
+      directly over HTTPS — no kubectl binary is required or used.
+      Run on `host=auto` or `host=gateway`. Do NOT use `host=sandbox`.
   k8s-monitor.js: |
-    const { execSync } = require("child_process");
+    "use strict";
+    const { spawnSync } = require("child_process");
 
     const SEV = { OK: "ok", WARN: "warn", ERROR: "error", CRITICAL: "critical" };
+    const CRITICAL_REASONS = new Set([
+      "OOMKilling", "Failed", "BackOff", "Evicted", "NodeNotReady",
+      "Killing", "FailedMount", "FailedScheduling",
+    ]);
 
-    function run(cmd) {
-      try {
-        return execSync(cmd, { encoding: "utf8", timeout: 15000 });
-      } catch (e) {
-        return e.stdout || "";
-      }
-    }
+    /**
+     * Fetch non-Normal events, all pods, and all nodes from the K8s API using
+     * the pod's mounted service-account credentials.  A child Node.js process
+     * is spawned so the three HTTPS calls can run with Promise.all (async)
+     * while keeping the outer module synchronous for openclaw's require() contract.
+     */
+    function fetchClusterData() {
+      const inner = [
+        'const https = require("https"), fs = require("fs");',
+        'const SA = "/var/run/secrets/kubernetes.io/serviceaccount";',
+        'const TOKEN = fs.readFileSync(SA + "/token", "utf8").trim();',
+        'const CA    = fs.readFileSync(SA + "/ca.crt");',
+        'const HOST  = process.env.KUBERNETES_SERVICE_HOST;',
+        'const PORT  = +(process.env.KUBERNETES_SERVICE_PORT || 443);',
+        'function get(path) {',
+        '  return new Promise((resolve) => {',
+        '    const req = https.request(',
+        '      { hostname: HOST, port: PORT, path, method: "GET",',
+        '        headers: { Authorization: "Bearer " + TOKEN, Accept: "application/json" }, ca: CA },',
+        '      (res) => {',
+        '        const chunks = [];',
+        '        res.on("data", (c) => chunks.push(c));',
+        '        res.on("end", () => {',
+        '          try { resolve(JSON.parse(Buffer.concat(chunks).toString("utf8"))); }',
+        '          catch { resolve({ items: [] }); }',
+        '        });',
+        '      }',
+        '    );',
+        '    req.on("error", () => resolve({ items: [] }));',
+        '    req.setTimeout(15000, () => { req.destroy(); resolve({ items: [] }); });',
+        '    req.end();',
+        '  });',
+        '}',
+        'Promise.all([',
+        '  get("/api/v1/events?fieldSelector=type%21%3DNormal&limit=200"),',
+        '  get("/api/v1/pods?limit=500"),',
+        '  get("/api/v1/nodes"),',
+        ']).then(([ev, po, no]) => {',
+        '  process.stdout.write(JSON.stringify({ ev, po, no }));',
+        '}).catch(() => { process.stdout.write("{}"); });',
+      ].join("\n");
 
-    function parseEvents() {
-      const raw = run(
-        "kubectl get events --all-namespaces --field-selector type!=Normal " +
-        "--sort-by=.lastTimestamp -o json 2>/dev/null"
-      );
+      const r = spawnSync("node", ["-e", inner], {
+        encoding: "utf8",
+        timeout: 25000,
+        env: process.env,
+        maxBuffer: 10 * 1024 * 1024,
+      });
+
       try {
-        const items = JSON.parse(raw).items || [];
-        return items.map((e) => ({
-          namespace: e.metadata.namespace,
-          name: e.involvedObject?.name,
-          kind: e.involvedObject?.kind,
-          reason: e.reason,
-          message: e.message,
-          count: e.count,
-          lastSeen: e.lastTimestamp,
-        }));
+        const d = JSON.parse(r.stdout || "{}");
+        return {
+          events: d.ev || { items: [] },
+          pods:   d.po || { items: [] },
+          nodes:  d.no || { items: [] },
+        };
       } catch {
-        return [];
+        return { events: { items: [] }, pods: { items: [] }, nodes: { items: [] } };
       }
     }
 
-    function parseNotReadyPods() {
-      const raw = run(
-        "kubectl get pods --all-namespaces -o json 2>/dev/null"
-      );
-      try {
-        const items = JSON.parse(raw).items || [];
-        return items
-          .filter((p) =>
-            p.status?.containerStatuses?.some(
-              (c) =>
-                c.state?.waiting?.reason === "CrashLoopBackOff" ||
-                c.state?.waiting?.reason === "ImagePullBackOff" ||
-                c.state?.terminated?.reason === "OOMKilled" ||
-                (c.restartCount > 0 && c.ready === false && c.state?.terminated && c.state.terminated.reason !== "Completed")
-            )
+    function parseEvents(data) {
+      return (data.items || []).map((e) => ({
+        namespace: e.metadata.namespace,
+        name:      e.involvedObject?.name,
+        kind:      e.involvedObject?.kind,
+        reason:    e.reason,
+        message:   e.message,
+        count:     e.count,
+        lastSeen:  e.lastTimestamp,
+      }));
+    }
+
+    function parseBadPods(data) {
+      return (data.items || [])
+        .filter((p) =>
+          (p.status?.containerStatuses || []).some(
+            (c) =>
+              c.state?.waiting?.reason === "CrashLoopBackOff" ||
+              c.state?.waiting?.reason === "ImagePullBackOff"  ||
+              c.state?.waiting?.reason === "ErrImagePull"      ||
+              c.state?.terminated?.reason === "OOMKilled"      ||
+              (c.ready === false &&
+               c.state?.terminated &&
+               c.state.terminated.exitCode !== 0 &&
+               c.restartCount > 0)
           )
-          .map((p) => ({
-            namespace: p.metadata.namespace,
-            name: p.metadata.name,
-            phase: p.status?.phase,
-            containers: (p.status?.containerStatuses || []).map((c) => ({
-              name: c.name,
-              ready: c.ready,
-              restarts: c.restartCount,
-              state: c.state,
-            })),
-          }));
-      } catch {
-        return [];
-      }
-    }
-
-    function parseNodeStatus() {
-      const raw = run("kubectl get nodes -o json 2>/dev/null");
-      try {
-        const items = JSON.parse(raw).items || [];
-        return items.map((n) => ({
-          name: n.metadata.name,
-          ready: n.status?.conditions?.find((c) => c.type === "Ready")?.status,
-          pressure: n.status?.conditions
-            ?.filter(
-              (c) =>
-                ["MemoryPressure", "DiskPressure", "PIDPressure"].includes(c.type) &&
-                c.status === "True"
-            )
-            .map((c) => c.type),
+        )
+        .map((p) => ({
+          namespace:  p.metadata.namespace,
+          name:       p.metadata.name,
+          phase:      p.status?.phase,
+          containers: (p.status?.containerStatuses || []).map((c) => ({
+            name:     c.name,
+            ready:    c.ready,
+            restarts: c.restartCount,
+            state:    c.state,
+          })),
         }));
-      } catch {
-        return [];
-      }
     }
 
-    const events = parseEvents();
-    const badPods = parseNotReadyPods();
-    const nodes = parseNodeStatus();
+    function parseNodes(data) {
+      return (data.items || []).map((n) => ({
+        name:  n.metadata.name,
+        ready: n.status?.conditions?.find((c) => c.type === "Ready")?.status,
+        pressure: (n.status?.conditions || [])
+          .filter(
+            (c) =>
+              ["MemoryPressure", "DiskPressure", "PIDPressure"].includes(c.type) &&
+              c.status === "True"
+          )
+          .map((c) => c.type),
+      }));
+    }
 
-    const criticalEvents = events.filter((e) =>
-      ["OOMKilling", "Failed", "BackOff", "Evicted", "NodeNotReady"].includes(e.reason)
-    );
-    const warnEvents = events.filter((e) => !criticalEvents.includes(e) && e.count >= 3);
-    const nodesNotReady = nodes.filter((n) => n.ready !== "True");
-    const nodesWithPressure = nodes.filter((n) => n.pressure?.length > 0);
+    const { events: evRaw, pods: podRaw, nodes: nodeRaw } = fetchClusterData();
+
+    const events            = parseEvents(evRaw);
+    const badPods           = parseBadPods(podRaw);
+    const nodes             = parseNodes(nodeRaw);
+    const criticalEvents    = events.filter((e) => CRITICAL_REASONS.has(e.reason));
+    const warnEvents        = events.filter((e) => !CRITICAL_REASONS.has(e.reason) && (e.count || 0) >= 3);
+    const nodesNotReady     = nodes.filter((n) => n.ready !== "True");
+    const nodesWithPressure = nodes.filter((n) => (n.pressure?.length || 0) > 0);
 
     let severity = SEV.OK;
     if (criticalEvents.length > 0 || badPods.length > 0 || nodesNotReady.length > 0) {
@@ -154,10 +191,10 @@ data:
         severity,
         scannedAt: new Date().toISOString(),
         summary: {
-          criticalEvents: criticalEvents.length,
-          warningEvents: warnEvents.length,
-          unhealthyPods: badPods.length,
-          nodesNotReady: nodesNotReady.length,
+          criticalEvents:    criticalEvents.length,
+          warningEvents:     warnEvents.length,
+          unhealthyPods:     badPods.length,
+          nodesNotReady:     nodesNotReady.length,
           nodesWithPressure: nodesWithPressure.length,
         },
         details: {
