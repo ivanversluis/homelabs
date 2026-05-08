@@ -73,6 +73,8 @@ spec:
           port: 80
 ---
 # LAN clients -> Pi-hole DNS (via MetalLB LoadBalancer 172.16.20.215)
+# Allows all private RFC1918 ranges since LAN spans multiple subnets
+# (172.16.20.0/24 cluster, 192.168.x.x devices, etc.)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -84,7 +86,11 @@ spec:
   ingress:
     - from:
         - ipBlock:
-            cidr: 172.16.20.0/24
+            cidr: 10.0.0.0/8
+        - ipBlock:
+            cidr: 172.16.0.0/12
+        - ipBlock:
+            cidr: 192.168.0.0/16
       ports:
         - protocol: UDP
           port: 53

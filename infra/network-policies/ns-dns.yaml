@@ -53,6 +53,7 @@ spec:
         - protocol: TCP
           port: 53
 ---
+# Unbound -> internet (DNS-over-TLS on 853, fallback plain DNS on 53)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -69,6 +70,13 @@ spec:
               - 10.0.0.0/8
               - 172.16.0.0/12
               - 192.168.0.0/16
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+        - protocol: TCP
+          port: 853
       ports:
         - protocol: UDP
           port: 53
