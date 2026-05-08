@@ -1,9 +1,13 @@
 ---
 # Zero Trust baseline: default-deny ingress + egress for every namespace
 # except the system namespaces explicitly excluded below.
-# Order 1000 is evaluated last; namespace NetworkPolicies (with implicit
-# higher priority for explicit allow rules) and lower-order Calico policies
-# (DNS carve-out at order 20) take precedence.
+# Order 1000 is evaluated last; per-namespace k8s NetworkPolicies provide
+# explicit Allow rules that take precedence over this implicit deny.
+#
+# IMPORTANT: Calico GlobalNetworkPolicy with types: [Egress] creates an
+# implicit deny for ALL matched pods. Do NOT add global Allow policies
+# with selector: all() — they will block system namespaces (incl. CoreDNS).
+# Use per-namespace k8s NetworkPolicies for egress carve-outs instead.
 apiVersion: projectcalico.org/v3
 kind: GlobalNetworkPolicy
 metadata:

@@ -7,7 +7,12 @@
 #   that the affected workloads are still healthy, then move on.
 #
 # RECOMMENDED ORDER (matches docs/zero-trust-implementation.md-local):
-#   Phase 1 — global/                  (default-deny + DNS carve-out chain)
+#   Phase 1 — global/                  (default-deny for non-system namespaces)
+#             NOTE: global/ only contains the default-deny policy.
+#             DNS and egress carve-outs live in per-namespace k8s
+#             NetworkPolicies (ns-*.yaml). Do NOT add GlobalNetworkPolicy
+#             with selector:all() and types:[Egress] — it creates implicit
+#             deny on ALL pods including kube-system CoreDNS.
 #   Phase 2 — ns-n8n, ns-termix, ns-forgejo
 #   Phase 3 — ns-identity, ns-headlamp, ns-cloudflared
 #   Phase 4 — ns-vault, ns-external-secrets
