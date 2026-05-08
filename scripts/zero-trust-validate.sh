@@ -328,11 +328,19 @@ test_ns() {
       ;;
 
     dns)
-      print_section "dns — Unbound recursive resolver"
+      print_section "dns — Unbound DoT-only resolver"
       test_dns "$ns"
       test_cross_ns_deny "$ns"
-      test_internet "$ns" 53 tcp allow
-      test_internet "$ns" 443 tcp deny
+      # DoT to configured upstreams must work
+      test_conn "$ns" "DoT egress TCP/853 (DNS4EU)" "allow" \
+        nc -z -w "$TIMEOUT_ALLOW" 86.54.11.100 853
+      test_conn "$ns" "DoT egress TCP/853 (Mullvad)" "allow" \
+        nc -z -w "$TIMEOUT_ALLOW" 194.242.2.4 853
+      # Plain DNS must be BLOCKED (encrypted-only policy)
+      test_conn "$ns" "Plain DNS TCP/53 BLOCKED" "deny" \
+        nc -z -w "$TIMEOUT_DENY" 1.1.1.1 53
+      test_conn "$ns" "Internet HTTPS BLOCKED" "deny" \
+        nc -z -w "$TIMEOUT_DENY" 1.1.1.1 443
       flush_results
       ;;
 
