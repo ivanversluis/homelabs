@@ -77,8 +77,3 @@ spec:
           port: 53
         - protocol: TCP
           port: 853
-      ports:
-        - protocol: UDP
-          port: 53
-        - protocol: TCP
-          port: 53
