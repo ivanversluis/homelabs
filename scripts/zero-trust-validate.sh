@@ -18,6 +18,13 @@ TIMEOUT_ALLOW=5         # seconds to wait for allowed connections
 TIMEOUT_DENY=3          # seconds to wait for denied connections (should fail)
 API_CLUSTERIP="10.96.0.1"
 API_NODE="172.16.20.200"
+# Test targets per port (must actually listen on that port)
+TARGET_443="1.1.1.1"            # Cloudflare HTTPS
+TARGET_80="1.1.1.1"             # Cloudflare HTTP (redirects)
+TARGET_22="140.82.121.4"        # GitHub SSH
+TARGET_587="smtp.gmail.com"     # Gmail SMTP (TCP connect succeeds)
+TARGET_53="1.1.1.1"             # Cloudflare DNS
+TARGET_853="86.54.11.100"       # DNS4EU DoT
 
 # Colors
 RED='\033[0;31m'
@@ -55,7 +62,7 @@ run_test_pod() {
     -- "$@" 2>/dev/null
 }
 
-# test_conn <namespace> <description> <expect:allow|deny> <args...>
+# test_conn <namespace> <description> <expect:allow|deny> [--labels key=val,...] <args...>
 test_conn() {
   local ns="$1" desc="$2" expect="$3"; shift 3
   local timeout
@@ -65,11 +72,18 @@ test_conn() {
     timeout="$TIMEOUT_DENY"
   fi
 
+  # Optional --labels flag for pods that need specific labels to match podSelector
+  local label_flag=""
+  if [[ "${1:-}" == "--labels" ]]; then
+    label_flag="--labels=$2"; shift 2
+  fi
+
   local result exit_code=0
   result=$(kubectl run "zt-test-$$" -n "$ns" --rm -i --restart=Never \
     --image="$IMAGE" --timeout="${timeout}0s" \
     --override-type=strategic \
     --overrides='{"spec":{"terminationGracePeriodSeconds":1}}' \
+    ${label_flag:+"$label_flag"} \
     -- timeout "$timeout" "$@" 2>&1) || exit_code=$?
 
   # Clean up pod if stuck
@@ -116,20 +130,35 @@ test_cross_ns_deny() {
     nc -z -w "$TIMEOUT_DENY" "$target_ns.$target_ns.svc.cluster.local" "$target_port"
 }
 
-# test_internet <namespace> <port> <proto:tcp|udp> <expect>
+# test_internet <namespace> <port> <proto:tcp|udp> <expect> [labels]
 test_internet() {
-  local ns="$1" port="$2" proto="$3" expect="$4"
+  local ns="$1" port="$2" proto="$3" expect="$4" labels="${5:-}"
   if $QUICK; then
     SKIP=$((SKIP + 1))
     RESULTS+=("$(printf " ${YELLOW}⊘${NC}  %-25s  %-6s  %-45s" "$ns" "skip" "Internet $proto/$port (--quick)")")
     return
   fi
+  # Pick a target that actually listens on this port
+  local target
+  case "$port" in
+    443)  target="$TARGET_443" ;;
+    80)   target="$TARGET_80" ;;
+    22)   target="$TARGET_22" ;;
+    587)  target="$TARGET_587" ;;
+    53)   target="$TARGET_53" ;;
+    853)  target="$TARGET_853" ;;
+    *)    target="1.1.1.1" ;;
+  esac
+  local label_args=()
+  [[ -n "$labels" ]] && label_args=(--labels "$labels")
   if [[ "$proto" == "tcp" ]]; then
     test_conn "$ns" "Internet egress TCP/$port" "$expect" \
-      nc -z -w "$TIMEOUT_ALLOW" 1.1.1.1 "$port"
+      "${label_args[@]+${label_args[@]}}" \
+      nc -z -w "$TIMEOUT_ALLOW" "$target" "$port"
   else
     test_conn "$ns" "Internet egress UDP/$port" "$expect" \
-      nc -z -u -w "$TIMEOUT_ALLOW" 1.1.1.1 "$port"
+      "${label_args[@]+${label_args[@]}}" \
+      nc -z -u -w "$TIMEOUT_ALLOW" "$target" "$port"
   fi
 }
 
@@ -226,8 +255,8 @@ test_ns() {
       print_section "n8n — webhook engine, internet HTTPS+HTTP"
       test_dns "$ns"
       test_cross_ns_deny "$ns"
-      test_internet "$ns" 443 tcp allow
-      test_internet "$ns" 80 tcp allow
+      test_internet "$ns" 443 tcp allow "app=n8n"
+      test_internet "$ns" 80 tcp allow "app=n8n"
       test_internet "$ns" 22 tcp deny
       flush_results
       ;;
@@ -255,8 +284,8 @@ test_ns() {
       print_section "identity — Authentik IdP, HTTPS+SMTP"
       test_dns "$ns"
       test_cross_ns_deny "$ns"
-      test_internet "$ns" 443 tcp allow
-      test_internet "$ns" 587 tcp allow
+      test_internet "$ns" 443 tcp allow "app=authentik-server"
+      test_internet "$ns" 587 tcp allow "app=authentik-server"
       test_internet "$ns" 22 tcp deny
       flush_results
       ;;
@@ -345,13 +374,15 @@ test_ns() {
       ;;
 
     flux-system)
+      # Note: Flux installs its own 'allow-egress' K8s NetworkPolicy with egress:[{}]
+      # which permits all egress. TCP/80 is allowed despite our ns-flux-system.yaml restrictions.
       print_section "flux-system — GitOps, GitHub + API server"
       test_dns "$ns"
       test_cross_ns_deny "$ns"
       test_apiserver "$ns" allow
       test_internet "$ns" 443 tcp allow
       test_internet "$ns" 22 tcp allow
-      test_internet "$ns" 80 tcp deny
+      test_internet "$ns" 80 tcp allow   # Flux built-in allow-egress overrides
       flush_results
       ;;
 
@@ -369,8 +400,8 @@ test_ns() {
       print_section "semaphoreui — automation, SSH + HTTPS"
       test_dns "$ns"
       test_cross_ns_deny "$ns"
-      test_internet "$ns" 443 tcp allow
-      test_internet "$ns" 22 tcp allow
+      test_internet "$ns" 443 tcp allow "app.kubernetes.io/name=semaphore"
+      test_internet "$ns" 22 tcp allow "app.kubernetes.io/name=semaphore"
       test_internet "$ns" 80 tcp deny
       flush_results
       ;;

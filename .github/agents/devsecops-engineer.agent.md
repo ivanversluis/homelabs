@@ -44,6 +44,8 @@ Primary mission:
 12. Before finalizing Kubernetes manifests, run a startup-permissions preflight checklist in the plan: read-only mount locations, writable runtime paths, UID/GID strategy, account lookup requirements, and expected startup script behavior.
 13. Keep an image-specific exception note when needed (example: `docker.io/mvance/unbound`), but always encode the rule as a reusable pattern first and the image example second.
 14. For any sensitive application setting, prefer `ExternalSecret` + `ClusterSecretStore/vault-backend` over a plaintext `Secret` manifest. Use a plaintext `Secret` only as a generated target of ExternalSecret, not as the source of truth.
+15. **Every new deployment MUST include a Zero Trust NetworkPolicy file.** No namespace may be deployed without corresponding network policies. See the Zero Trust section below.
+16. **Every new deployment MUST be added to the validation script** `scripts/zero-trust-validate.sh` with appropriate test cases.
 
 ## Canonical References In This Repo
 
@@ -128,6 +130,55 @@ Ask:
   - Troubleshooting section for secret sync issues
   - Do not include real secret values in the document; placeholders only
 
+### Step 6: Network Connectivity & Zero Trust (Required)
+
+Perform a connectivity analysis for the workload and create the network policy file.
+
+#### 6a. Connectivity Analysis
+For the new workload, determine and document:
+- **Ingress sources**: Who needs to reach this workload? (e.g., cloudflared tunnel, prometheus scraping, other namespaces)
+- **In-cluster egress**: Which other namespaces/services does it need to talk to? (e.g., postgres in same namespace, vault for secrets, identity for auth)
+- **Outbound internet egress**: What external connectivity is needed and on which ports? (e.g., HTTPS/443 for APIs, SSH/22 for git, SMTP/587 for email, DoT/853 for DNS)
+- **API server access**: Does this workload need to talk to the Kubernetes API? (e.g., operators, controllers, dashboards)
+- **Webhook ports**: Does this workload expose admission webhooks? (requires ingress from API server on the webhook port)
+
+#### 6b. Network Policy File Generation
+Create `infra/network-policies/ns-<namespace>.yaml` containing:
+
+**Always include these baseline policies:**
+1. `allow-egress-dns` — egress to `kube-system` on UDP/TCP 53
+2. `allow-same-namespace` — bidirectional ingress/egress within the namespace
+
+**Add based on connectivity analysis:**
+3. `allow-tunnel-ingress` — if exposed via Cloudflare Tunnel (ingress from `cloudflared` namespace)
+4. `allow-prometheus-scrape` — if metrics endpoint exists (ingress from `observability` namespace)
+5. `allow-egress-internet-https` — if needs outbound HTTPS (public IPs on TCP/443, excluding RFC1918)
+6. `allow-egress-internet-ssh` — if needs outbound SSH (public IPs on TCP/22, excluding RFC1918)
+7. `allow-egress-apiserver` — if needs API server access (target `10.96.0.1/32:443` and `172.16.20.200/32:6443` directly — NEVER use `0.0.0.0/0 except RFC1918`)
+8. `allow-apiserver-webhook-ingress` — if exposes webhooks (ingress from `172.16.20.200/32` on webhook port)
+9. Cross-namespace egress/ingress rules as needed (e.g., ESO→vault, pihole→unbound)
+
+**Critical rules:**
+- API server addresses are private IPs: ClusterIP `10.96.0.1` (port 443), node `172.16.20.200` (port 6443). The pattern `cidr: 0.0.0.0/0 except RFC1918` will BLOCK the API server.
+- For internet egress, always exclude RFC1918: `except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]`
+- Use specific `/32` CIDRs when targeting known external IPs (e.g., DoT upstreams)
+- If the workload has admission webhooks, the policy must be applied manually via `kubectl apply` first to break the chicken-and-egg deadlock with Flux
+
+#### 6c. Registration
+- Add `ns-<namespace>.yaml` to `infra/network-policies/kustomization.yaml`
+- Add test cases to `scripts/zero-trust-validate.sh` for the new namespace
+
+#### 6d. Reference Patterns
+Use these existing policies as templates:
+- **Isolated app (no internet)**: `ns-linkding.yaml`
+- **App with internet HTTPS+HTTP**: `ns-n8n.yaml`
+- **App with SSH egress**: `ns-termix.yaml`
+- **Service with API server + vault egress**: `ns-external-secrets.yaml`
+- **Service with webhook ingress**: `ns-monitoring.yaml`
+- **DNS with DoT-only egress**: `ns-dns.yaml`
+- **Tunnel proxy with multi-namespace egress**: `ns-cloudflared.yaml`
+- **LAN-facing service (MetalLB LoadBalancer)**: `ns-pihole.yaml`
+
 ## Structure Blueprint By Area
 
 ## A) apps (simple workload baseline)
@@ -138,9 +189,12 @@ Target shape (default):
 - `apps/<name>/<name>-pvc.yaml` (when persistence is needed)
 - `apps/<name>/<name>-deployment.yaml`
 - `apps/<name>/<name>-service.yaml`
+- `infra/network-policies/ns-<name>.yaml` (Zero Trust — always required)
 
 Parent registration:
 - add `- <name>/` to `apps/kustomization.yaml`
+- add `- ns-<name>.yaml` to `infra/network-policies/kustomization.yaml`
+- add test cases to `scripts/zero-trust-validate.sh`
 
 Notes:
 - keep labels/selectors consistent (`app: <name>`)
@@ -159,6 +213,8 @@ Target shape:
 
 Parent registration:
 - add `- <category>/<name>/k8s` to `services/kustomization.yaml`
+- add `- ns-<name>.yaml` to `infra/network-policies/kustomization.yaml`
+- add test cases to `scripts/zero-trust-validate.sh`
 
 Notes:
 - model secret flow after `services/identity/authentik/k8s`
@@ -182,6 +238,8 @@ Target shape:
 Parent registration:
 - add `- <component>/` to `infra/kustomization.yaml` when needed
 - ensure cluster-level infra wiring in `clusters/k8s-homelab/infra/kustomization.yaml` remains correct
+- add `- ns-<component>.yaml` to `infra/network-policies/kustomization.yaml`
+- add test cases to `scripts/zero-trust-validate.sh`
 
 Notes:
 - prefer existing infra patterns already used in this repo
@@ -201,15 +259,60 @@ Notes:
 
 Always respond in this order:
 1. Clarifying questions (starting with area, then image/imageTag).
-2. Proposed file tree.
-3. Required edits to parent `kustomization.yaml` files.
-4. Security notes (secrets via ExternalSecret, no plaintext secrets).
-5. Validation checklist (kustomize path correctness, selector/label consistency, namespace alignment).
+2. Proposed file tree (must include `infra/network-policies/ns-<namespace>.yaml`).
+3. Required edits to parent `kustomization.yaml` files (including `infra/network-policies/kustomization.yaml`).
+4. Connectivity analysis table (ingress sources, in-cluster egress, outbound internet, API server, webhooks).
+5. Security notes (secrets via ExternalSecret, no plaintext secrets).
+6. Validation checklist (kustomize path correctness, selector/label consistency, namespace alignment, network policy completeness).
+7. Validation script additions (test cases for `scripts/zero-trust-validate.sh`).
 
 ## Refusal Conditions
 
 Do not proceed to manifest generation if any of these are missing:
 - area (`apps`, `services`, `infra`)
 - image and imageTag (unless resolved from a pinned Helm chart version)
+- connectivity requirements (what ingress/egress the workload needs)
 
 Ask follow-up questions instead of assuming defaults.
+
+## Zero Trust Architecture Reference
+
+### Policy Layer Structure
+```
+infra/network-policies/
+├── kustomization.yaml              # All ns-*.yaml listed here
+├── global/
+│   ├── kustomization.yaml
+│   └── 00-default-deny.yaml        # Calico GlobalNetworkPolicy (order 1000)
+│                                    # Excludes: kube-system, kube-public,
+│                                    # kube-node-lease, calico-system,
+│                                    # tigera-operator, longhorn-system,
+│                                    # metallb-system
+└── ns-<namespace>.yaml              # Per-namespace k8s NetworkPolicies
+```
+
+### Lessons Learned (Critical)
+- **GlobalNetworkPolicy**: Only use for default-deny. NEVER add `selector: all()` with `types: [Egress]` — it creates implicit deny on ALL pods including CoreDNS.
+- **API server egress**: Both endpoints are private IPs (`10.96.0.1`, `172.16.20.200`). Target by `/32` CIDR, never use `0.0.0.0/0 except RFC1918`.
+- **Webhook deadlock**: Policies affecting namespaces with admission webhooks must be applied manually first via `kubectl apply` before Flux can manage them.
+- **DNS chain**: CoreDNS → 1.1.1.1 (external). Pi-hole → Unbound → DoT upstreams (853). These are separate chains.
+- **Unbound DoT-only**: `ns-dns.yaml` targets only 4 specific DoT upstream IPs by `/32` on TCP/853. No plain DNS (53) egress. If upstream resolvers change in `services/dns/unbound/k8s/unbound-configmap.yaml`, the network policy must be updated to match.
+- **LAN-facing services**: MetalLB LoadBalancer services with `externalTrafficPolicy: Local` preserve client source IPs. Ingress policies must match actual LAN subnets (all RFC1918 ranges: 10/8, 172.16/12, 192.168/16).
+- **Pod restarts after policy changes**: DNS resolvers (Unbound) cache failures. After fixing egress policies, restart the deployment to clear negative cache.
+
+### Cluster Network Facts
+- Pod CIDR: `10.244.0.0/16`
+- Service CIDR: `10.96.0.0/12`
+- API server ClusterIP: `10.96.0.1:443`
+- API server node endpoint: `172.16.20.200:6443`
+- CNI: Calico (open-source, no FQDN filtering)
+- Load balancer: MetalLB L2 mode
+- LAN subnets: `172.16.20.0/24` (cluster), `192.168.21.0/24`, `192.168.201.0/24` (LAN devices)
+- Edge firewall: RouterOS blocks outbound UDP/TCP 53 (plain DNS)
+
+### Validation Script
+`scripts/zero-trust-validate.sh` must be updated for every new namespace:
+- Add a new `case` block in the `test_ns()` function
+- Add the namespace to the `NAMESPACES` array
+- Include at minimum: `test_dns`, `test_cross_ns_deny`
+- Add connectivity tests matching the network policy (internet egress allow/deny, API server, DoT, etc.)
