@@ -78,15 +78,15 @@ test_conn() {
   local status icon
   if [[ "$expect" == "allow" ]]; then
     if [[ $exit_code -eq 0 ]]; then
-      status="PASS"; icon="${GREEN}✓${NC}"; ((PASS++))
+      status="PASS"; icon="${GREEN}✓${NC}"; PASS=$((PASS + 1))
     else
-      status="FAIL"; icon="${RED}✗${NC}"; ((FAIL++))
+      status="FAIL"; icon="${RED}✗${NC}"; FAIL=$((FAIL + 1))
     fi
   else
     if [[ $exit_code -ne 0 ]]; then
-      status="PASS"; icon="${GREEN}✓${NC}"; ((PASS++))
+      status="PASS"; icon="${GREEN}✓${NC}"; PASS=$((PASS + 1))
     else
-      status="FAIL"; icon="${RED}✗${NC}"; ((FAIL++))
+      status="FAIL"; icon="${RED}✗${NC}"; FAIL=$((FAIL + 1))
     fi
   fi
 
@@ -120,7 +120,7 @@ test_cross_ns_deny() {
 test_internet() {
   local ns="$1" port="$2" proto="$3" expect="$4"
   if $QUICK; then
-    ((SKIP++))
+    SKIP=$((SKIP + 1))
     RESULTS+=("$(printf " ${YELLOW}⊘${NC}  %-25s  %-6s  %-45s" "$ns" "skip" "Internet $proto/$port (--quick)")")
     return
   fi
