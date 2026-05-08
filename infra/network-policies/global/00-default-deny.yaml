@@ -10,16 +10,7 @@ metadata:
   name: zt-default-deny
 spec:
   order: 1000
-  namespaceSelector: >
-    kubernetes.io/metadata.name not in {
-      "kube-system",
-      "kube-public",
-      "kube-node-lease",
-      "calico-system",
-      "tigera-operator",
-      "longhorn-system",
-      "metallb-system"
-    }
+  namespaceSelector: kubernetes.io/metadata.name not in {"kube-system", "kube-public", "kube-node-lease", "calico-system", "tigera-operator", "longhorn-system", "metallb-system"}
   types:
     - Ingress
     - Egress
