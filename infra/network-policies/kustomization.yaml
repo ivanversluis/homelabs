@@ -27,33 +27,33 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   # --- Phase 1: cluster-wide baseline ---
-  # - global/
+  - global/
 
   # --- Phase 2: standalone apps ---
   - ns-linkding.yaml
-  # - ns-n8n.yaml
-  # - ns-termix.yaml
+  - ns-n8n.yaml
+  - ns-termix.yaml
   - ns-forgejo.yaml
 
   # --- Phase 3: identity + tunnel ---
-  # - ns-identity.yaml
-  # - ns-headlamp.yaml
-  # - ns-cloudflared.yaml
+  - ns-identity.yaml
+  - ns-headlamp.yaml
+  - ns-cloudflared.yaml
 
   # --- Phase 4: secrets pipeline ---
-  # - ns-vault.yaml
-  # - ns-external-secrets.yaml
+  - ns-vault.yaml
+  - ns-external-secrets.yaml
 
   # --- Phase 5: observability ---
-  # - ns-observability.yaml
-  # - ns-monitoring.yaml
+  - ns-observability.yaml
+  - ns-monitoring.yaml
 
   # --- Phase 6: cluster DNS chain ---
-  # - ns-pihole.yaml
-  # - ns-dns.yaml
+  - ns-pihole.yaml
+  - ns-dns.yaml
 
   # --- Phase 7: platform ---
-  # - ns-flux-system.yaml
-  # - ns-openclaw.yaml
-  # - ns-semaphoreui.yaml
-  # - ns-portainer.yaml
+  - ns-flux-system.yaml
+  - ns-openclaw.yaml
+  - ns-semaphoreui.yaml
+  - ns-portainer.yaml
