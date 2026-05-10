@@ -59,6 +59,8 @@ spec:
           port: 80
 ---
 # Cloudflare Tunnel -> n8n UI
+# n8n service: port 80 (Service) -> targetPort 5678 (container)
+# NetworkPolicy ingress matches the pod port after Service DNAT
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -76,7 +78,7 @@ spec:
               kubernetes.io/metadata.name: cloudflared
       ports:
         - protocol: TCP
-          port: 80
+          port: 5678
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

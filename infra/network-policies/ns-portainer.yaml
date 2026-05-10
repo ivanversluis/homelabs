@@ -57,6 +57,8 @@ spec:
           port: 6443
 ---
 # Cloudflare Tunnel -> Portainer UI
+# Cloudflare tunnel config uses https://portainer.portainer.svc.cluster.local:9443
+# Pod listens on 9443 (HTTPS) directly; cloudflared egress policy uses 9443 (service port)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -72,7 +74,7 @@ spec:
               kubernetes.io/metadata.name: cloudflared
       ports:
         - protocol: TCP
-          port: 9000
+          port: 9443
 ---
 # Portainer -> internet (extension catalogue, image pulls metadata)
 apiVersion: networking.k8s.io/v1
