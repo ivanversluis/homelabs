@@ -3,14 +3,8 @@
     "config:recommended",
     ":semanticCommits"
   ],
-  "dependencyDashboard": false,
-  "requireConfig": false,
-  "onboardingConfig": {
-    "extends": [
-      "config:recommended",
-      ":semanticCommits"
-    ]
-  },
+  "dependencyDashboard": true,
+  "dependencyDashboardApproval": false,
   "timezone": "Europe/Amsterdam",
   "labels": [
     "renovate",
@@ -18,12 +12,6 @@
   ],
   "prConcurrentLimit": 10,
   "prHourlyLimit": 4,
-  "vulnerabilityAlerts": {
-    "labels": [
-      "security",
-      "renovate"
-    ]
-  },
   "flux": {
     "managerFilePatterns": [
       "/(^|/)infra/.+\\.ya?ml$/",
@@ -75,7 +63,7 @@
         "kubernetes"
       ],
       "matchPackageNames": [
-        "/^ghcr\\.io\/fluxcd\//"
+        "/^ghcr\\.io\\/fluxcd\\//"
       ],
       "groupName": "Flux CD controllers",
       "automerge": false
@@ -95,21 +83,30 @@
     {
       "description": "Group Authentik server image updates across K8s and Docker Compose",
       "matchPackageNames": [
-        "/^ghcr\\.io\/goauthentik\//"
+        "/^ghcr\\.io\\/goauthentik\\//"
       ],
       "groupName": "Authentik images",
       "automerge": false
     },
     {
-      "description": "Pin postgres to major version 16 — block all major upgrades, only allow 16.x patches",
-      "matchPackageNames": ["postgres"],
-      "matchUpdateTypes": ["major"],
+      "description": "Block postgres major version upgrades",
+      "matchPackageNames": [
+        "postgres"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "enabled": false
     },
     {
       "description": "Group redis base image minor and patch updates",
-      "matchPackageNames": ["redis"],
-      "matchUpdateTypes": ["minor", "patch"],
+      "matchPackageNames": [
+        "redis"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
       "groupName": "Base images (redis)",
       "automerge": false
     },
