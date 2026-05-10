@@ -6,6 +6,7 @@ namespace: firewall-manager-dev
 resources:
   - ../../base
   - fm-db-data-longhorn-pvc.yaml
+  - vault
 
 commonLabels:
   environment: dev

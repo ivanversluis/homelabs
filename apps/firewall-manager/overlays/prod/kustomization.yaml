@@ -5,6 +5,7 @@ namespace: firewall-manager-prod
 
 resources:
   - ../../base
+  - vault
 
 commonLabels:
   environment: production
