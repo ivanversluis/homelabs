@@ -118,6 +118,8 @@ spec:
       ports:
         - protocol: TCP
           port: 9000
+        - protocol: TCP
+          port: 9443
     - to:
         - namespaceSelector:
             matchLabels:
@@ -155,6 +157,8 @@ spec:
           port: 80
         - protocol: TCP
           port: 443
+        - protocol: TCP
+          port: 8080
     - to:
         - namespaceSelector:
             matchLabels:
