@@ -98,16 +98,17 @@
       "automerge": false
     },
     {
-      "description": "Group postgres and redis base image minor and patch updates",
-      "matchPackageNames": [
-        "postgres",
-        "redis"
-      ],
-      "matchUpdateTypes": [
-        "minor",
-        "patch"
-      ],
-      "groupName": "Base images (postgres & redis)",
+       "description": "Pin postgres to major version 16 — block all major upgrades, only allow 16.x patches",
+      "matchPackageNames": ["postgres"],
+      "allowedVersions": "~16",
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "Group redis base image minor and patch updates",
+      "matchPackageNames": ["redis"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "Base images (redis)",
       "automerge": false
     },
     {
