@@ -3,8 +3,7 @@
     "config:recommended",
     ":semanticCommits"
   ],
-  "dependencyDashboard": true,
-  "dependencyDashboardApproval": false,
+  "dependencyDashboard": false,
   "timezone": "Europe/Amsterdam",
   "labels": [
     "renovate",
