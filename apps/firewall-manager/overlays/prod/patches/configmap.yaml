@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fm-config
+  labels:
+    app: firewall-manager
+data:
+  FM_ENV: "prod"
+  GIT_COMMIT_SHA: "6b92c7fecd64c9f125101b5d51a5118f5dbebad7"
+  GIT_REPO_URL: "https://github.com/ivanversluis/firewall-manager"

@@ -5,6 +5,8 @@ resources:
   - external-secrets/
   - vault/
   - vault-config/
+  - argocd/
+  - argocd-image-updater/
   - semaphoreui/
   - monitoring/
   - observability/

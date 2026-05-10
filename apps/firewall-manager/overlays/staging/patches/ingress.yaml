@@ -1,0 +1,20 @@
+# Staging environment ingress patch
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fm-webui
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+spec:
+  ingressClassName: public
+  rules:
+  - host: fm-staging.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: fm-webui
+            port:
+              number: 80

@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: firewall-manager-staging
+
+resources:
+  - ../../base
+  # - vault/service-account.yaml
+  # - vault/secret-store.yaml
+  # - vault/external-secret.yaml
+  # - vault/external-secret-registry.yaml
+
+commonLabels:
+  environment: staging
+
+# Staging-specific patches
+patches:
+  - path: patches/configmap.yaml
+  - path: patches/replicas.yaml
+  - path: patches/ingress.yaml
+
+# Staging image tags
+images:
+  - name: ghcr.io/ivanversluis/firewall-manager-api
+    newTag: staging-7025afd
+  - name: ghcr.io/ivanversluis/firewall-manager-webui
+    newTag: staging-7025afd
+  - name: ghcr.io/ivanversluis/firewall-manager-worker
+    newTag: staging-7025afd

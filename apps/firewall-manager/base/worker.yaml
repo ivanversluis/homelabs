@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fm-worker
+  labels:
+    app: firewall-manager
+    component: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: firewall-manager
+      component: worker
+  template:
+    metadata:
+      labels:
+        app: firewall-manager
+        component: worker
+    spec:
+      imagePullSecrets:
+      - name: ghcr-secret
+      containers:
+      - name: worker
+        image: ghcr.io/ivanversluis/firewall-manager-worker:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8002
+          name: http
+        env:
+        - name: API_INTERNAL_BASE_URL
+          value: "http://fm-api:8000"
+        - name: FLASK_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: fm-secrets
+              key: FLASK_SECRET_KEY
+        - name: ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: fm-secrets
+              key: ENCRYPTION_KEY
+        - name: FM_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: fm-config
+              key: FM_ENV
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8002
+          initialDelaySeconds: 1
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8002
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fm-worker
+  labels:
+    app: firewall-manager
+    component: worker
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8002
+    targetPort: 8002
+    protocol: TCP
+    name: http
+  selector:
+    app: firewall-manager
+    component: worker

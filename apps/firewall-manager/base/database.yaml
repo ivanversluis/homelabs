@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fm-db
+  # namespace set by overlay
+  labels:
+    app: firewall-manager
+    component: database
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # Database needs single instance
+  selector:
+    matchLabels:
+      app: firewall-manager
+      component: database
+  template:
+    metadata:
+      labels:
+        app: firewall-manager
+        component: database
+    spec:
+      imagePullSecrets:
+      - name: ghcr-secret
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+          name: postgres
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: fm-secrets
+              key: POSTGRES_DB
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: fm-secrets
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fm-secrets
+              key: DB_PASSWORD
+        volumeMounts:
+        - name: db-data
+          mountPath: /var/lib/postgresql/data
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - fmdbo
+            - -d
+            - fm-db
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - fmdbo
+            - -d
+            - fm-db
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 5
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: db-data
+        persistentVolumeClaim:
+          claimName: fm-db-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fm-db
+  # namespace set by overlay
+  labels:
+    app: firewall-manager
+    component: database
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+    name: postgres
+  selector:
+    app: firewall-manager
+    component: database

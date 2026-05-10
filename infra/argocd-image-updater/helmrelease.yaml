@@ -1,0 +1,31 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: argocd-image-updater
+  namespace: argocd
+spec:
+  interval: 30m
+  dependsOn:
+    - name: argocd
+      namespace: argocd
+  chart:
+    spec:
+      chart: argocd-image-updater
+      version: "0.11.0"
+      sourceRef:
+        kind: HelmRepository
+        name: argo
+      interval: 12h
+  install:
+    remediation:
+      retries: 5
+  upgrade:
+    remediation:
+      retries: 5
+  values:
+    config:
+      applicationsAPIKind: kubernetes
+      argocd:
+        grpcWeb: true
+        insecure: true
+        serverAddress: argocd-server.argocd.svc.cluster.local:80
