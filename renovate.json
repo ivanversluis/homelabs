@@ -98,9 +98,8 @@
       "automerge": false
     },
     {
-       "description": "Pin postgres to major version 16 — block all major upgrades, only allow 16.x patches",
+      "description": "Pin postgres to major version 16 — block all major upgrades, only allow 16.x patches",
       "matchPackageNames": ["postgres"],
-      "allowedVersions": "~16",
       "matchUpdateTypes": ["major"],
       "enabled": false
     },
