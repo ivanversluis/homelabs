@@ -8,6 +8,9 @@ htmlcov/
 coverage.xml
 *.cover
 
+# Local test scripts with public URLs (do not commit)
+test-tunnel-endpoints.sh
+
 # Pytest cache
 .pytest_cache/
 __pycache__/

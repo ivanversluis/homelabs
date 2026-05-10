@@ -80,7 +80,7 @@ spec:
               kubernetes.io/metadata.name: n8n
       ports:
         - protocol: TCP
-          port: 80
+          port: 5678  # container port (service 80 → pod 5678, CNI evaluates post-DNAT)
     - to:
         - namespaceSelector:
             matchLabels:
@@ -110,14 +110,12 @@ spec:
               kubernetes.io/metadata.name: headlamp
       ports:
         - protocol: TCP
-          port: 80
+          port: 4466  # container port (service 80 → pod 4466, CNI evaluates post-DNAT)
     - to:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: portainer
       ports:
-        - protocol: TCP
-          port: 9000
         - protocol: TCP
           port: 9443
     - to:
@@ -165,18 +163,39 @@ spec:
               kubernetes.io/metadata.name: firewall-manager-dev
       ports:
         - protocol: TCP
-          port: 80
+          port: 8000  # container port (service 80 → pod 8000, CNI evaluates post-DNAT)
     - to:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: firewall-manager-staging
       ports:
         - protocol: TCP
-          port: 80
+          port: 8000  # container port (service 80 → pod 8000, CNI evaluates post-DNAT)
     - to:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: firewall-manager-prod
+      ports:
+        - protocol: TCP
+          port: 8000  # container port (service 80 → pod 8000, CNI evaluates post-DNAT)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openclaw
+      ports:
+        - protocol: TCP
+          port: 18789
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: longhorn-system
+      ports:
+        - protocol: TCP
+          port: 8000  # container port (service 80 → pod 8000, CNI evaluates post-DNAT)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: default
       ports:
         - protocol: TCP
           port: 80
