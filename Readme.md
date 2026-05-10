@@ -131,3 +131,7 @@ flowchart LR
 | Forgejo  | `codeberg.org/forgejo/forgejo`           |
 | Linkding | `sissbruecker/linkding`                  |
 | Termix   | `ghcr.io/lukegus/termix`                 |
+
+## Lifecycle management
+
+For ensuring the homelab cluster is up to date and getting recent updates a Renovate GitHub Action and configuration has been enabled on this repo. On weekly basis or ad-hoc manually the GitHub Action is run, it validates the repository content and created a pull request if a new update is available.
