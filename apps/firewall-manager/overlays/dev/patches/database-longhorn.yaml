@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fm-db
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node.longhorn.io/create-default-disk: "true"
+      containers:
+        - name: postgres
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: fm-db-data-longhorn

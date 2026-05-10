@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fm-webui
+  # namespace set by overlay
+  labels:
+    app: firewall-manager
+    component: webui
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: firewall-manager
+      component: webui
+  template:
+    metadata:
+      labels:
+        app: firewall-manager
+        component: webui
+    spec:
+      imagePullSecrets:
+      - name: ghcr-secret
+      containers:
+      - name: webui
+        image: ghcr.io/ivanversluis/firewall-manager-webui:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: API_INTERNAL_BASE_URL
+          value: "http://fm-api:8000"
+        - name: FLASK_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: fm-secrets
+              key: FLASK_SECRET_KEY
+        - name: FM_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: fm-config
+              key: FM_ENV
+        - name: GIT_COMMIT_SHA
+          valueFrom:
+            configMapKeyRef:
+              name: fm-config
+              key: GIT_COMMIT_SHA
+        - name: GIT_REPO_URL
+          valueFrom:
+            configMapKeyRef:
+              name: fm-config
+              key: GIT_REPO_URL
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 1
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fm-webui
+  # namespace set by overlay
+  labels:
+    app: firewall-manager
+    component: webui
+spec:
+  type: ClusterIP  # Using Ingress for external access
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: firewall-manager
+    component: webui

@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Namespace is set by overlays
+# # namespace set by overlay
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - pvc.yaml
+  - database.yaml
+  - api.yaml
+  - webui.yaml
+  - worker.yaml
+  - ingress.yaml
+
+commonLabels:
+  app: firewall-manager
+
+# Images are set by overlays
+# images:
+#   - name: ghcr.io/ivanversluis/firewall-manager-api
+#     newTag: latest
+#   - name: ghcr.io/ivanversluis/firewall-manager-webui
+#     newTag: latest

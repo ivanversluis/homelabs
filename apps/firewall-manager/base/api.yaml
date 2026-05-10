@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fm-api
+  # namespace set by overlay
+  labels:
+    app: firewall-manager
+    component: api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: firewall-manager
+      component: api
+  template:
+    metadata:
+      labels:
+        app: firewall-manager
+        component: api
+    spec:
+      imagePullSecrets:
+      - name: ghcr-secret
+      containers:
+      - name: api
+        image: ghcr.io/ivanversluis/firewall-manager-api:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: fm-secrets
+              key: DATABASE_URL
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: fm-secrets
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fm-secrets
+              key: DB_PASSWORD
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: fm-secrets
+              key: POSTGRES_DB
+        - name: FLASK_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: fm-secrets
+              key: FLASK_SECRET_KEY
+        - name: ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: fm-secrets
+              key: ENCRYPTION_KEY
+        - name: FM_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: fm-config
+              key: FM_ENV
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 8000
+          initialDelaySeconds: 1
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fm-api
+  # namespace set by overlay
+  labels:
+    app: firewall-manager
+    component: api
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: firewall-manager
+    component: api

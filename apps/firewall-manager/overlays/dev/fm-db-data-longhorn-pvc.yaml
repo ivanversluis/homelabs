@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fm-db-data-longhorn
+  labels:
+    app: firewall-manager
+    component: database
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn-worker
+  resources:
+    requests:
+      # Keep at 10Gi for now to match the already-migrated live PVC.
+      # PVC shrink (10Gi -> 2Gi) is not supported in-place.
+      storage: 10Gi

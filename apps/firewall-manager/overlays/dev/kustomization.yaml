@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: firewall-manager-dev
+
+resources:
+  - ../../base
+  - fm-db-data-longhorn-pvc.yaml
+
+commonLabels:
+  environment: dev
+
+patches:
+  - path: patches/configmap.yaml
+  - path: patches/remove-static-secret.yaml
+  - path: patches/replicas.yaml
+  - path: patches/ingress.yaml
+  - path: patches/database-longhorn.yaml
+
+images:
+  - name: ghcr.io/ivanversluis/firewall-manager-api
+    newTag: dev-19586e7
+  - name: ghcr.io/ivanversluis/firewall-manager-webui
+    newTag: dev-19586e7
+  - name: ghcr.io/ivanversluis/firewall-manager-worker
+    newTag: dev-19586e7
