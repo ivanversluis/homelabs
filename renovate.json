@@ -1,17 +1,24 @@
 {
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
     ":semanticCommits"
   ],
+
+  // FORCE PR-based flow
+  "mode": "full",
+  "prCreation": "immediate",
+  "automerge": false,
+  "automergeType": "pr",
+
   "dependencyDashboard": true,
   "dependencyDashboardApproval": false,
+
   "timezone": "Europe/Amsterdam",
-  "labels": [
-    "renovate",
-    "dependencies"
-  ],
+  "labels": ["renovate", "dependencies"],
   "prConcurrentLimit": 10,
   "prHourlyLimit": 4,
+
   "flux": {
     "managerFilePatterns": [
       "/(^|/)infra/.+\\.ya?ml$/",
@@ -51,7 +58,7 @@
         "/(^|/)infra/[^/]+/[^/]*helmrelease\\.ya?ml$/"
       ],
       "matchStrings": [
-        "repository:\\s+(?<depName>\\S+)\\n\\s+tag:\\s+[\"']?(?<currentValue>[\\w][\\w.\\-]*)[\"']?"
+        "repository:\\s+(?<depName>\\S+)\\n\\s+tag:\\s+[\"']?(?urrentValue>[\\w][\\w.\\-]*)[\"']?"
       ],
       "datasourceTemplate": "docker"
     }
@@ -59,67 +66,41 @@
   "packageRules": [
     {
       "description": "Group Flux CD system controller image updates",
-      "matchManagers": [
-        "kubernetes"
-      ],
-      "matchPackageNames": [
-        "/^ghcr\\.io\\/fluxcd\\//"
-      ],
+      "matchManagers": ["kubernetes"],
+      "matchPackageNames": ["/^ghcr\\.io\\/fluxcd\\//"],
       "groupName": "Flux CD controllers",
       "automerge": false
     },
     {
       "description": "Group all Helm chart minor and patch version bumps",
-      "matchManagers": [
-        "flux"
-      ],
-      "matchUpdateTypes": [
-        "minor",
-        "patch"
-      ],
+      "matchManagers": ["flux"],
+      "matchUpdateTypes": ["minor", "patch"],
       "groupName": "Helm charts (minor & patch)",
       "automerge": false
     },
     {
       "description": "Group Authentik server image updates across K8s and Docker Compose",
-      "matchPackageNames": [
-        "/^ghcr\\.io\\/goauthentik\\//"
-      ],
+      "matchPackageNames": ["/^ghcr\\.io\\/goauthentik\\//"],
       "groupName": "Authentik images",
       "automerge": false
     },
     {
       "description": "Block postgres major version upgrades",
-      "matchPackageNames": [
-        "postgres"
-      ],
-      "matchUpdateTypes": [
-        "major"
-      ],
+      "matchPackageNames": ["postgres"],
+      "matchUpdateTypes": ["major"],
       "enabled": false
     },
     {
       "description": "Group redis base image minor and patch updates",
-      "matchPackageNames": [
-        "redis"
-      ],
-      "matchUpdateTypes": [
-        "minor",
-        "patch"
-      ],
+      "matchPackageNames": ["redis"],
+      "matchUpdateTypes": ["minor", "patch"],
       "groupName": "Base images (redis)",
       "automerge": false
     },
     {
       "description": "Label and isolate all major version updates for manual review",
-      "matchUpdateTypes": [
-        "major"
-      ],
-      "labels": [
-        "major-update",
-        "renovate",
-        "dependencies"
-      ],
+      "matchUpdateTypes": ["major"],
+      "labels": ["major-update", "renovate", "dependencies"],
       "automerge": false
     }
   ]
