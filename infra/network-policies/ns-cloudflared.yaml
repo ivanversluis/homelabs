@@ -110,7 +110,7 @@ spec:
               kubernetes.io/metadata.name: headlamp
       ports:
         - protocol: TCP
-          port: 4466
+          port: 80
     - to:
         - namespaceSelector:
             matchLabels:
@@ -165,18 +165,18 @@ spec:
               kubernetes.io/metadata.name: firewall-manager-dev
       ports:
         - protocol: TCP
-          port: 8000
+          port: 80
     - to:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: firewall-manager-staging
       ports:
         - protocol: TCP
-          port: 8000
+          port: 80
     - to:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: firewall-manager-prod
       ports:
         - protocol: TCP
-          port: 8000
+          port: 80
