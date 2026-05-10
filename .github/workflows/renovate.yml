@@ -20,7 +20,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-      security-events: read
+      security-events: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5
