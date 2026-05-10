@@ -5,10 +5,7 @@ namespace: firewall-manager-staging
 
 resources:
   - ../../base
-  # - vault/service-account.yaml
-  # - vault/secret-store.yaml
-  # - vault/external-secret.yaml
-  # - vault/external-secret-registry.yaml
+  - vault
 
 commonLabels:
   environment: staging
