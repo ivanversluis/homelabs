@@ -4,6 +4,13 @@
     ":semanticCommits"
   ],
   "dependencyDashboard": false,
+  "requireConfig": false,
+  "onboardingConfig": {
+    "extends": [
+      "config:recommended",
+      ":semanticCommits"
+    ]
+  },
   "timezone": "Europe/Amsterdam",
   "labels": [
     "renovate",
