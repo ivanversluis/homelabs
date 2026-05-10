@@ -65,6 +65,6 @@ resources:
 
   # --- Phase 8: argocd + firewall-manager ---
   - ns-argocd.yaml
-  - ns-firewall-manager-dev.yaml
-  - ns-firewall-manager-staging.yaml
-  - ns-firewall-manager-prod.yaml
+  # - ns-firewall-manager-dev.yaml
+  # - ns-firewall-manager-staging.yaml
+  # - ns-firewall-manager-prod.yaml
