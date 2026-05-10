@@ -19,24 +19,24 @@
     ]
   },
   "flux": {
-    "fileMatch": [
-      "(^|/)infra/.+\\.ya?ml$",
-      "(^|/)clusters/.+\\.ya?ml$"
+    "managerFilePatterns": [
+      "/(^|/)infra/.+\\.ya?ml$/",
+      "/(^|/)clusters/.+\\.ya?ml$/"
     ]
   },
   "kubernetes": {
-    "fileMatch": [
-      "(^|/)apps/.+\\.ya?ml$",
-      "(^|/)services/.+\\.ya?ml$",
-      "(^|/)infra/.+\\.ya?ml$",
-      "(^|/)clusters/.+\\.ya?ml$"
+    "managerFilePatterns": [
+      "/(^|/)apps/.+\\.ya?ml$/",
+      "/(^|/)services/.+\\.ya?ml$/",
+      "/(^|/)infra/.+\\.ya?ml$/",
+      "/(^|/)clusters/.+\\.ya?ml$/"
     ]
   },
   "docker-compose": {
-    "fileMatch": [
-      "(^|/)[^/]*docker-compose[^/]*\\.ya?ml$",
-      "(^|/)stack-[^/]+\\.ya?ml$",
-      "(^|/)docker-stack/[^/]+\\.ya?ml$"
+    "managerFilePatterns": [
+      "/(^|/)[^/]*docker-compose[^/]*\\.ya?ml$/",
+      "/(^|/)stack-[^/]+\\.ya?ml$/",
+      "/(^|/)docker-stack/[^/]+\\.ya?ml$/"
     ]
   },
   "github-actions": {
@@ -53,8 +53,8 @@
     {
       "customType": "regex",
       "description": "Track split repository+tag image references in HelmRelease values blocks",
-      "fileMatch": [
-        "(^|/)infra/[^/]+/[^/]*helmrelease\\.ya?ml$"
+      "managerFilePatterns": [
+        "/(^|/)infra/[^/]+/[^/]*helmrelease\\.ya?ml$/"
       ],
       "matchStrings": [
         "repository:\\s+(?<depName>\\S+)\\n\\s+tag:\\s+[\"']?(?<currentValue>[\\w][\\w.\\-]*)[\"']?"
@@ -68,8 +68,8 @@
       "matchManagers": [
         "kubernetes"
       ],
-      "matchPackagePatterns": [
-        "^ghcr\\.io/fluxcd/"
+      "matchPackageNames": [
+        "/^ghcr\\.io\/fluxcd\//"
       ],
       "groupName": "Flux CD controllers",
       "automerge": false
@@ -88,8 +88,8 @@
     },
     {
       "description": "Group Authentik server image updates across K8s and Docker Compose",
-      "matchPackagePatterns": [
-        "^ghcr\\.io/goauthentik/"
+      "matchPackageNames": [
+        "/^ghcr\\.io\/goauthentik\//"
       ],
       "groupName": "Authentik images",
       "automerge": false
