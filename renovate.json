@@ -6,9 +6,6 @@
   "dependencyDashboard": true,
   "dependencyDashboardApproval": false,
   "timezone": "Europe/Amsterdam",
-  "schedule": [
-    "before 6am on monday"
-  ],
   "labels": [
     "renovate",
     "dependencies"
