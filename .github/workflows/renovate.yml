@@ -33,3 +33,5 @@ jobs:
         env:
           LOG_LEVEL: ${{ inputs.log_level || 'info' }}
           RENOVATE_REPOSITORIES: ${{ github.repository }}
+          RENOVATE_REQUIRE_CONFIG: optional
+          RENOVATE_ONBOARDING: "false"
