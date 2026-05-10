@@ -1,0 +1,31 @@
+name: Renovate
+
+on:
+  workflow_dispatch:
+    inputs:
+      log_level:
+        description: "Renovate log level"
+        required: false
+        default: "info"
+        type: choice
+        options: [debug, info, warn, error]
+  schedule:
+    - cron: "0 4 * * 1" # Monday 04:00 UTC = 06:00 CEST
+
+jobs:
+  renovate:
+    name: Renovate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Renovate
+        uses: renovatebot/github-action@v41
+        with:
+          configurationFile: renovate.json
+          token: ${{ secrets.RENOVATE_TOKEN }}
+        env:
+          LOG_LEVEL: ${{ inputs.log_level || 'info' }}
