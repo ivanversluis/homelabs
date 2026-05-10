@@ -19,8 +19,8 @@ patches:
 # Staging image tags
 images:
   - name: ghcr.io/ivanversluis/firewall-manager-api
-    newTag: staging-7025afd
+    newTag: staging
   - name: ghcr.io/ivanversluis/firewall-manager-webui
-    newTag: staging-7025afd
+    newTag: staging
   - name: ghcr.io/ivanversluis/firewall-manager-worker
-    newTag: staging-7025afd
+    newTag: staging

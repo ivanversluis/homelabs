@@ -20,8 +20,8 @@ patches:
 
 images:
   - name: ghcr.io/ivanversluis/firewall-manager-api
-    newTag: dev-19586e7
+    newTag: dev
   - name: ghcr.io/ivanversluis/firewall-manager-webui
-    newTag: dev-19586e7
+    newTag: dev
   - name: ghcr.io/ivanversluis/firewall-manager-worker
-    newTag: dev-19586e7
+    newTag: dev
