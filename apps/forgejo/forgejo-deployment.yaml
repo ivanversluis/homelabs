@@ -29,7 +29,7 @@ spec:
       containers:
         - name: forgejo
           # Rootless image avoids s6 startup lock permission issues under non-root policy.
-          image: codeberg.org/forgejo/forgejo:15.0.0-rootless
+          image: codeberg.org/forgejo/forgejo:15.0.1-rootless
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
