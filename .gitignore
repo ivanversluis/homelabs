@@ -8,8 +8,8 @@ htmlcov/
 coverage.xml
 *.cover
 
-# Local test scripts with public URLs (do not commit)
-test-tunnel-endpoints.sh
+# Local test scripts with public URLs that contains sensitive information
+zero-trust-test-tunnel-endpoints.sh
 
 # Pytest cache
 .pytest_cache/

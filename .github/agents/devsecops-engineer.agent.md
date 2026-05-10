@@ -178,6 +178,7 @@ Use these existing policies as templates:
 - **DNS with DoT-only egress**: `ns-dns.yaml`
 - **Tunnel proxy with multi-namespace egress**: `ns-cloudflared.yaml`
 - **LAN-facing service (MetalLB LoadBalancer)**: `ns-pihole.yaml`
+- **App with Cloudflare tunnel ingress (non-standard port)**: `ns-openclaw.yaml` (port 18789)
 
 ## Structure Blueprint By Area
 
@@ -299,16 +300,50 @@ infra/network-policies/
 - **Unbound DoT-only**: `ns-dns.yaml` targets only 4 specific DoT upstream IPs by `/32` on TCP/853. No plain DNS (53) egress. If upstream resolvers change in `services/dns/unbound/k8s/unbound-configmap.yaml`, the network policy must be updated to match.
 - **LAN-facing services**: MetalLB LoadBalancer services with `externalTrafficPolicy: Local` preserve client source IPs. Ingress policies must match actual LAN subnets (all RFC1918 ranges: 10/8, 172.16/12, 192.168/16).
 - **Pod restarts after policy changes**: DNS resolvers (Unbound) cache failures. After fixing egress policies, restart the deployment to clear negative cache.
+- **CNI evaluates NetworkPolicy AFTER iptables DNAT (post-DNAT rule)**:  This cluster uses kube-proxy (not Cilium). When a pod connects through a Kubernetes Service, iptables rewrites the destination to the pod IP:containerPort *before* the CNI evaluates the egress NetworkPolicy. This means **both egress (source namespace) and ingress (destination namespace) port rules must use the container/pod port, not the Service port**, even when they differ. Example: `fm-webui` Service is `port: 80 → targetPort: 8000`. Both `ns-cloudflared.yaml` egress rule and `ns-firewall-manager-dev.yaml` ingress rule must use `port: 8000`. This will change when Cilium CNI is adopted — Cilium can match on Service ports.
+- **Cloudflare Tunnel port mapping audit**: When adding a new tunnel route, always verify the correct port with this lookup chain:
+  1. Find the Service: `kubectl get svc <name> -n <namespace> -o yaml`
+  2. Note `spec.ports[].port` (Service port) and `spec.ports[].targetPort` (container port)
+  3. If they differ (e.g., 80→8000), use the **targetPort** (container port) in NetworkPolicy
+  4. Confirm the tunnel config URL uses the Service port (e.g., `http://svc:80`)
+  5. Update both: `ns-cloudflared.yaml` egress AND `ns-<destination>.yaml` ingress
+- **Flux overwrites manual kubectl changes within 1 minute**: Never rely on `kubectl apply` alone to test NetworkPolicy fixes — Flux will revert them. Validate logic via direct pod port-forward or netshoot debug pod, then commit+push the fix to Git so Flux reconciles the correct state.
+- **Cloudflare tunnel pod has no shell/wget**: The cloudflare-tunnel container is a minimal image with no shell, wget, or curl. To test connectivity from the cloudflared namespace, run `kubectl run nettest --rm -i --restart=Never --image=curlimages/curl:latest -n cloudflared -- curl ...`.
 
 ### Cluster Network Facts
 - Pod CIDR: `10.244.0.0/16`
 - Service CIDR: `10.96.0.0/12`
 - API server ClusterIP: `10.96.0.1:443`
 - API server node endpoint: `172.16.20.200:6443`
-- CNI: Calico (open-source, no FQDN filtering)
+- CNI: Calico (open-source, no FQDN filtering) — **planned migration to Cilium** (unlocks FQDN egress policies)
+- Data plane: kube-proxy — evaluates NetworkPolicy **post-DNAT** (use container ports in policies)
 - Load balancer: MetalLB L2 mode
 - LAN subnets: `172.16.20.0/24` (cluster), `192.168.21.0/24`, `192.168.201.0/24` (LAN devices)
 - Edge firewall: RouterOS blocks outbound UDP/TCP 53 (plain DNS)
+
+### Cloudflare Tunnel Published Routes → NetworkPolicy Port Map
+This is the ground truth for all active tunnel routes. Both `ns-cloudflared.yaml` egress and the destination namespace ingress must use the **container port** (post-DNAT).
+
+| Hostname | Tunnel service URL | Service port | Container port | Policy port |
+|---|---|---|---|---|
+| demo-argocd | argocd-server.argocd:443 | 443 | 443 | 443 (no DNAT) |
+| demo-fm-dev | fm-webui.firewall-manager-dev | 80 | 8000 | **8000** |
+| demo-fm-staging | fm-webui.firewall-manager-staging | 80 | 8000 | **8000** |
+| demo-fm-prod | fm-webui.firewall-manager-prod | 80 | 8000 | **8000** |
+| demo-vault | vault-ui.vault:8200 | 8200 | 8200 | 8200 (no DNAT) |
+| demo-grafana | grafana.observability:3000 | 3000 | 3000 | 3000 (no DNAT) |
+| demo-homelab-hello | homelab-hello.default | 80 | 80 | 80 (no DNAT) |
+| demo-headlamp | headlamp.headlamp | 80 | 4466 | **4466** |
+| demo-longhorn | longhorn-frontend.longhorn-system:80 | 80 | 8000 | **8000** |
+| bookmarks | linkding.linkding:9090 | 9090 | 9090 | 9090 (no DNAT) |
+| demo-termix | termix.termix:3000 | 3000 | 3000 | 3000 (no DNAT) |
+| auth | authentik-server.identity:9000 | 9000 | 9000 | 9000 (no DNAT) |
+| demo-semaphoreui | semaphoreui.semaphoreui:3000 | 3000 | 3000 | 3000 (no DNAT) |
+| n8n | n8n.n8n | 80 | 5678 | **5678** |
+| portainer | portainer.portainer:9443 | 9443 | 9443 | 9443 (no DNAT, HTTPS) |
+| pihole | pihole.pihole | 80 | 80 | 80 (no DNAT) |
+| forgejo | forgejo.forgejo:3000 | 3000 | 3000 | 3000 (no DNAT) |
+| openclaw | openclaw.openclaw:18789 | 18789 | 18789 | 18789 (no DNAT) |
 
 ### Validation Script
 `scripts/zero-trust-validate.sh` must be updated for every new namespace:
