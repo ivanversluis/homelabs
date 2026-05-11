@@ -28,20 +28,20 @@ Store the OpenClaw secret at path `infra/openclaw` in Vault with these propertie
 - `DISCORD_TOKEN` (required)
 - `DISCORD_BOT_TOKEN` is injected into the pod from `DISCORD_TOKEN` for OpenClaw's Discord send path
 - `OPENROUTER_API_KEY` (required — primary/default LLM provider)
-- `AZURE_FOUNDRY_API_KEY` (required — Azure AI Foundry API key)
-- `AZURE_FOUNDRY_ENDPOINT` (required — Azure AI Foundry base URL, e.g. `https://<name>.cognitiveservices.azure.com`; kept out of the repo)
+- `AZURE_API_KEY` (required — Azure AI Foundry / Cognitive Services primary key)
+- `AZURE_RESOURCE_NAME` (required — the resource name portion of the FQDN, e.g. `aifoundry-openclaw-dev` for `aifoundry-openclaw-dev.cognitiveservices.azure.com`; kept out of the repo)
 - `OPENCLAW_ALLOWED_ORIGINS` (required when binding gateway on LAN; comma-separated origins)
 - `OPENCLAW_TRUSTED_PROXIES` (recommended behind Cloudflare Tunnel; comma-separated CIDRs)
 
-OpenRouter (`openrouter/free`) is the default model. Azure AI Foundry is registered as a second
-provider (`azure-foundry`) and its endpoint URL is injected at pod start from the Vault secret —
-it is never stored in the Git repo.
+OpenRouter (`openrouter/free`) is the default model. Azure AI Foundry is auto-discovered
+as the `azure` provider via the standard `AZURE_API_KEY` and `AZURE_RESOURCE_NAME` env vars.
+Models show up as `azure/gpt-4o-mini` and `azure/phi-4` in the UI/CLI.
 
-Retrieve the Azure Foundry API key and endpoint from Terraform output (sensitive):
+Retrieve the Azure API key from Terraform output (sensitive):
 ```bash
 cd InfraAutomation-ng/dev/compute/rg-ivan-ai-foundry
 terraform output -raw api_key_primary
-terraform output ai_foundry_endpoint
+terraform output ai_foundry_endpoint   # extract the resource name from the FQDN
 ```
 
 Example:
@@ -51,15 +51,15 @@ vault kv put kv/infra/openclaw \
   OPENCLAW_GATEWAY_TOKEN="<generated-token>" \
   DISCORD_TOKEN="<discord-bot-token>" \
   OPENROUTER_API_KEY="<openrouter-api-key>" \
-  AZURE_FOUNDRY_API_KEY="<terraform-output-api_key_primary>" \
-  AZURE_FOUNDRY_ENDPOINT="<terraform-output-ai_foundry_endpoint>" \
-  OPENCLAW_ALLOWED_ORIGINS="https://openclaw,http://127.0.0.1:18789,http://localhost:18789" \
+  AZURE_API_KEY="<terraform-output-api_key_primary>" \
+  AZURE_RESOURCE_NAME="aifoundry-openclaw-dev" \
+  OPENCLAW_ALLOWED_ORIGINS="https://openclaw.networknet.tech,http://127.0.0.1:18789,http://localhost:18789" \
   OPENCLAW_TRUSTED_PROXIES="10.244.0.0/16"
 ```
 
-To switch active model to Azure AI Foundry, either use the OpenClaw UI or patch the cron/config
-via the agent: `providers.azure-foundry` is pre-registered and selectable as `azure-foundry/gpt-4o-mini`
-or `azure-foundry/phi-4`.
+To switch the active model to Azure, use the OpenClaw UI model picker or:
+`openclaw config set agents.defaults.model azure/gpt-4o-mini`
+Available Azure models: `azure/gpt-4o-mini`, `azure/phi-4`.
 
 ## Validation commands
 
