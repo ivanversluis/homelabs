@@ -66,35 +66,28 @@ spec:
                 node /app/dist/index.js config set gateway.trustedProxies "$PROXIES" --strict-json 2>/dev/null || true
               fi
 
-              # Azure AI Foundry provider — injected directly into openclaw.json because
-              # "config set providers.*" is not in openclaw's config schema.
-              # baseUrl comes from secret env var so the FQDN is never stored in git.
-              if [ -n "$AZURE_FOUNDRY_ENDPOINT" ]; then
-                node -e "
-                const fs = require('fs');
-                const p = '/home/node/.openclaw/.openclaw/openclaw.json';
-                const c = JSON.parse(fs.readFileSync(p, 'utf8'));
-                c.providers = c.providers || {};
-                c.providers['azure-foundry'] = {
-                  baseUrl: process.env.AZURE_FOUNDRY_ENDPOINT,
-                  api: 'openai-completions',
-                  apiVersion: '2025-01-01-preview',
-                  models: [
-                    { id: 'gpt-4o-mini', name: 'gpt-4o-mini' },
-                    { id: 'phi-4', name: 'phi-4' }
-                  ]
-                };
-                fs.writeFileSync(p, JSON.stringify(c, null, 2));
-                " 2>/dev/null || true
-              fi
+              # Repair: strip any invalid top-level keys (e.g. "providers") from the
+              # persisted openclaw.json that would prevent the gateway from starting.
+              node -e '
+              const fs = require("fs");
+              const p = "/home/node/.openclaw/.openclaw/openclaw.json";
+              if (!fs.existsSync(p)) process.exit(0);
+              const VALID = new Set(["gateway","agents","channels","models","plugins","cron","skills","nodes","auth","telemetry"]);
+              const c = JSON.parse(fs.readFileSync(p, "utf8"));
+              let changed = false;
+              for (const k of Object.keys(c)) {
+                if (!VALID.has(k) && !k.startsWith("$")) { delete c[k]; changed = true; }
+              }
+              if (changed) fs.writeFileSync(p, JSON.stringify(c, null, 2));
+              ' 2>/dev/null || true
 
-              # Remove any persisted model override that is not openrouter or azure-foundry.
+              # Remove any persisted model override that is not openrouter or azure.
               # Stale providers (vercel-ai-gateway, zai, etc.) accumulate in agent/session
               # configs from UI interaction and beat agents.defaults.model on resume.
               node -e '
               const fs = require("fs"), path = require("path");
               const agentsDir = "/home/node/.openclaw/.openclaw/agents";
-              const ALLOWED = ["openrouter", "azure-foundry"];
+              const ALLOWED = ["openrouter", "azure"];
               function stale(m) { return m && typeof m==="string" && !ALLOWED.some(p=>m.startsWith(p)); }
               function clean(dir) {
                 if (!fs.existsSync(dir)) return;
@@ -167,11 +160,6 @@ spec:
                   name: openclaw-secrets
                   key: OPENCLAW_TRUSTED_PROXIES
                   optional: true
-            - name: AZURE_FOUNDRY_ENDPOINT
-              valueFrom:
-                secretKeyRef:
-                  name: openclaw-secrets
-                  key: AZURE_FOUNDRY_ENDPOINT
             - name: DISCORD_USER_ID
               valueFrom:
                 secretKeyRef:
@@ -235,6 +223,21 @@ spec:
               value: production
             - name: KUBERNETES_IN_CLUSTER
               value: "true"
+            # Azure AI Foundry — map Vault secrets to the standard env vars
+            # that OpenClaw / Vercel AI SDK auto-discovers for the Azure provider.
+            # The model will appear as azure/gpt-4o-mini in the UI.
+            - name: AZURE_RESOURCE_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: AZURE_RESOURCE_NAME
+                  optional: true
+            - name: AZURE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: AZURE_API_KEY
+                  optional: true
           resources:
             requests:
               cpu: 250m
