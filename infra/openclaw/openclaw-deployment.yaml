@@ -78,8 +78,39 @@ spec:
                   '[{"id":"gpt-4o-mini","name":"gpt-4o-mini"},{"id":"phi-4","name":"phi-4"}]' --strict-json 2>/dev/null || true
               fi
 
+              # Remove stale vercel-ai-gateway provider — prevents it from populating
+              # the model list with hundreds of external models
+              node /app/dist/index.js config set providers.vercel-ai-gateway null --strict-json 2>/dev/null || true
+
               # Default model: OpenRouter free (Azure AI Foundry available as azure-foundry/gpt-4o-mini)
               node /app/dist/index.js config set agents.defaults.model openrouter/free 2>/dev/null || true
+
+              # Clear any persisted per-agent model override pointing to vercel-ai-gateway.
+              # Agent-level model overrides the gateway default and must be removed so the
+              # agent falls back to agents.defaults.model (openrouter/free).
+              node -e '
+              const fs = require("fs"), path = require("path");
+              const agentsDir = "/home/node/.openclaw/.openclaw/agents";
+              function clean(dir) {
+                if (!fs.existsSync(dir)) return;
+                for (const e of fs.readdirSync(dir, {withFileTypes: true})) {
+                  const p = path.join(dir, e.name);
+                  if (!e.isDirectory()) continue;
+                  const cfg = path.join(p, "config.json");
+                  if (fs.existsSync(cfg)) {
+                    try {
+                      const c = JSON.parse(fs.readFileSync(cfg, "utf8"));
+                      if (typeof c.model === "string" && c.model.includes("vercel")) {
+                        delete c.model;
+                        fs.writeFileSync(cfg, JSON.stringify(c, null, 2));
+                      }
+                    } catch(_) {}
+                  }
+                  clean(p);
+                }
+              }
+              clean(agentsDir);
+              ' 2>/dev/null || true
 
               # Discord: DM allowlist and guild access without @mention
               if [ -n "$DISCORD_USER_ID" ]; then
