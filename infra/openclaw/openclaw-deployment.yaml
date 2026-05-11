@@ -66,7 +66,19 @@ spec:
                 node /app/dist/index.js config set gateway.trustedProxies "$PROXIES" --strict-json 2>/dev/null || true
               fi
 
-              # Default model: use OpenRouter free model (OPENROUTER_API_KEY env fallback is auto-picked up)
+              # Azure AI Foundry provider — base URL comes from secret env var (not hardcoded in repo)
+              if [ -n "$AZURE_FOUNDRY_ENDPOINT" ]; then
+                node /app/dist/index.js config set providers.azure-foundry.baseUrl \
+                  "$AZURE_FOUNDRY_ENDPOINT" 2>/dev/null || true
+                node /app/dist/index.js config set providers.azure-foundry.api \
+                  openai-completions 2>/dev/null || true
+                node /app/dist/index.js config set providers.azure-foundry.apiVersion \
+                  "2025-01-01-preview" 2>/dev/null || true
+                node /app/dist/index.js config set providers.azure-foundry.models \
+                  '[{"id":"gpt-4o-mini","name":"gpt-4o-mini"},{"id":"phi-4","name":"phi-4"}]' --strict-json 2>/dev/null || true
+              fi
+
+              # Default model: OpenRouter free (Azure AI Foundry available as azure-foundry/gpt-4o-mini)
               node /app/dist/index.js config set agents.defaults.model openrouter/free 2>/dev/null || true
 
               # Discord: DM allowlist and guild access without @mention
@@ -108,6 +120,11 @@ spec:
                   name: openclaw-secrets
                   key: OPENCLAW_TRUSTED_PROXIES
                   optional: true
+            - name: AZURE_FOUNDRY_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: AZURE_FOUNDRY_ENDPOINT
             - name: DISCORD_USER_ID
               valueFrom:
                 secretKeyRef:

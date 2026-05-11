@@ -27,9 +27,22 @@ Store the OpenClaw secret at path `infra/openclaw` in Vault with these propertie
 - `OPENCLAW_GATEWAY_TOKEN` (required)
 - `DISCORD_TOKEN` (required)
 - `DISCORD_BOT_TOKEN` is injected into the pod from `DISCORD_TOKEN` for OpenClaw's Discord send path
-- `OPENROUTER_API_KEY` (required for OpenRouter model provider)
+- `OPENROUTER_API_KEY` (required — primary/default LLM provider)
+- `AZURE_FOUNDRY_API_KEY` (required — Azure AI Foundry API key)
+- `AZURE_FOUNDRY_ENDPOINT` (required — Azure AI Foundry base URL, e.g. `https://<name>.cognitiveservices.azure.com`; kept out of the repo)
 - `OPENCLAW_ALLOWED_ORIGINS` (required when binding gateway on LAN; comma-separated origins)
 - `OPENCLAW_TRUSTED_PROXIES` (recommended behind Cloudflare Tunnel; comma-separated CIDRs)
+
+OpenRouter (`openrouter/free`) is the default model. Azure AI Foundry is registered as a second
+provider (`azure-foundry`) and its endpoint URL is injected at pod start from the Vault secret —
+it is never stored in the Git repo.
+
+Retrieve the Azure Foundry API key and endpoint from Terraform output (sensitive):
+```bash
+cd InfraAutomation-ng/dev/compute/rg-ivan-ai-foundry
+terraform output -raw api_key_primary
+terraform output ai_foundry_endpoint
+```
 
 Example:
 
@@ -38,11 +51,15 @@ vault kv put kv/infra/openclaw \
   OPENCLAW_GATEWAY_TOKEN="<generated-token>" \
   DISCORD_TOKEN="<discord-bot-token>" \
   OPENROUTER_API_KEY="<openrouter-api-key>" \
-  OPENCLAW_ALLOWED_ORIGINS="https://openclaw.networknet.tech,http://127.0.0.1:18789,http://localhost:18789" \
+  AZURE_FOUNDRY_API_KEY="<terraform-output-api_key_primary>" \
+  AZURE_FOUNDRY_ENDPOINT="<terraform-output-ai_foundry_endpoint>" \
+  OPENCLAW_ALLOWED_ORIGINS="https://openclaw,http://127.0.0.1:18789,http://localhost:18789" \
   OPENCLAW_TRUSTED_PROXIES="10.244.0.0/16"
 ```
 
-Only the OpenRouter key is used for LLM calls.
+To switch active model to Azure AI Foundry, either use the OpenClaw UI or patch the cron/config
+via the agent: `providers.azure-foundry` is pre-registered and selectable as `azure-foundry/gpt-4o-mini`
+or `azure-foundry/phi-4`.
 
 ## Validation commands
 
