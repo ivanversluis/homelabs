@@ -109,3 +109,21 @@ spec:
       ports:
         - protocol: TCP
           port: 6443
+
+---
+# Temporary: Allow Vault to call out to the internet for Authentik OIDC discovery and token exchange, until we have a local Authentik instance or can cache the OIDC metadata in Vault
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-https-internet-temporary
+  namespace: vault
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
