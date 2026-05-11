@@ -66,51 +66,67 @@ spec:
                 node /app/dist/index.js config set gateway.trustedProxies "$PROXIES" --strict-json 2>/dev/null || true
               fi
 
-              # Azure AI Foundry provider — base URL comes from secret env var (not hardcoded in repo)
+              # Azure AI Foundry provider — injected directly into openclaw.json because
+              # "config set providers.*" is not in openclaw's config schema.
+              # baseUrl comes from secret env var so the FQDN is never stored in git.
               if [ -n "$AZURE_FOUNDRY_ENDPOINT" ]; then
-                node /app/dist/index.js config set providers.azure-foundry.baseUrl \
-                  "$AZURE_FOUNDRY_ENDPOINT" 2>/dev/null || true
-                node /app/dist/index.js config set providers.azure-foundry.api \
-                  openai-completions 2>/dev/null || true
-                node /app/dist/index.js config set providers.azure-foundry.apiVersion \
-                  "2025-01-01-preview" 2>/dev/null || true
-                node /app/dist/index.js config set providers.azure-foundry.models \
-                  '[{"id":"gpt-4o-mini","name":"gpt-4o-mini"},{"id":"phi-4","name":"phi-4"}]' --strict-json 2>/dev/null || true
+                node -e "
+                const fs = require('fs');
+                const p = '/home/node/.openclaw/.openclaw/openclaw.json';
+                const c = JSON.parse(fs.readFileSync(p, 'utf8'));
+                c.providers = c.providers || {};
+                c.providers['azure-foundry'] = {
+                  baseUrl: process.env.AZURE_FOUNDRY_ENDPOINT,
+                  api: 'openai-completions',
+                  apiVersion: '2025-01-01-preview',
+                  models: [
+                    { id: 'gpt-4o-mini', name: 'gpt-4o-mini' },
+                    { id: 'phi-4', name: 'phi-4' }
+                  ]
+                };
+                fs.writeFileSync(p, JSON.stringify(c, null, 2));
+                " 2>/dev/null || true
               fi
 
-              # Remove stale vercel-ai-gateway provider — prevents it from populating
-              # the model list with hundreds of external models
-              node /app/dist/index.js config set providers.vercel-ai-gateway null --strict-json 2>/dev/null || true
-
-              # Default model: OpenRouter free (Azure AI Foundry available as azure-foundry/gpt-4o-mini)
-              node /app/dist/index.js config set agents.defaults.model openrouter/free 2>/dev/null || true
-
-              # Clear any persisted per-agent model override pointing to vercel-ai-gateway.
-              # Agent-level model overrides the gateway default and must be removed so the
-              # agent falls back to agents.defaults.model (openrouter/free).
+              # Remove any persisted model override that is not openrouter or azure-foundry.
+              # Stale providers (vercel-ai-gateway, zai, etc.) accumulate in agent/session
+              # configs from UI interaction and beat agents.defaults.model on resume.
               node -e '
               const fs = require("fs"), path = require("path");
               const agentsDir = "/home/node/.openclaw/.openclaw/agents";
+              const ALLOWED = ["openrouter", "azure-foundry"];
+              function stale(m) { return m && typeof m==="string" && !ALLOWED.some(p=>m.startsWith(p)); }
               function clean(dir) {
                 if (!fs.existsSync(dir)) return;
-                for (const e of fs.readdirSync(dir, {withFileTypes: true})) {
+                for (const e of fs.readdirSync(dir, {withFileTypes:true})) {
                   const p = path.join(dir, e.name);
-                  if (!e.isDirectory()) continue;
-                  const cfg = path.join(p, "config.json");
-                  if (fs.existsSync(cfg)) {
+                  if (e.isFile() && e.name === "config.json") {
                     try {
-                      const c = JSON.parse(fs.readFileSync(cfg, "utf8"));
-                      if (typeof c.model === "string" && c.model.includes("vercel")) {
-                        delete c.model;
-                        fs.writeFileSync(cfg, JSON.stringify(c, null, 2));
-                      }
+                      const c = JSON.parse(fs.readFileSync(p, "utf8"));
+                      if (stale(c.model)) { delete c.model; fs.writeFileSync(p, JSON.stringify(c, null, 2)); }
                     } catch(_) {}
-                  }
-                  clean(p);
+                  } else if (e.isDirectory()) { clean(p); }
                 }
               }
               clean(agentsDir);
+              const sessFile = agentsDir + "/main/sessions/sessions.json";
+              if (fs.existsSync(sessFile)) {
+                try {
+                  const s = JSON.parse(fs.readFileSync(sessFile, "utf8"));
+                  let changed = false;
+                  if (Array.isArray(s.sessions)) {
+                    s.sessions = s.sessions.map(sess => {
+                      if (stale(sess.model)) { delete sess.model; changed = true; }
+                      return sess;
+                    });
+                  }
+                  if (changed) fs.writeFileSync(sessFile, JSON.stringify(s, null, 2));
+                } catch(_) {}
+              }
               ' 2>/dev/null || true
+
+              # Default model: OpenRouter free (Azure AI Foundry available as azure-foundry/gpt-4o-mini)
+              node /app/dist/index.js config set agents.defaults.model openrouter/free 2>/dev/null || true
 
               # Discord: DM allowlist and guild access without @mention
               if [ -n "$DISCORD_USER_ID" ]; then
