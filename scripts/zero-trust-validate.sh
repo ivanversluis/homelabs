@@ -415,12 +415,81 @@ test_ns() {
       test_internet "$ns" 22 tcp deny
       flush_results
       ;;
+
+    argocd)
+      # argocd-server webhook port 8080 (service 443 → containerPort 8080 post-DNAT)
+      # applicationset-controller webhook port 7000 (service 443 → containerPort 7000)
+      print_section "argocd — GitOps, API server + webhook ingress"
+      test_dns "$ns"
+      test_cross_ns_deny "$ns"
+      test_apiserver "$ns" allow
+      test_internet "$ns" 443 tcp allow
+      test_internet "$ns" 22 tcp allow
+      flush_results
+      ;;
+
+    cert-manager)
+      print_section "cert-manager — TLS issuance, ACME + API server"
+      test_dns "$ns"
+      test_cross_ns_deny "$ns"
+      test_apiserver "$ns" allow
+      # cert-manager needs HTTPS to Let's Encrypt ACME + Cloudflare DNS API
+      test_internet "$ns" 443 tcp allow
+      # Should NOT be able to reach unrelated services
+      test_conn "$ns" "Egress to forgejo:3000 BLOCKED" "deny" \
+        nc -z -w "$TIMEOUT_DENY" "forgejo.forgejo.svc.cluster.local" 3000
+      flush_results
+      ;;
+
+    kong)
+      print_section "kong — ingress gateway, Azure AI + API server + all backends"
+      test_dns "$ns"
+      test_cross_ns_deny "$ns"
+      # KIC needs API server to watch Ingress/KongPlugin objects
+      test_apiserver "$ns" allow
+      # AI Gateway plugin needs outbound HTTPS to Azure
+      test_internet "$ns" 443 tcp allow
+      # Should NOT have SSH egress
+      test_internet "$ns" 22 tcp deny
+      # Kong should be able to reach identity (Authentik)
+      test_conn "$ns" "Egress to identity:9000" "allow" \
+        nc -z -w "$TIMEOUT_ALLOW" "authentik-server.identity.svc.cluster.local" 9000
+      # Kong should be able to reach ai namespace (openwebui)
+      test_conn "$ns" "Egress to ai:8080 (openwebui)" "allow" \
+        nc -z -w "$TIMEOUT_ALLOW" "openwebui.ai.svc.cluster.local" 8080
+      # Kong should be able to reach ai namespace (mcpo)
+      test_conn "$ns" "Egress to ai:8000 (mcpo)" "allow" \
+        nc -z -w "$TIMEOUT_ALLOW" "kubernetes-mcpo.ai.svc.cluster.local" 8000
+      flush_results
+      ;;
+
+    ai)
+      print_section "ai — Open WebUI + kubernetes-mcpo, Kong ingress only"
+      test_dns "$ns"
+      # Open WebUI and mcpo should NOT reach each other directly (goes via Kong)
+      test_conn "$ns" "Direct pod-to-pod BLOCKED (openwebui→mcpo)" "deny" \
+        nc -z -w "$TIMEOUT_DENY" "kubernetes-mcpo.ai.svc.cluster.local" 8000
+      # Open WebUI should reach Kong (for AI gateway + OIDC)
+      test_conn "ai" "Egress to kong:8000" "allow" \
+        --labels "app.kubernetes.io/name=openwebui" \
+        nc -z -w "$TIMEOUT_ALLOW" "kong-proxy.kong.svc.cluster.local" 8000
+      # mcpo should reach API server
+      test_conn "ai" "Egress to API server (mcpo)" "allow" \
+        --labels "app.kubernetes.io/name=kubernetes-mcpo" \
+        nc -z -w "$TIMEOUT_ALLOW" "$API_CLUSTERIP" 443
+      # Open WebUI must NOT reach Azure directly (all LLM traffic through Kong)
+      test_conn "ai" "Direct Azure egress BLOCKED" "deny" \
+        --labels "app.kubernetes.io/name=openwebui" \
+        nc -z -w "$TIMEOUT_DENY" 1.1.1.1 443
+      flush_results
+      ;;
   esac
 }
 
 NAMESPACES=(linkding n8n termix forgejo identity headlamp cloudflared vault \
             external-secrets-system observability monitoring pihole dns \
-            flux-system openclaw semaphoreui portainer)
+            flux-system openclaw semaphoreui portainer argocd \
+            cert-manager kong ai)
 
 for ns in "${NAMESPACES[@]}"; do
   test_ns "$ns"

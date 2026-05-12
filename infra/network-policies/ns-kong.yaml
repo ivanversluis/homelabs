@@ -1,0 +1,367 @@
+# Zero Trust NetworkPolicy — kong namespace
+#
+# Kong is the cluster ingress gateway; it's the ONLY namespace that legitimately
+# receives traffic from everywhere and forwards it inward. Calico still enforces
+# which other namespaces Kong is allowed to talk to.
+#
+# Threat model:
+#   - Traffic from outside the cluster arrives via cloudflared (port 8000/8443)
+#     or from LAN clients hitting the MetalLB VIP directly.
+#   - Kong proxy talks to backend services on their container ports.
+#   - Kong Admin API (8444) is only reachable from within the kong namespace itself.
+#   - Prometheus scrapes Kong metrics on port 8100.
+#
+# APPLY-BEFORE-HELM: This policy MUST be applied before `helm install kong`.
+# Kong Ingress Controller installs a ValidatingWebhookConfiguration and the KIC
+# pod's webhook (port 8080) must be reachable by the API server on startup.
+# Without this policy the KIC webhook pod can't bootstrap and helm --wait times out.
+# See: scripts/deploy-02-kong.sh — creates namespace + applies this before helm.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-dns
+  namespace: kong
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: kong
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+---
+# API server -> Kong Ingress Controller validating webhook (port 8080)
+# Kong KIC installs a ValidatingWebhookConfiguration for KongPlugin,
+# KongClusterPlugin, KongConsumer, etc. Without this rule, any kubectl apply
+# of a Kong CRD is rejected with a timeout by the API server.
+# IMPORTANT: apply this policy BEFORE helm install (see header comment above).
+# KIC webhook (port 8080) runs inside the main kong-kong pod (component: app).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-apiserver-webhook-ingress
+  namespace: kong
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: app
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 172.16.20.200/32
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+# ai namespace -> Kong proxy
+# Open WebUI calls Kong AI gateway (/v1/*) for LLM inference.
+# Open WebUI also calls Kong to route MCP requests to kubernetes-mcpo.
+# Both connections originate from pods in the ai namespace, hitting Kong's
+# proxy ports (8000/8443 post-DNAT from service ports 80/443).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ai-ingress
+  namespace: kong
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kong
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ai
+      ports:
+        - protocol: TCP
+          port: 8000
+        - protocol: TCP
+          port: 8443
+---
+# Cloudflare Tunnel -> Kong proxy (Kong decrypts and routes inward)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-cloudflared-ingress
+  namespace: kong
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kong
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cloudflared
+      ports:
+        - protocol: TCP
+          port: 8000
+        - protocol: TCP
+          port: 8443
+---
+# LAN clients (MetalLB VIP traffic) -> Kong proxy
+# kube-proxy DNAT rewrites the VIP to the pod IP before NetworkPolicy is evaluated,
+# so the source appears as a node IP in the LAN subnet. Allow from 0.0.0.0/0 on
+# proxy ports is intentional — Calico still blocks everything else.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-lan-proxy-ingress
+  namespace: kong
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kong
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 172.16.0.0/12   # LAN + MetalLB node IPs
+      ports:
+        - protocol: TCP
+          port: 8000
+        - protocol: TCP
+          port: 8443
+---
+# Prometheus -> Kong metrics
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: kong
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kong
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - protocol: TCP
+          port: 8100
+---
+# Kong -> backend namespaces (proxy egress)
+# One block per namespace that Kong routes traffic to.
+# Container ports are used (post-DNAT), consistent with existing ns-*.yaml policies.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-proxied-services
+  namespace: kong
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kong
+  policyTypes: [Egress]
+  egress:
+    # identity (Authentik) — OIDC + web UI
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: identity
+      ports:
+        - protocol: TCP
+          port: 9000
+        - protocol: TCP
+          port: 9443
+    # headlamp
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: headlamp
+      ports:
+        - protocol: TCP
+          port: 4466
+    # vault
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: vault
+      ports:
+        - protocol: TCP
+          port: 8200
+    # observability (grafana)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - protocol: TCP
+          port: 3000
+    # forgejo
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: forgejo
+      ports:
+        - protocol: TCP
+          port: 3000
+    # n8n
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: n8n
+      ports:
+        - protocol: TCP
+          port: 5678
+    # linkding
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: linkding
+      ports:
+        - protocol: TCP
+          port: 9090
+    # semaphoreui
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: semaphoreui
+      ports:
+        - protocol: TCP
+          port: 3000
+    # portainer
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: portainer
+      ports:
+        - protocol: TCP
+          port: 9443
+    # firewall-manager (all envs share port 8000 post-DNAT)
+    - to:
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  - firewall-manager-dev
+                  - firewall-manager-staging
+                  - firewall-manager-prod
+      ports:
+        - protocol: TCP
+          port: 8000
+    # argocd
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: argocd
+      ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 8080
+    # pihole
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: pihole
+      ports:
+        - protocol: TCP
+          port: 80
+    # termix
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: termix
+      ports:
+        - protocol: TCP
+          port: 3000
+    # openclaw
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openclaw
+      ports:
+        - protocol: TCP
+          port: 18789
+    # ai namespace — Open WebUI (chat frontend) + kubernetes-mcpo (MCP tool API)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ai
+      ports:
+        - protocol: TCP
+          port: 8080   # openwebui (post-DNAT container port)
+        - protocol: TCP
+          port: 8000   # kubernetes-mcpo (post-DNAT container port)
+---
+# Kong -> Azure AI Foundry (HTTPS egress for AI Gateway plugin)
+# Only the Kong proxy pod needs this; the ai-proxy plugin makes outbound
+# calls to management.azure.com / openai.azure.com on behalf of requests.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-azure-ai
+  namespace: kong
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kong
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+---
+# Kong Ingress Controller -> Kubernetes API server
+# KIC must continuously watch Ingress, KongPlugin, KongConsumer and Secret
+# objects. Without this rule KIC starts but sees no routes — all Ingress
+# resources are silently ignored.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-apiserver
+  namespace: kong
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.1/32
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 172.16.20.200/32
+      ports:
+        - protocol: TCP
+          port: 6443

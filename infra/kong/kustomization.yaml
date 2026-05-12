@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - kong-namespace.yaml
+  - kong-helmrepository.yaml
+  - kong-helmrelease.yaml
+  - kong-ingressclass.yaml
+  - kong-azure-ai-externalsecret.yaml
+  - kong-azure-ai-plugin-config-externalsecret.yaml
+  - kong-plugin-ai-proxy.yaml
+  - kong-plugin-ai-prompt-guard.yaml
+  - kong-plugin-rate-limit.yaml
+  - kong-plugin-normalize-model-name.yaml
+  - kong-service-ai-gateway.yaml
+  - kong-ai-gateway-models-ingress.yaml

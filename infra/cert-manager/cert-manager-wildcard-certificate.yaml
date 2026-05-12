@@ -1,0 +1,25 @@
+# Wildcard TLS certificate for *.${DOMAIN}
+# Written into the "kong" namespace so Kong can mount it directly.
+# cert-manager renews it automatically before expiry (~60 days for LE).
+#
+# Split-brain DNS note:
+#   This single cert covers ALL *.${DOMAIN} hostnames — whether
+#   the client comes in from the internet via Cloudflare Tunnel or from
+#   LAN via the MetalLB Kong IP. No second cert needed.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-tls
+  namespace: kong
+spec:
+  secretName: kong-tls-wildcard
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "${DOMAIN}"
+    - "*.${DOMAIN}"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  renewBefore: 360h  # renew 15 days before expiry

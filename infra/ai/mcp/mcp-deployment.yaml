@@ -1,0 +1,100 @@
+# mcpo: MCP-to-OpenAPI proxy
+# Wraps kubernetes-mcp-server (stdio) as an OpenAPI HTTP service.
+# Open WebUI calls Kong → mcpo HTTP → kubernetes-mcp-server stdio → k8s API.
+#
+# Image: ghcr.io/open-webui/mcpo (maintained by Open WebUI project)
+# kubernetes-mcp-server: https://www.npmjs.com/package/kubernetes-mcp-server
+#
+# Architecture inside this pod:
+#   mcpo (port 8000) spawns kubernetes-mcp-server as a subprocess via stdio.
+#   kubernetes-mcp-server uses the pod's ServiceAccount token to call the k8s API.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubernetes-mcpo
+  namespace: ai
+  labels:
+    app.kubernetes.io/name: kubernetes-mcpo
+    app.kubernetes.io/component: mcp-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kubernetes-mcpo
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kubernetes-mcpo
+      annotations:
+        prometheus.io/scrape: "false"
+    spec:
+      serviceAccountName: kubernetes-mcp-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: mcpo
+          # mcpo serves the OpenAPI wrapper; it spawns kubernetes-mcp-server internally
+          image: ghcr.io/open-webui/mcpo:latest
+          args:
+            - "--host=0.0.0.0"
+            - "--port=8000"
+            - "--api-key=$(MCPO_API_KEY)"
+            - "--"
+            # kubernetes-mcp-server binary (pulled into the mcpo image or as sidecar)
+            # See note below if you need a separate initContainer to install it
+            - "npx"
+            - "-y"
+            - "kubernetes-mcp-server@latest"
+            - "--toolsets=core,helm"
+            # read-only: safest default — set to false to allow apply/delete operations
+            # If you turn off read-only, add explicit allow-list via --toolsets
+            # --read-only flag not yet supported; enforce via RBAC verbs above instead
+          env:
+            - name: MCPO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mcpo-api-key
+                  key: api-key
+            # kubernetes-mcp-server uses in-cluster config automatically from
+            # the mounted ServiceAccount token (/var/run/secrets/kubernetes.io/serviceaccount/)
+            - name: KUBECONFIG
+              value: ""
+            # npm cache: /.npm is root-owned in the image; redirect to writable /tmp
+            - name: NPM_CONFIG_CACHE
+              value: /tmp/.npm
+          ports:
+            - containerPort: 8000
+              name: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /openapi.json
+              port: 8000
+            failureThreshold: 60   # 60 * 5s = 5 minutes for npx to download+start
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /openapi.json
+              port: 8000
+            initialDelaySeconds: 0
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /openapi.json
+              port: 8000
+            initialDelaySeconds: 0
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false   # mcpo needs temp writes for npx
+            capabilities:
+              drop: ["ALL"]

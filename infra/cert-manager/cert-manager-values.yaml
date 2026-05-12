@@ -1,0 +1,17 @@
+# cert-manager Helm values — used by deploy-01-cert-manager.sh
+# helm install cert-manager jetstack/cert-manager \
+#   --namespace cert-manager --create-namespace \
+#   --version v1.17.2 \
+#   -f infra/cert-manager/cert-manager-values.yaml
+installCRDs: true
+prometheus:
+  enabled: true
+  servicemonitor:
+    enabled: false  # enable when kube-prometheus-stack is deployed
+resources:
+  requests:
+    cpu: 10m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi

@@ -1,0 +1,200 @@
+# Zero Trust NetworkPolicy — ai namespace
+# Components: Open WebUI, mcpo (kubernetes-mcp-server wrapper)
+#
+# Ingress rules:
+#   - Kong → openwebui (port 8080): serves the chat UI
+#   - Kong → kubernetes-mcpo (port 8000): MCP tool API
+#   - Prometheus → both pods for scraping
+#
+# Egress rules:
+#   - All pods → kube-system (DNS)
+#   - All pods → kong namespace (OIDC token validation, AI gateway calls)
+#   - kubernetes-mcpo → kube-apiserver (RBAC-controlled k8s API reads)
+#   - openwebui → kong only (no direct Azure egress — Kong handles that)
+---
+# Default deny all ingress/egress in the ai namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: ai
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+# Allow DNS
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-dns
+  namespace: ai
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# Kong → Open WebUI (chat frontend)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kong-ingress-openwebui
+  namespace: ai
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: openwebui
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+# Kong → kubernetes-mcpo (MCP tool API)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kong-ingress-mcpo
+  namespace: ai
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kubernetes-mcpo
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+# Open WebUI → Kong (for AI gateway LLM calls + OIDC token validation)
+# Open WebUI never calls Azure directly; all LLM traffic goes through Kong AI Gateway
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-openwebui-to-kong
+  namespace: ai
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: openwebui
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 8000
+        - protocol: TCP
+          port: 8443
+---
+# Open WebUI → internet (HuggingFace for embedding model download on first start)
+# sentence-transformers/all-MiniLM-L6-v2 is fetched from huggingface.co
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-openwebui-internet
+  namespace: ai
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: openwebui
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+---
+# mcpo → Kubernetes API server (for kubernetes-mcp-server cluster reads)
+# The ServiceAccount RBAC restricts what it can actually do.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-mcpo-to-apiserver
+  namespace: ai
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kubernetes-mcpo
+  policyTypes: [Egress]
+  egress:
+    # Kubernetes API service (ClusterIP in kube-system)
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.1/32
+      ports:
+        - protocol: TCP
+          port: 443
+    # Control plane node direct access (adjust IP to your control node)
+    - to:
+        - ipBlock:
+            cidr: 172.16.20.200/32
+      ports:
+        - protocol: TCP
+          port: 6443
+---
+# mcpo → internet (npm registry for npx @manusa/kubernetes-mcp-server download)
+# npx downloads the MCP server package on first start; cached after that.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-mcpo-npm
+  namespace: ai
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kubernetes-mcpo
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+---
+# Prometheus scraping (from observability namespace)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: ai
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: openwebui
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - protocol: TCP
+          port: 8080

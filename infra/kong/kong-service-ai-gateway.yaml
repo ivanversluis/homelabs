@@ -1,0 +1,62 @@
+# Service + Ingress: exposes the AI Gateway endpoint inside the cluster.
+# Internal services call https://ai.${DOMAIN}/v1/chat/completions
+# which resolves to Kong via split-brain DNS (see CoreDNS ConfigMap below).
+# External access is via Cloudflare Tunnel → Kong → this route.
+#
+# Kong handles auth (add oidc or key-auth plugin annotations as needed).
+apiVersion: v1
+kind: Service
+metadata:
+  # Headless placeholder — Kong AI gateway is the proxy itself (no separate backend).
+  # This Service exists so the Ingress can reference a valid backend.
+  name: ai-gateway
+  namespace: kong
+  labels:
+    app.kubernetes.io/name: ai-gateway
+    app.kubernetes.io/part-of: kong
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: app
+  ports:
+    - name: proxy
+      port: 80
+      targetPort: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-gateway
+  namespace: kong
+  annotations:
+    # normalize-model-name MUST run first: Open WebUI sends custom preset names
+    # (e.g. "k8s-assistant") as the model field; Kong ai-proxy rejects anything
+    # that doesn't match its configured model.name (gpt-4o-mini).
+    konghq.com/plugins: "normalize-model-name,ai-proxy-azure,ai-prompt-guard,rate-limit-global"
+    konghq.com/strip-path: "false"
+    # Kong will serve this over HTTPS using the wildcard cert
+    kubernetes.io/tls-acme: "true"
+spec:
+  ingressClassName: kong
+  tls:
+    # All subdomains share the wildcard cert. KIC registers each host as a Kong SNI.
+    # Without a TLS entry here, Kong falls back to its internal self-signed cert
+    # for that hostname, causing SSLCertVerificationError in server-side connections
+    # (e.g. Open WebUI Admin tool server check, server-side OpenAI verify).
+    - hosts:
+        - ai.${DOMAIN}
+        - mcp.${DOMAIN}
+        - ai-chat.${DOMAIN}
+      secretName: kong-tls-wildcard
+  rules:
+    - host: ai.${DOMAIN}
+      http:
+        paths:
+          - path: /v1
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-gateway
+                port:
+                  number: 80

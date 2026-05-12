@@ -1,0 +1,90 @@
+# Kong Helm values — used by scripts/deploy-02-kong.sh
+# helm install kong kong/kong \
+#   --namespace kong --create-namespace \
+#   --version 2.46.0 \
+#   -f infra/kong/kong-values.yaml
+#
+# NOTE: KONG_LB_IP is substituted by the deploy script via envsubst.
+#       Run: envsubst < infra/kong/kong-values.yaml | helm install kong kong/kong ...
+
+# ─────────────────────────────────────────────
+# Proxy (data plane) — MetalLB LoadBalancer IP
+# ─────────────────────────────────────────────
+proxy:
+  enabled: true
+  type: LoadBalancer
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: "${KONG_LB_IP}"
+  http:
+    enabled: true
+    servicePort: 80
+    containerPort: 8000
+  tls:
+    enabled: true
+    servicePort: 443
+    containerPort: 8443
+    parameters:
+      - http2
+  externalTrafficPolicy: Local
+
+# ─────────────────────────────────────────────
+# Admin API — ClusterIP only (never exposed publicly)
+# ─────────────────────────────────────────────
+admin:
+  enabled: true
+  type: ClusterIP
+  http:
+    enabled: false
+  tls:
+    enabled: true
+    servicePort: 8444
+    containerPort: 8444
+
+# ─────────────────────────────────────────────
+# Ingress controller — watches Ingress resources
+# ─────────────────────────────────────────────
+ingressController:
+  enabled: true
+  ingressClass: kong
+  env:
+    log_level: info
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# ─────────────────────────────────────────────
+# Kong proxy environment
+# ─────────────────────────────────────────────
+env:
+  database: "off"
+  # Trust X-Forwarded-For from cloudflared only (LAN + pod CIDR)
+  trusted_ips: "172.16.20.0/24,10.0.0.0/8"
+  ssl_protocols: "TLSv1.2 TLSv1.3"
+  headers: "off"
+  prometheus_metrics: "on"
+  plugins: "bundled"
+
+# ─────────────────────────────────────────────
+# NOTE: secretVolumes for kong-tls-wildcard is intentionally omitted.
+# KIC reads Ingress tls[].secretName directly from the k8s API — no volume
+# mount needed. Mounting it would block pod start until the cert is issued.
+# ─────────────────────────────────────────────
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+
+# ─────────────────────────────────────────────
+# Prometheus scrape annotations
+# ─────────────────────────────────────────────
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8100"
+  prometheus.io/path: "/metrics"

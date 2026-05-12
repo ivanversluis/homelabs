@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openwebui
+  namespace: ai
+  labels:
+    app.kubernetes.io/name: openwebui
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: openwebui
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: openwebui
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+    spec:
+      # SECURITY EXCEPTION: fsGroup: 0 (root) is required because the official
+      # ghcr.io/open-webui/open-webui image runs as root and writes directly to
+      # /app/backend/data. Using a non-zero fsGroup causes permission errors on
+      # the Longhorn PVC. Track upstream: https://github.com/open-webui/open-webui
+      # for a non-root release before removing this exception.
+      # Schedule only on Longhorn-capable worker nodes; master has no Longhorn disk.
+      nodeSelector:
+        node.longhorn.io/create-default-disk: "true"
+      securityContext:
+        fsGroup: 0
+      containers:
+        - name: openwebui
+          # Pin to a stable tag; Renovate will bump this
+          image: ghcr.io/open-webui/open-webui:v0.6.5
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            # ── Point Open WebUI at Kong AI Gateway (not Azure directly) ──────
+            # All LLM traffic goes through Kong so rate limiting, prompt guard,
+            # and logging apply automatically.
+            - name: OPENAI_API_BASE_URL
+              value: "https://ai.${DOMAIN}/v1"
+            - name: OPENAI_API_KEY
+              # Kong injects the real Azure key; Open WebUI just needs a non-empty value
+              value: "kong-managed"
+
+            # ── Authentication via Authentik OIDC ────────────────────────────
+            - name: WEBUI_AUTH_TRUSTED_EMAIL_HEADER
+              value: ""
+            - name: ENABLE_OAUTH_SIGNUP
+              value: "true"
+            - name: OAUTH_PROVIDER_NAME
+              value: "Authentik"
+            - name: OAUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-oidc
+                  key: client-id
+            - name: OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-oidc
+                  key: client-secret
+            - name: OPENID_PROVIDER_URL
+              # Uses split-brain DNS — stays inside cluster via Kong
+              value: "https://auth.${DOMAIN}/application/o/openwebui/.well-known/openid-configuration"
+            - name: OAUTH_SCOPES
+              value: "openid email profile"
+
+            # ── Admin seed (first run only) ───────────────────────────────────
+            - name: WEBUI_ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-admin
+                  key: admin-email
+            - name: WEBUI_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-admin
+                  key: admin-password
+
+            # ── MCP / Tool server ─────────────────────────────────────────────
+            # Open WebUI discovers tool servers via its settings UI; no env needed here.
+            # The MCP endpoint is added manually once in the UI:
+            #   Settings → Tools → https://mcp.${DOMAIN}/kubernetes
+
+            # ── General ───────────────────────────────────────────────────────
+            - name: WEBUI_NAME
+              value: "Homelab AI"
+            - name: WEBUI_URL
+              value: "https://ai-chat.${DOMAIN}"
+            - name: DATA_DIR
+              value: "/app/backend/data"
+          volumeMounts:
+            - name: data
+              mountPath: /app/backend/data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            failureThreshold: 60   # 60 * 5s = 5 minutes for model downloads + DB migration
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 0
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 0
+            periodSeconds: 30
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: openwebui-data

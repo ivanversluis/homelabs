@@ -1,0 +1,33 @@
+# NetworkPolicy: cloudflared → kong namespace egress
+#
+# MERGE NOTE: This file is intentionally separate from ns-cloudflared.yaml.
+# ns-cloudflared.yaml is managed by Flux GitOps and tracks the main repo.
+# This policy was added when Kong Gateway was deployed via the plan/ directory.
+# When ready to consolidate, merge the egress block below into the
+# allow-egress-proxied-services policy in ns-cloudflared.yaml and delete this file.
+#
+# Purpose: Allow the Cloudflare tunnel pod to connect to the Kong proxy so that
+# all *.${DOMAIN} hostnames routed through Kong work via the tunnel.
+# Kong then routes to the correct backend (openwebui, mcpo, etc.) by Ingress rules.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-kong-gateway
+  namespace: cloudflared
+  labels:
+    managed-by: manual
+    merge-target: ns-cloudflared.yaml
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 8000   # Kong proxy HTTP (container port post-DNAT from service :80)
+        - protocol: TCP
+          port: 8443   # Kong proxy HTTPS (container port post-DNAT from service :443)

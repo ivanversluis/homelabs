@@ -1,0 +1,13 @@
+# PersistentVolumeClaim for Open WebUI data (conversations, models metadata, tools config)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: openwebui-data
+  namespace: ai
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 5Gi

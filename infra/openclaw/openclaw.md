@@ -51,9 +51,7 @@ vault kv put kv/infra/openclaw \
   OPENCLAW_GATEWAY_TOKEN="<generated-token>" \
   DISCORD_TOKEN="<discord-bot-token>" \
   OPENROUTER_API_KEY="<openrouter-api-key>" \
-  AZURE_API_KEY="<terraform-output-api_key_primary>" \
-  AZURE_RESOURCE_NAME="aifoundry-openclaw-dev" \
-  OPENCLAW_ALLOWED_ORIGINS="https://openclaw.networknet.tech,http://127.0.0.1:18789,http://localhost:18789" \
+  OPENCLAW_ALLOWED_ORIGINS="https://openclaw.$DOMAIN$,http://127.0.0.1:18789,http://localhost:18789" \
   OPENCLAW_TRUSTED_PROXIES="10.244.0.0/16"
 ```
 
