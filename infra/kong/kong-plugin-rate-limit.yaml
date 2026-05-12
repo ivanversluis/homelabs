@@ -1,0 +1,15 @@
+# KongClusterPlugin: Rate limiter — protects the AI Gateway and other routes from abuse.
+# KongClusterPlugin is cluster-scoped and can be referenced from Ingresses in any namespace.
+# Apply per-route by adding to konghq.com/plugins annotation on any Ingress.
+apiVersion: configuration.konghq.com/v1
+kind: KongClusterPlugin
+metadata:
+  name: rate-limit-global
+  annotations:
+    kubernetes.io/description: "1000 req/min per consumer, 100 req/min for unauthenticated"
+config:
+  minute: 1000
+  policy: local
+  fault_tolerant: true
+  hide_client_headers: false
+plugin: rate-limiting

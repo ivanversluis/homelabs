@@ -68,3 +68,8 @@ resources:
   - ns-firewall-manager-dev.yaml
   - ns-firewall-manager-staging.yaml
   - ns-firewall-manager-prod.yaml
+
+  # --- Phase 9: AI Gateway stack (cert-manager, Kong, Open WebUI, mcpo) ---
+  - ns-cert-manager.yaml
+  - ns-kong.yaml
+  - ns-ai.yaml

@@ -1,0 +1,128 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kong
+  namespace: kong
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: kong
+      # Kong OSS 3.7+ ships with AI Gateway (ai-proxy plugin) built-in.
+      # Pin to a major.minor; Renovate will bump patch versions.
+      version: "2.46.*"
+      sourceRef:
+        kind: HelmRepository
+        name: kong
+        namespace: kong
+      interval: 12h
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 5
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 5
+  values:
+    # ─────────────────────────────────────────────
+    # Proxy (data plane) — MetalLB LoadBalancer IP
+    # ─────────────────────────────────────────────
+    proxy:
+      enabled: true
+      type: LoadBalancer
+      # IP is injected by Flux from the flux-domain-vars Secret (KONG_LB_IP).
+      loadBalancerIP: ${KONG_LB_IP}
+      annotations:
+        metallb.universe.tf/loadBalancerIPs: "${KONG_LB_IP}"
+      http:
+        enabled: true
+        servicePort: 80
+        containerPort: 8000
+      tls:
+        enabled: true
+        servicePort: 443
+        containerPort: 8443
+        # Kong terminates TLS; cert-manager issues the *.${DOMAIN}
+        # wildcard cert referenced in the Certificate resource below.
+        parameters:
+          - http2
+      externalTrafficPolicy: Local
+
+    # ─────────────────────────────────────────────
+    # Admin API — ClusterIP only (never exposed publicly)
+    # ─────────────────────────────────────────────
+    admin:
+      enabled: true
+      type: ClusterIP
+      http:
+        enabled: false  # disable plain HTTP admin
+      tls:
+        enabled: true
+        servicePort: 8444
+        containerPort: 8444
+
+    # ─────────────────────────────────────────────
+    # Ingress controller — watches Ingress resources
+    # ─────────────────────────────────────────────
+    ingressController:
+      enabled: true
+      ingressClass: kong
+      # Emit controller logs at info level; bump to debug when diagnosing.
+      env:
+        log_level: info
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          cpu: 200m
+          memory: 256Mi
+
+    # ─────────────────────────────────────────────
+    # Kong proxy environment
+    # ─────────────────────────────────────────────
+    env:
+      # Database-less (deck / CRD driven) — consistent with GitOps
+      database: "off"
+      # Trust X-Forwarded-For from cloudflared only (172.16.20.0/24 pod CIDR)
+      trusted_ips: "172.16.20.0/24,10.0.0.0/8"
+      # Default TLS protocol floor
+      ssl_protocols: "TLSv1.2 TLSv1.3"
+      # Strip internal headers from upstream responses
+      headers: "off"
+      # Telemetry — send metrics to Prometheus via the built-in /metrics endpoint
+      prometheus_metrics: "on"
+      # AI Gateway — enable the AI plugins (available in Kong OSS >= 3.6)
+      plugins: "bundled"
+      # Azure OpenAI API key injected at runtime from ExternalSecret
+      # (see infra/kong/azure-ai-externalsecret.yaml)
+      azure_openai_key:
+        valueFrom:
+          secretKeyRef:
+            name: kong-azure-ai
+            key: api-key
+
+    # ─────────────────────────────────────────────
+    # TLS certificate for the proxy
+    # The Certificate resource (below) writes the wildcard cert into
+    # the secret "kong-tls-wildcard" in the kong namespace.
+    # ─────────────────────────────────────────────
+    secretVolumes:
+      - kong-tls-wildcard
+
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 512Mi
+
+    # ─────────────────────────────────────────────
+    # Prometheus scrape annotations
+    # ─────────────────────────────────────────────
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "8100"
+      prometheus.io/path: "/metrics"

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kong
+  labels:
+    app.kubernetes.io/name: kong
+    # Exclude from the global default-deny policy; Kong itself is the
+    # cluster ingress — it must accept traffic from any namespace and from
+    # cloudflared. Fine-grained allow rules live in ns-kong.yaml.
+    pod-security.kubernetes.io/enforce: baseline

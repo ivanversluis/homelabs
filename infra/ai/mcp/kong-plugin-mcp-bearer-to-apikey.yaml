@@ -1,0 +1,28 @@
+---
+# Converts "Authorization: Bearer <key>" → "apikey: <key>" on the MCP route.
+#
+# WHY THIS EXISTS:
+# Open WebUI tool servers (Settings → Tools) only support "Bearer" auth type,
+# which sends: Authorization: Bearer <key>
+# Kong's key-auth plugin reads from the "apikey" header by default, not from
+# Authorization Bearer. This pre-function runs before key-auth and rewrites the
+# header so key-auth can validate it.
+#
+# NAMESPACE: must be in same namespace as the Ingress (ai), not kong namespace.
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: mcp-bearer-to-apikey
+  namespace: ai
+plugin: pre-function
+config:
+  access:
+    - |
+      local auth = kong.request.get_header("authorization")
+      if auth then
+        local key = auth:match("^[Bb]earer%s+(.+)$")
+        if key then
+          kong.service.request.set_header("apikey", key)
+          kong.service.request.clear_header("authorization")
+        end
+      end

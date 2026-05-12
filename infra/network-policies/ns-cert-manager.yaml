@@ -1,0 +1,156 @@
+# Zero Trust NetworkPolicy — cert-manager namespace
+# cert-manager only needs: DNS, HTTPS to Let's Encrypt + Cloudflare DNS API,
+# and the ability to write Secrets to other namespaces via the Kubernetes API.
+#
+# APPLY-BEFORE-HELM: This policy MUST be applied before `helm install cert-manager`.
+# cert-manager's webhook pod must reach the API server (10.96.0.1:443) on first
+# startup to bootstrap its own serving TLS certificate (cert-manager-webhook-ca).
+# Without this policy the webhook stays in a "no tls.Certificate available yet"
+# loop, the health check fails, and helm --wait times out.
+# See: scripts/deploy-01-cert-manager.sh — creates namespace + applies this before helm.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-dns
+  namespace: cert-manager
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: cert-manager
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+---
+# cert-manager -> Kubernetes API (to write Certificate Secrets)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-apiserver
+  namespace: cert-manager
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.1/32
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 172.16.20.200/32
+      ports:
+        - protocol: TCP
+          port: 6443
+---
+# cert-manager -> Let's Encrypt ACME + Cloudflare DNS API
+# DNS-01 challenge: cert-manager never needs inbound HTTP — only HTTPS out.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-acme-cloudflare
+  namespace: cert-manager
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+---
+# cert-manager DNS-01 challenge propagation check: needs to query public DNS
+# servers (e.g. Cloudflare 1.1.1.1, 172.64.x.x) to confirm TXT record is live.
+# The kube-system DNS rule above only covers internal CoreDNS.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-public-dns
+  namespace: cert-manager
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# Prometheus -> cert-manager metrics
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: cert-manager
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - protocol: TCP
+          port: 9402
+---
+# API server -> cert-manager validating/mutating webhook (port 10250)
+# cert-manager installs a webhook for Certificate and ClusterIssuer validation.
+# Without this rule the API server cannot call the webhook and ALL cert-manager
+# CRD operations (Certificate, ClusterIssuer, etc.) will fail with a timeout.
+# IMPORTANT: apply this policy BEFORE enabling global default-deny, or apply
+# it manually via kubectl before Flux/kustomize can reconcile it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-apiserver-webhook-ingress
+  namespace: cert-manager
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: webhook
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 172.16.20.200/32
+      ports:
+        - protocol: TCP
+          port: 10250

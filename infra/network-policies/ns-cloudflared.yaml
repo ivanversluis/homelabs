@@ -199,3 +199,13 @@ spec:
       ports:
         - protocol: TCP
           port: 80
+    # Kong Gateway — all new services (ai-chat, ai, mcp hostnames) route through Kong
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 8000   # Kong proxy HTTP (post-DNAT from service port 80)
+        - protocol: TCP
+          port: 8443   # Kong proxy HTTPS (post-DNAT from service port 443)

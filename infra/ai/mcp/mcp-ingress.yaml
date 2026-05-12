@@ -1,0 +1,44 @@
+# Ingress: mcp.${DOMAIN}/kubernetes → kubernetes-mcpo service
+# Kong applies:
+#   1. bearer-to-apikey — converts "Authorization: Bearer <key>" → "apikey: <key>"
+#                         Open WebUI tool servers only support Bearer auth but Kong
+#                         key-auth reads from the "apikey" header by default.
+#   2. key-auth         — validates Open WebUI API key
+#   3. mcp-acl          — allows only "openwebui-clients" group
+#   4. rate-limit       — prevent runaway agent loops (shared plugin from infra/kong)
+#   5. mcp-inject-api-key — injects mcpo Bearer token upstream
+#
+# Open WebUI config:
+#   Settings → Tools → Add Tool Server
+#   URL: https://mcp.${DOMAIN}/kubernetes
+#   Auth: Bearer <value from openwebui-kongkey secret>
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kubernetes-mcpo
+  namespace: ai
+  annotations:
+    konghq.com/protocols: "https"
+    konghq.com/https-redirect-status-code: "301"
+    konghq.com/strip-path: "true"
+    # Chain: bearer-to-apikey FIRST (converts header before key-auth reads it)
+    # NOTE: ai-prompt-guard is intentionally absent — it is an LLM-only plugin
+    # that rejects non-JSON GET requests (400: "only supports application/json").
+    # The MCP route serves a REST OpenAPI, not LLM completions.
+    konghq.com/plugins: "mcp-bearer-to-apikey,mcp-key-auth,mcp-acl,rate-limit-global,mcp-inject-api-key"
+    # Higher timeout: MCP tool calls can take longer than regular API calls
+    konghq.com/proxy-read-timeout: "120"
+    konghq.com/proxy-send-timeout: "120"
+spec:
+  ingressClassName: kong
+  rules:
+    - host: mcp.${DOMAIN}
+      http:
+        paths:
+          - path: /kubernetes
+            pathType: Prefix
+            backend:
+              service:
+                name: kubernetes-mcpo
+                port:
+                  number: 8000

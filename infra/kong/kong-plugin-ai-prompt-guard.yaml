@@ -1,0 +1,19 @@
+# KongClusterPlugin: AI Prompt Guard — allow/deny list for LLM prompt content.
+# KongClusterPlugin is cluster-scoped and can be referenced from Ingresses in any namespace.
+# Apply on top of ai-proxy-azure to add a prompt safety layer.
+apiVersion: configuration.konghq.com/v1
+kind: KongClusterPlugin
+metadata:
+  name: ai-prompt-guard
+  annotations:
+    kubernetes.io/description: "Blocks known prompt injection patterns"
+config:
+  # Reject prompts that contain these patterns (regex)
+  deny_patterns:
+    - "ignore previous instructions"
+    - "disregard all prior"
+    - "you are now DAN"
+  allow_patterns: []
+  match_all_roles: false
+  max_request_body_size: 65536
+plugin: ai-prompt-guard

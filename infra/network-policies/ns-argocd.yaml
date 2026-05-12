@@ -113,3 +113,44 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: observability
+---
+# API server -> argocd-server validating webhook (Application CRD admission)
+# argocd-server service: 443 → containerPort 8080 (post-DNAT = 8080 in NetworkPolicy)
+# Required for: kubectl apply of Application/AppProject resources
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-apiserver-webhook-ingress
+  namespace: argocd
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-server
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 172.16.20.200/32
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+# API server -> argocd-applicationset-controller webhook (ApplicationSet admission)
+# applicationset service: 443 → containerPort 7000 (post-DNAT = 7000 in NetworkPolicy)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-apiserver-applicationset-webhook-ingress
+  namespace: argocd
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-applicationset-controller
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 172.16.20.200/32
+      ports:
+        - protocol: TCP
+          port: 7000

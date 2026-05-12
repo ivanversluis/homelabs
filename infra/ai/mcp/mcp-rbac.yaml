@@ -1,0 +1,100 @@
+# ServiceAccount, ClusterRole and ClusterRoleBinding for the kubernetes-mcp-server.
+# Read-only access to the most useful cluster resources for AI-assisted operations.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubernetes-mcp-sa
+  namespace: ai
+  labels:
+    app.kubernetes.io/name: kubernetes-mcp
+    app.kubernetes.io/component: rbac
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubernetes-mcp-reader
+  labels:
+    app.kubernetes.io/name: kubernetes-mcp
+rules:
+  # Core resources — read-only
+  - apiGroups: [""]
+    resources:
+      - pods
+      - pods/log
+      - services
+      - endpoints
+      - namespaces
+      - nodes
+      - persistentvolumeclaims
+      - persistentvolumes
+      - configmaps
+      - events
+      - resourcequotas
+      - limitranges
+      - serviceaccounts
+    verbs: ["get", "list", "watch"]
+
+  # Apps
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - replicasets
+      - statefulsets
+      - daemonsets
+    verbs: ["get", "list", "watch"]
+
+  # Batch
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+      - cronjobs
+    verbs: ["get", "list", "watch"]
+
+  # Networking
+  - apiGroups: ["networking.k8s.io"]
+    resources:
+      - ingresses
+      - networkpolicies
+    verbs: ["get", "list", "watch"]
+
+  # Storage
+  - apiGroups: ["storage.k8s.io"]
+    resources:
+      - storageclasses
+    verbs: ["get", "list", "watch"]
+
+  # Helm releases (Flux)
+  - apiGroups: ["helm.toolkit.fluxcd.io"]
+    resources:
+      - helmreleases
+    verbs: ["get", "list", "watch"]
+
+  # Flux Kustomizations
+  - apiGroups: ["kustomize.toolkit.fluxcd.io"]
+    resources:
+      - kustomizations
+    verbs: ["get", "list", "watch"]
+
+  # Metrics (if metrics-server is installed)
+  - apiGroups: ["metrics.k8s.io"]
+    resources:
+      - nodes
+      - pods
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubernetes-mcp-reader
+  labels:
+    app.kubernetes.io/name: kubernetes-mcp
+subjects:
+  - kind: ServiceAccount
+    name: kubernetes-mcp-sa
+    namespace: ai
+roleRef:
+  kind: ClusterRole
+  name: kubernetes-mcp-reader
+  apiGroup: rbac.authorization.k8s.io

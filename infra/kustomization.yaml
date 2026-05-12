@@ -14,3 +14,7 @@ resources:
   - portainer/
   - openclaw/
   - network-policies/
+  # flux-substitution creates the flux-domain-vars Secret in flux-system;
+  # cert-manager, kong, and ai have their own Flux Kustomization CRDs
+  # (clusters/k8s-homelab/infra/*-kustomization.yaml) with substituteFrom.
+  - flux-substitution/

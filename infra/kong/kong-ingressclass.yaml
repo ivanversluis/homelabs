@@ -1,0 +1,10 @@
+# IngressClass "kong" replaces the deprecated "public" class used with ingress-nginx.
+# All existing Ingress resources should be updated to use ingressClassName: kong.
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: kong
+  annotations:
+    ingressclass.kubernetes.io/is-default-class: "true"
+spec:
+  controller: ingress-controllers.konghq.com/kong

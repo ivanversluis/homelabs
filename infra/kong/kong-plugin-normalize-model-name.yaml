@@ -1,0 +1,31 @@
+---
+# Rewrites the model name in the request body to "gpt-4o-mini" before ai-proxy runs.
+#
+# WHY THIS EXISTS:
+# Open WebUI allows creating custom model presets (e.g. "k8s-assistant") backed by
+# gpt-4o-mini. When the user sends a message, Open WebUI sends the preset name as
+# the model field: {"model": "k8s-assistant", ...}
+# Kong's ai-proxy plugin validates that model == config.model.name ("gpt-4o-mini")
+# and returns 400: "cannot use own model - must be: gpt-4o-mini".
+# This pre-function normalises any model name to gpt-4o-mini before that check runs.
+#
+# PLACEMENT: must be FIRST in the ai-gateway ingress plugin chain.
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: normalize-model-name
+  namespace: kong
+plugin: pre-function
+config:
+  access:
+    - |
+      -- Kong's Lua sandbox blocks require() calls including cjson.
+      -- Use pure Lua string pattern matching to rewrite the model field.
+      -- gsub replaces the FIRST "model":"<anything>" with "model":"gpt-4o-mini".
+      local raw = kong.request.get_raw_body()
+      if raw and raw ~= "" and not raw:find('"model":"gpt-4o-mini"') and not raw:find('"model": "gpt-4o-mini"') then
+        local normalized = raw:gsub('"model"%s*:%s*"[^"]*"', '"model":"gpt-4o-mini"', 1)
+        if normalized ~= raw then
+          kong.service.request.set_raw_body(normalized)
+        end
+      end

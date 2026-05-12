@@ -1,0 +1,51 @@
+---
+# Returns a static OpenAI-compatible models list for GET /v1/models.
+#
+# WHY THIS EXISTS:
+# Open WebUI calls GET /v1/models to verify and refresh the connection.
+# The main ai-gateway Ingress has ai-prompt-guard which rejects all non-JSON
+# GET requests ("this LLM route only supports application/json").
+# This dedicated route intercepts GET /v1/models before ai-prompt-guard runs,
+# returning a hardcoded model list so Open WebUI sees the connection as healthy.
+#
+# Kong route priority: /v1/models (Exact) wins over /v1 (Prefix) for GET /v1/models.
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-models-static-response
+  namespace: kong
+plugin: request-termination
+config:
+  status_code: 200
+  content_type: "application/json; charset=utf-8"
+  # Update model id here if the Azure deployment changes.
+  body: '{"object":"list","data":[{"id":"gpt-4o-mini","object":"model","created":1715000000,"owned_by":"azure","root":"gpt-4o-mini"}]}'
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-gateway-models
+  namespace: kong
+  annotations:
+    konghq.com/plugins: "ai-models-static-response,rate-limit-global"
+    konghq.com/methods: "GET"
+    konghq.com/strip-path: "false"
+spec:
+  ingressClassName: kong
+  tls:
+    - hosts:
+        - ai.${DOMAIN}
+        - mcp.${DOMAIN}
+        - ai-chat.${DOMAIN}
+      secretName: kong-tls-wildcard
+  rules:
+    - host: ai.${DOMAIN}
+      http:
+        paths:
+          - path: /v1/models
+            pathType: Exact
+            backend:
+              service:
+                name: ai-gateway
+                port:
+                  number: 80
