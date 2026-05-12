@@ -1,7 +1,9 @@
 ---
 # Flux Kustomization for cert-manager.
-# Depends on: flux-substitution Secret (flux-domain-vars) being present in flux-system.
-# The postBuild substituteFrom replaces ${DOMAIN} and ${ACME_EMAIL} in manifests.
+# Applies namespace + HelmRepository + HelmRelease only.
+# The healthChecks block ensures cert-manager pods (including the webhook)
+# are Running before this Kustomization reports Ready — which allows
+# cert-manager-config to proceed with ClusterIssuers.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
@@ -18,3 +20,8 @@ spec:
     substituteFrom:
       - kind: Secret
         name: flux-domain-vars
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: cert-manager
+      namespace: cert-manager
