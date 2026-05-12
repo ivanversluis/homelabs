@@ -6,4 +6,3 @@ resources:
   - cert-manager-helmrelease.yaml
   - cert-manager-cloudflare-api-token-externalsecret.yaml
   - cert-manager-clusterissuer-letsencrypt.yaml
-  - cert-manager-wildcard-certificate.yaml
