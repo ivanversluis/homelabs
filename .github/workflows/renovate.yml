@@ -10,7 +10,7 @@ on:
         type: choice
         options: [debug, info, warn, error]
   schedule:
-    - cron: "0 4 * * 1" # Monday 04:00 UTC = 06:00 CEST
+    - cron: "0 8 * * *" # Monday 04:00 UTC = 06:00 CEST
 
 jobs:
   renovate:
