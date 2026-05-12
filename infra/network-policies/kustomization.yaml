@@ -73,6 +73,6 @@ resources:
   # Uncomment AFTER cert-manager/kong/ai Kustomizations have created the namespaces.
   # Those Kustomizations only reconcile once flux-system is healthy, so these must
   # be disabled during the initial bootstrap to break the chicken-and-egg deadlock.
-  #- ns-cert-manager.yaml
+  - ns-cert-manager.yaml
   #- ns-kong.yaml
   #- ns-ai.yaml
