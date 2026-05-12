@@ -4,5 +4,6 @@ resources:
   - cert-manager-namespace.yaml
   - cert-manager-helmrepository.yaml
   - cert-manager-helmrelease.yaml
-  - cert-manager-cloudflare-api-token-externalsecret.yaml
-  - cert-manager-clusterissuer-letsencrypt.yaml
+  # ClusterIssuers and the Cloudflare token ExternalSecret are in
+  # infra/cert-manager-config/ which has its own Flux Kustomization
+  # that dependsOn this one + healthChecks on the HelmRelease.
