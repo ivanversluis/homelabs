@@ -30,7 +30,6 @@ data:
             href: "https://ai-chat.${DOMAIN}"
             description: LLM Chat Interface
             icon: openai.png
-            ping: "https://ai-chat.${DOMAIN}/health"
         - AI Gateway:
             href: "https://ai.${DOMAIN}/v1/models"
             description: Kong AI Proxy (Azure OpenAI)
@@ -116,4 +115,4 @@ data:
     []
 
   kubernetes.yaml: |
-    mode: default
+    mode: disabled

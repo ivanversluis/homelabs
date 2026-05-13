@@ -5,7 +5,6 @@ resources:
   - ns-homepage.yaml
   - homepage-configmap.yaml
   - homepage-externalsecret.yaml
-  - homepage-pvc.yaml
   - homepage-deployment.yaml
   - homepage-service.yaml
   - homepage-ingress.yaml
