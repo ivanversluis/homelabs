@@ -74,6 +74,6 @@ resources:
   - ns-kong.yaml
   - ns-ai.yaml
 
-  # --- Phase 10: new apps with Kong ingress + OIDC ---
-  - ns-homepage.yaml
-  - ns-homebox.yaml
+  # Note: ns-homepage.yaml and ns-homebox.yaml live in apps/homepage/ and
+  # apps/homebox/ respectively — applied by their own Flux Kustomizations so
+  # the namespace exists before the NetworkPolicy is created.
