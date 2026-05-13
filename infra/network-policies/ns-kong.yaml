@@ -296,6 +296,22 @@ spec:
       ports:
         - protocol: TCP
           port: 3000
+    # homepage dashboard
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: homepage
+      ports:
+        - protocol: TCP
+          port: 3000
+    # homebox inventory
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: homebox
+      ports:
+        - protocol: TCP
+          port: 7745
     # openclaw
     - to:
         - namespaceSelector:

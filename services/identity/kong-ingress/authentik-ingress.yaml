@@ -1,0 +1,42 @@
+# Kong Ingress: auth.${DOMAIN} → Authentik (identity namespace)
+#
+# WHY this exists:
+#   CoreDNS split-brain DNS resolves *.${DOMAIN} → Kong MetalLB VIP (172.16.20.206)
+#   from inside the cluster. Any pod that calls https://auth.${DOMAIN}/... for
+#   server-side OIDC (token exchange, JWKS fetch, discovery) reaches Kong first.
+#   This Ingress tells Kong to forward those requests to the Authentik service.
+#
+# TLS NOTE:
+#   No tls: section here — the SNI entry for auth.${DOMAIN} is registered in
+#   infra/kong/kong-service-ai-gateway.yaml alongside the other cluster hostnames.
+#   Kong serves the *.${DOMAIN} wildcard cert for all matching hostnames.
+#
+# External traffic (browsers) still reach Authentik via Cloudflare Tunnel directly,
+# as configured in the Cloudflare Zero Trust dashboard.
+#
+# NetworkPolicy dependency: ns-identity.yaml allow-kong-ingress (Kong → identity:9000).
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: authentik
+  namespace: identity
+  annotations:
+    konghq.com/protocols: "https"
+    konghq.com/https-redirect-status-code: "301"
+    konghq.com/strip-path: "false"
+    konghq.com/proxy-read-timeout: "60"
+    konghq.com/proxy-connect-timeout: "10"
+spec:
+  ingressClassName: kong
+  rules:
+    - host: auth.${DOMAIN}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: authentik-server
+                port:
+                  number: 9000

@@ -8,3 +8,5 @@ resources:
   - cert-manager-config-kustomization.yaml
   - kong-kustomization.yaml
   - ai-kustomization.yaml
+  # Identity ingress has ${DOMAIN} — needs its own postBuild Kustomization
+  - identity-ingress-kustomization.yaml
