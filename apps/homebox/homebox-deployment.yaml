@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homebox
+  namespace: homebox
+  labels:
+    app: homebox
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: homebox
+  template:
+    metadata:
+      labels:
+        app: homebox
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        node.longhorn.io/create-default-disk: "true"
+      securityContext:
+        runAsUser: 65532
+        runAsGroup: 65532
+        runAsNonRoot: true
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: homebox
+          image: ghcr.io/sysadminsmedia/homebox:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 7745
+              name: http
+          env:
+            - name: HBOX_LOG_LEVEL
+              value: "info"
+            - name: HBOX_LOG_FORMAT
+              value: "text"
+            - name: HBOX_WEB_MAX_UPLOAD_SIZE
+              value: "10"
+            - name: HBOX_OPTIONS_ALLOW_ANALYTICS
+              value: "false"
+            # OIDC integration via Authentik
+            - name: HBOX_AUTH_OIDC_REDIRECT_URL
+              value: "https://homebox.${DOMAIN}/api/v1/oauth/callback"
+            - name: HBOX_AUTH_OIDC_ISSUER_URL
+              value: "https://auth.${DOMAIN}/application/o/homebox/"
+            - name: HBOX_AUTH_OIDC_NAME
+              value: "Authentik"
+            - name: HBOX_AUTH_OIDC_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: homebox-oidc
+                  key: client-id
+            - name: HBOX_AUTH_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: homebox-oidc
+                  key: client-secret
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 7745
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 7745
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: homebox-pvc

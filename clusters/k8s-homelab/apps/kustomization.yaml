@@ -2,3 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../../apps/
+  # Flux Kustomization CRDs for apps that use postBuild.substituteFrom
+  # (homepage, homebox) — managed separately so ${DOMAIN} is substituted.
+  - homepage-kustomization.yaml
+  - homebox-kustomization.yaml

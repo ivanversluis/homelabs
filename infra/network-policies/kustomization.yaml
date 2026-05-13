@@ -73,3 +73,7 @@ resources:
   - ns-cert-manager.yaml
   - ns-kong.yaml
   - ns-ai.yaml
+
+  # --- Phase 10: new apps with Kong ingress + OIDC ---
+  - ns-homepage.yaml
+  - ns-homebox.yaml
