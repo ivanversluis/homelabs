@@ -49,6 +49,8 @@ spec:
         - mcp.${DOMAIN}
         - ai-chat.${DOMAIN}
         - auth.${DOMAIN}
+        - homepage.${DOMAIN}
+        - homebox.${DOMAIN}
       secretName: kong-tls-wildcard
   rules:
     - host: ai.${DOMAIN}

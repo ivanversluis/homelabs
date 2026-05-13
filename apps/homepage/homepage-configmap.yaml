@@ -18,7 +18,7 @@ data:
         issuerURL: "https://auth.${DOMAIN}/application/o/homepage/"
         clientId: "{{HOMEPAGE_VAR_CLIENT_ID}}"
         clientSecret: "{{HOMEPAGE_VAR_CLIENT_SECRET}}"
-        redirectURL: "https://home.${DOMAIN}/api/oidc/callback"
+        redirectURL: "https://homepage.${DOMAIN}/api/oidc/callback"
         scopes:
           - openid
           - profile
