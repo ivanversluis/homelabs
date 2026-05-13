@@ -10,3 +10,5 @@ resources:
   - ai-kustomization.yaml
   # Identity ingress has ${DOMAIN} — needs its own postBuild Kustomization
   - identity-ingress-kustomization.yaml
+  # CoreDNS split-brain DNS — managed declaratively, replaces deploy-03-coredns.sh
+  - coredns-kustomization.yaml

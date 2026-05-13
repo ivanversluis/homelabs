@@ -1,0 +1,77 @@
+# CoreDNS ConfigMap — managed by Flux
+#
+# WHY this is in Git:
+#   The CoreDNS split-brain hosts{} block was previously applied by a one-off
+#   script (deploy-03-coredns.sh). Managing it here means Flux will re-apply it
+#   after any cluster rebuild or accidental manual edit, and new hostnames are
+#   added via PR like everything else.
+#
+# HOW substitution works:
+#   This file uses ${DOMAIN} and ${KONG_LB_IP}. The Flux Kustomization
+#   (clusters/k8s-homelab/infra/coredns-kustomization.yaml) uses
+#   postBuild.substituteFrom to inject those values from the flux-domain-vars
+#   Secret before applying.
+#
+# SAFETY: The Flux Kustomization uses prune: false so Flux will never delete
+#   the CoreDNS ConfigMap even if this path is removed from the repo. CoreDNS
+#   is a cluster-critical resource.
+#
+# ADD NEW HOSTNAMES: add a line below and commit. Flux reconciles within 10m.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns
+  namespace: kube-system
+data:
+  Corefile: |
+    .:53 {
+        errors
+        health {
+           lameduck 5s
+        }
+        ready
+        kubernetes cluster.local in-addr.arpa ip6.arpa {
+           pods insecure
+           fallthrough in-addr.arpa ip6.arpa
+           ttl 30
+        }
+        prometheus :9153
+        forward . /etc/resolv.conf {
+           max_concurrent 1000
+        }
+        cache 30 {
+           disable success cluster.local
+           disable denial cluster.local
+        }
+        loop
+        reload
+        loadbalance
+
+        # ── Split-brain DNS: *.${DOMAIN} → Kong MetalLB VIP ──────────────────
+        # In-cluster pods resolve these hostnames to Kong (172.16.20.206)
+        # instead of the public Cloudflare CDN IPs. Traffic stays in-cluster
+        # for OIDC callbacks, API calls, and service-to-service communication.
+        hosts {
+            ${KONG_LB_IP} ${DOMAIN}
+            ${KONG_LB_IP} auth.${DOMAIN}
+            ${KONG_LB_IP} vault.${DOMAIN}
+            ${KONG_LB_IP} headlamp.${DOMAIN}
+            ${KONG_LB_IP} grafana.${DOMAIN}
+            ${KONG_LB_IP} forgejo.${DOMAIN}
+            ${KONG_LB_IP} git.${DOMAIN}
+            ${KONG_LB_IP} n8n.${DOMAIN}
+            ${KONG_LB_IP} argocd.${DOMAIN}
+            ${KONG_LB_IP} ai.${DOMAIN}
+            ${KONG_LB_IP} ai-chat.${DOMAIN}
+            ${KONG_LB_IP} mcp.${DOMAIN}
+            ${KONG_LB_IP} pihole.${DOMAIN}
+            ${KONG_LB_IP} homepage.${DOMAIN}
+            ${KONG_LB_IP} homebox.${DOMAIN}
+            ${KONG_LB_IP} links.${DOMAIN}
+            ${KONG_LB_IP} terminal.${DOMAIN}
+            ${KONG_LB_IP} semaphore.${DOMAIN}
+            ${KONG_LB_IP} portainer.${DOMAIN}
+            fallthrough
+        }
+        # ── End split-brain ───────────────────────────────────────────────────
+    }

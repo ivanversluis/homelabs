@@ -1,0 +1,30 @@
+---
+# Flux Kustomization: CoreDNS split-brain DNS ConfigMap.
+#
+# Manages the coredns ConfigMap in kube-system with a hosts{} block that
+# resolves *.${DOMAIN} to the Kong MetalLB VIP inside the cluster.
+#
+# prune: false — never let Flux delete the CoreDNS ConfigMap; it is a
+# cluster-critical resource. Flux will still update (patch) it on every
+# reconcile if the content differs.
+#
+# Depends on: kong — Kong must have its LB IP assigned before the hosts
+# block is useful. flux-domain-vars provides ${DOMAIN} and ${KONG_LB_IP}.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: coredns
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./infra/coredns
+  prune: false
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  dependsOn:
+    - name: kong
+  postBuild:
+    substituteFrom:
+      - kind: Secret
+        name: flux-domain-vars
