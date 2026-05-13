@@ -11,10 +11,10 @@ spec:
   ingressClassName: kong
   tls:
     - hosts:
-        - home.${DOMAIN}
+        - homepage.${DOMAIN}
       secretName: kong-tls-wildcard
   rules:
-    - host: home.${DOMAIN}
+    - host: homepage.${DOMAIN}
       http:
         paths:
           - path: /
