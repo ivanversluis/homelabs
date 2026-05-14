@@ -24,11 +24,3 @@ spec:
     size: 256
     rotationPolicy: Never
   renewBefore: 360h  # renew 15 days before expiry
-  # secretTemplate ensures cert-manager writes the correct issuer annotation when
-  # it creates or rotates the secret. Without this, if the secret's annotation
-  # still says letsencrypt-staging (from a prior staging cert), cert-manager
-  # triggers IncorrectIssuer → re-issuance → potential rate-limit outage.
-  secretTemplate:
-    annotations:
-      cert-manager.io/issuer-name: letsencrypt-prod
-      cert-manager.io/issuer-kind: ClusterIssuer
