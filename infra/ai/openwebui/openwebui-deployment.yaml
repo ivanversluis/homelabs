@@ -45,6 +45,10 @@ spec:
             - name: OPENAI_API_KEY
               # Kong injects the real Azure key; Open WebUI just needs a non-empty value
               value: "kong-managed"
+            # Ollama is not deployed in Kubernetes — disable to prevent 500 errors
+            # on every page load from failed host.docker.internal:11434 connections.
+            - name: ENABLE_OLLAMA_API
+              value: "false"
 
             # ── Authentication via Authentik OIDC ────────────────────────────
             # All OIDC config is sourced from Vault via ExternalSecret openwebui-oidc.
