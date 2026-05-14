@@ -53,8 +53,7 @@ spec:
         - protocol: TCP
           port: 7745
 ---
-# Homebox -> Kong (OIDC server-side calls — auth.${DOMAIN} resolves to Kong via
-# split-brain DNS, Kong Ingress routes onward to authentik-server.identity:9000)
+# Homebox -> Kong (ClusterIP for OIDC/split-brain DNS traffic)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -73,3 +72,11 @@ spec:
           port: 8000
         - protocol: TCP
           port: 8443
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.0/12
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80

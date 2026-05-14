@@ -9,10 +9,6 @@ metadata:
     konghq.com/strip-path: "false"
 spec:
   ingressClassName: kong
-  tls:
-    - hosts:
-        - homebox.${DOMAIN}
-      secretName: kong-tls-wildcard
   rules:
     - host: homebox.${DOMAIN}
       http:

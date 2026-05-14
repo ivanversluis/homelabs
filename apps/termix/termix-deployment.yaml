@@ -29,6 +29,25 @@ spec:
               value: "3000"
             - name: TZ
               value: 'Europe/Amsterdam'
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
           volumeMounts:
             - name: termix-data
               mountPath: /app/data

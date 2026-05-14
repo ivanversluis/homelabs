@@ -147,6 +147,29 @@ spec:
         - protocol: TCP
           port: 8443
 ---
+# In-cluster pods -> Kong proxy (OIDC token exchange, service-to-service via
+# split-brain DNS). Required because app pods resolve *.${DOMAIN} to Kong
+# ClusterIP and need to reach the proxy for OIDC callbacks and API calls.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-internal-proxy-ingress
+  namespace: kong
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kong
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 10.244.0.0/16   # Pod CIDR — all cluster pods
+      ports:
+        - protocol: TCP
+          port: 8000
+        - protocol: TCP
+          port: 8443
+---
 # Prometheus -> Kong metrics
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

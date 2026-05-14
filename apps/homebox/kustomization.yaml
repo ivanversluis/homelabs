@@ -2,7 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - homebox-namespace.yaml
-  - ns-homebox.yaml
+  - homebox-netpol.yaml
   - homebox-externalsecret.yaml
   - homebox-pvc.yaml
   - homebox-deployment.yaml

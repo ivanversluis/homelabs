@@ -5,6 +5,7 @@ namespace: identity
 
 resources:
   - authentik-namespace.yaml
+  - identity-netpol.yaml
   - authentik-pvc.yaml
   - authentik-externalsecret.yaml
   - authentik-configmap.yaml

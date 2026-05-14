@@ -1,0 +1,38 @@
+name: Lint
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  no-hardcoded-domain:
+    name: No hardcoded domain names
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for hardcoded domain names
+        run: |
+          # Domain names must never appear literally in tracked repo files.
+          # Use ${DOMAIN} (Flux substitution variable) instead.
+          # The actual domain is stored in Vault and injected at runtime.
+          PATTERNS=(
+            "networknet\.tech"
+          )
+          FAILED=false
+          for pattern in "${PATTERNS[@]}"; do
+            if git grep -lP "$pattern" -- ':!*.md-local' ':!*.gitignore' ':!*.github/workflows/lint.yml' 2>/dev/null | grep -q .; then
+              echo "ERROR: Found hardcoded domain matching '$pattern' in:"
+              git grep -lP "$pattern" -- ':!*.md-local' ':!*.gitignore' ':!*.github/workflows/lint.yml'
+              FAILED=true
+            fi
+          done
+          if $FAILED; then
+            echo ""
+            echo "Fix: Replace the domain with '\${DOMAIN}' (Flux substitution variable)."
+            echo "The actual domain is resolved at runtime from Vault via the flux-substitution ExternalSecret."
+            exit 1
+          fi
+          echo "OK: No hardcoded domain names found in tracked files."

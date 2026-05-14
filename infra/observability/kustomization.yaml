@@ -5,6 +5,7 @@ namespace: observability
 
 resources:
   - namespace.yaml
+  - observability-netpol.yaml
   # Prometheus
   - prometheus/configmap.yaml
   - prometheus/alerts-configmap.yaml

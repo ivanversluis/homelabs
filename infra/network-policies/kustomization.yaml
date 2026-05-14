@@ -1,79 +1,16 @@
 # Zero Trust network policies for k8s-homelab.
 #
-# ROLLOUT STATE:
-#   Only `ns-linkding.yaml` is enabled. Everything else (including the
-#   global default-deny baseline) is commented out. Uncomment one
-#   resource at a time, run `flux reconcile kustomization infra`, validate
-#   that the affected workloads are still healthy, then move on.
+# Per-namespace policies are co-located with their owning component.
+# This directory only contains:
+#   - global/               cluster-wide default-deny baseline
+#   - flux-system-netpol    Flux CD controllers (no dedicated component dir)
 #
-# RECOMMENDED ORDER (matches docs/zero-trust-implementation.md-local):
-#   Phase 1 — global/                  (default-deny for non-system namespaces)
-#             NOTE: global/ only contains the default-deny policy.
-#             DNS and egress carve-outs live in per-namespace k8s
-#             NetworkPolicies (ns-*.yaml). Do NOT add GlobalNetworkPolicy
-#             with selector:all() and types:[Egress] — it creates implicit
-#             deny on ALL pods including kube-system CoreDNS.
-#   Phase 2 — ns-n8n, ns-termix, ns-forgejo
-#   Phase 3 — ns-identity, ns-headlamp, ns-cloudflared
-#   Phase 4 — ns-vault, ns-external-secrets
-#   Phase 5 — ns-observability, ns-monitoring
-#   Phase 6 — ns-pihole, ns-dns
-#   Phase 7 — ns-flux-system, ns-openclaw, ns-semaphoreui, ns-portainer
-#
-# IMPORTANT: enabling `global/` BEFORE the per-namespace allow rules of a
-# given namespace will black-hole that namespace's traffic. Always either:
-#   (a) enable global/ first AND add per-namespace policies before they break,
-#       OR
-#   (b) enable per-namespace policies first (they only take effect when
-#       global default-deny is on, so they are no-ops until then), then
-#       finally enable global/.
-# Path (b) is the safer rollout for a homelab.
+# All other policies live alongside their component manifests:
+#   apps/<name>/<name>-netpol.yaml
+#   infra/<name>/<name>-netpol.yaml
+#   services/<path>/<name>-netpol.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  # --- Phase 1: cluster-wide baseline ---
   - global/
-
-  # --- Phase 2: standalone apps ---
-  - ns-linkding.yaml
-  - ns-n8n.yaml
-  - ns-termix.yaml
-  - ns-forgejo.yaml
-
-  # --- Phase 3: identity + tunnel ---
-  - ns-identity.yaml
-  - ns-headlamp.yaml
-  - ns-cloudflared.yaml
-
-  # --- Phase 4: secrets pipeline ---
-  - ns-vault.yaml
-  - ns-external-secrets.yaml
-
-  # --- Phase 5: observability ---
-  - ns-observability.yaml
-  - ns-monitoring.yaml
-
-  # --- Phase 6: cluster DNS chain ---
-  - ns-pihole.yaml
-  - ns-dns.yaml
-
-  # --- Phase 7: platform ---
-  - ns-flux-system.yaml
-  - ns-openclaw.yaml
-  - ns-semaphoreui.yaml
-  - ns-portainer.yaml
-
-  # --- Phase 8: argocd + firewall-manager ---
-  - ns-argocd.yaml
-  - ns-firewall-manager-dev.yaml
-  - ns-firewall-manager-staging.yaml
-  - ns-firewall-manager-prod.yaml
-
-  # --- Phase 9: AI Gateway stack (cert-manager, Kong, Open WebUI, mcpo) ---
-  - ns-cert-manager.yaml
-  - ns-kong.yaml
-  - ns-ai.yaml
-
-  # Note: ns-homepage.yaml and ns-homebox.yaml live in apps/homepage/ and
-  # apps/homebox/ respectively — applied by their own Flux Kustomizations so
-  # the namespace exists before the NetworkPolicy is created.
+  - flux-system-netpol.yaml

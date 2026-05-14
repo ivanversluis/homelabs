@@ -47,10 +47,12 @@ data:
         reload
         loadbalance
 
-        # ── Split-brain DNS: *.${DOMAIN} → Kong MetalLB VIP ──────────────────
-        # In-cluster pods resolve these hostnames to Kong (172.16.20.206)
+        # ── Split-brain DNS: *.${DOMAIN} → Kong ClusterIP ──────────────────
+        # In-cluster pods resolve these hostnames to Kong ClusterIP
         # instead of the public Cloudflare CDN IPs. Traffic stays in-cluster
         # for OIDC callbacks, API calls, and service-to-service communication.
+        # NOTE: Using ClusterIP because MetalLB v0.14.9 is incompatible with
+        # K8s 1.35 (empty endpoints bug). Upgrade MetalLB to restore VIP.
         hosts {
             ${KONG_LB_IP} ${DOMAIN}
             ${KONG_LB_IP} auth.${DOMAIN}

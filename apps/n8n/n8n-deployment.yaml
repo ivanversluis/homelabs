@@ -72,6 +72,25 @@ spec:
                 secretKeyRef:
                   name: n8n-secrets
                   key: N8N_BASIC_AUTH_PASSWORD
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5678
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5678
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
           volumeMounts:
             - name: n8n-data
               mountPath: /home/node/.n8n

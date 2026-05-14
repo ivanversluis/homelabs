@@ -53,6 +53,25 @@ spec:
                 secretKeyRef:
                   name: forgejo-secrets
                   key: FORGEJO__oauth2__JWT_SECRET
+          readinessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
           volumeMounts:
             - name: forgejo-data
               mountPath: /var/lib/gitea

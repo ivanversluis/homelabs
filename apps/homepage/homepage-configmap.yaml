@@ -11,18 +11,6 @@ data:
     theme: dark
     color: slate
     target: _blank
-    auth:
-      provider: oidc
-      oidc:
-        name: Authentik
-        issuerURL: "https://auth.${DOMAIN}/application/o/homepage/"
-        clientId: "{{HOMEPAGE_VAR_CLIENT_ID}}"
-        clientSecret: "{{HOMEPAGE_VAR_CLIENT_SECRET}}"
-        redirectURL: "https://homepage.${DOMAIN}/api/oidc/callback"
-        scopes:
-          - openid
-          - profile
-          - email
 
   services.yaml: |
     - AI:
