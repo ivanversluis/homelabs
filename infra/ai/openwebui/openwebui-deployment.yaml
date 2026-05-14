@@ -47,25 +47,50 @@ spec:
               value: "kong-managed"
 
             # ── Authentication via Authentik OIDC ────────────────────────────
+            # All OIDC config is sourced from Vault via ExternalSecret openwebui-oidc.
+            # This allows changing OIDC settings without redeploying manifests.
             - name: WEBUI_AUTH_TRUSTED_EMAIL_HEADER
               value: ""
+            - name: ENABLE_LOGIN_FORM
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-oidc
+                  key: ENABLE_LOGIN_FORM
             - name: ENABLE_OAUTH_SIGNUP
-              value: "true"
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-oidc
+                  key: ENABLE_OAUTH_SIGNUP
             - name: OAUTH_PROVIDER_NAME
-              value: "Authentik"
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-oidc
+                  key: OAUTH_PROVIDER_NAME
             - name: OAUTH_CLIENT_ID
               valueFrom:
                 secretKeyRef:
                   name: openwebui-oidc
-                  key: client-id
+                  key: OAUTH_CLIENT_ID
             - name: OAUTH_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: openwebui-oidc
-                  key: client-secret
+                  key: OAUTH_CLIENT_SECRET
             - name: OPENID_PROVIDER_URL
-              # Uses split-brain DNS — stays inside cluster via Kong
-              value: "https://auth.${DOMAIN}/application/o/openwebui/.well-known/openid-configuration"
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-oidc
+                  key: OPENID_PROVIDER_URL
+            - name: OPENID_REDIRECT_URI
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-oidc
+                  key: OPENID_REDIRECT_URI
+            - name: OAUTH_MERGE_ACCOUNTS_BY_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-oidc
+                  key: OAUTH_MERGE_ACCOUNTS_BY_EMAIL
             - name: OAUTH_SCOPES
               value: "openid email profile"
 
@@ -90,7 +115,10 @@ spec:
             - name: WEBUI_NAME
               value: "Homelab AI"
             - name: WEBUI_URL
-              value: "https://ai-chat.${DOMAIN}"
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-oidc
+                  key: WEBUI_URL
             - name: DATA_DIR
               value: "/app/backend/data"
           volumeMounts:
