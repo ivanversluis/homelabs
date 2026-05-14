@@ -19,8 +19,9 @@
     "renovate",
     "dependencies"
   ],
+  "branchConcurrentLimit": 0,
   "prConcurrentLimit": 10,
-  "prHourlyLimit": 4,
+  "prHourlyLimit": 10,
 
   "flux": {
     "managerFilePatterns": [
