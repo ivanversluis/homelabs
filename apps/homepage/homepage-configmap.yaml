@@ -5,7 +5,7 @@ metadata:
   namespace: homepage
 data:
   settings.yaml: |
-    title: Homelab Dashboard
+    title: My Homelab Dashboard
     startUrl: /
     headerStyle: underlined
     theme: dark
@@ -25,7 +25,7 @@ data:
 
     - Development:
         - Forgejo:
-            href: "https://git.${DOMAIN}"
+            href: "https://forgejo.${DOMAIN}"
             description: Self-hosted Git
             icon: gitea.png
         - N8N:
@@ -33,13 +33,13 @@ data:
             description: Workflow Automation
             icon: n8n.png
         - Semaphore:
-            href: "https://semaphore.${DOMAIN}"
+            href: "https://demo-semaphore.${DOMAIN}"
             description: Ansible / Terraform UI
             icon: semaphore-ui.png
 
     - Infrastructure:
         - Headlamp:
-            href: "https://k8s.${DOMAIN}"
+            href: "https://demo-headlamp.${DOMAIN}"
             description: Kubernetes Dashboard
             icon: kubernetes.png
         - Authentik:
@@ -47,11 +47,11 @@ data:
             description: Identity Provider
             icon: authentik.png
         - Vault:
-            href: "https://vault.${DOMAIN}"
+            href: "https://demo-vault.${DOMAIN}"
             description: Secrets Manager
             icon: hashicorp-vault.png
         - Grafana:
-            href: "https://grafana.${DOMAIN}"
+            href: "https://demo-grafana.${DOMAIN}"
             description: Observability
             icon: grafana.png
         - Portainer:
@@ -59,13 +59,13 @@ data:
             description: Container Management
             icon: portainer.png
         - ArgoCD:
-            href: "https://argocd.${DOMAIN}"
+            href: "https://demo-argocd.${DOMAIN}"
             description: GitOps Deployment
             icon: argocd.png
 
     - Homelab:
         - Linkding:
-            href: "https://links.${DOMAIN}"
+            href: "https://bookmarks.${DOMAIN}"
             description: Bookmark Manager
             icon: linkding.png
         - Homebox:
@@ -73,11 +73,11 @@ data:
             description: Inventory Management
             icon: homebox.png
         - Termix:
-            href: "https://terminal.${DOMAIN}"
+            href: "https://demo-termix.${DOMAIN}"
             description: Web Terminal
             icon: terminal.png
         - Pi-hole:
-            href: "https://pihole.${DOMAIN}"
+            href: "https://pihole.${DOMAIN}/admin"
             description: DNS Ad-Blocker
             icon: pi-hole.png
 
@@ -97,8 +97,10 @@ data:
           hour12: false
 
   bookmarks.yaml: |
-    []
-
+    - Developer:
+        - Github:
+            - abbr: GH
+             href: https://github.com/ivanversluis
   docker.yaml: |
     []
 
