@@ -5,6 +5,7 @@ namespace: firewall-manager-dev
 
 resources:
   - ../../base
+  - firewall-manager-netpol.yaml
   - fm-db-data-longhorn-pvc.yaml
   - vault
 

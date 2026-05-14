@@ -46,6 +46,7 @@ Primary mission:
 14. For any sensitive application setting, prefer `ExternalSecret` + `ClusterSecretStore/vault-backend` over a plaintext `Secret` manifest. Use a plaintext `Secret` only as a generated target of ExternalSecret, not as the source of truth.
 15. **Every new deployment MUST include a Zero Trust NetworkPolicy file.** No namespace may be deployed without corresponding network policies. See the Zero Trust section below.
 16. **Every new deployment MUST be added to the validation script** `scripts/zero-trust-validate.sh` with appropriate test cases.
+17. **NEVER hardcode the cluster domain name in any repo file** — not in manifests, comments, or documentation. Always use the Flux substitution variable `${DOMAIN}`. The actual domain is a runtime secret read by Flux from the `flux-domain-vars` Secret (sourced from Vault). If a file must reference the domain without Flux (e.g., a script), read it from the cluster at runtime: `kubectl get secret flux-domain-vars -n flux-system -o jsonpath='{.data.DOMAIN}' | base64 -d`. Violations in comments are just as important to fix as violations in values.
 
 ## Canonical References In This Repo
 
@@ -143,7 +144,10 @@ For the new workload, determine and document:
 - **Webhook ports**: Does this workload expose admission webhooks? (requires ingress from API server on the webhook port)
 
 #### 6b. Network Policy File Generation
-Create `infra/network-policies/ns-<namespace>.yaml` containing:
+Create the network policy file **co-located** with the component it belongs to:
+- Apps: `apps/<name>/<name>-netpol.yaml`
+- Infra: `infra/<name>/<name>-netpol.yaml`
+- Services: `services/<category>/<name>/k8s/<name>-netpol.yaml`
 
 **Always include these baseline policies:**
 1. `allow-egress-dns` — egress to `kube-system` on UDP/TCP 53
@@ -165,20 +169,20 @@ Create `infra/network-policies/ns-<namespace>.yaml` containing:
 - If the workload has admission webhooks, the policy must be applied manually via `kubectl apply` first to break the chicken-and-egg deadlock with Flux
 
 #### 6c. Registration
-- Add `ns-<namespace>.yaml` to `infra/network-policies/kustomization.yaml`
+- Add `<name>-netpol.yaml` to the component's own `kustomization.yaml` (right after the namespace resource)
 - Add test cases to `scripts/zero-trust-validate.sh` for the new namespace
 
 #### 6d. Reference Patterns
 Use these existing policies as templates:
-- **Isolated app (no internet)**: `ns-linkding.yaml`
-- **App with internet HTTPS+HTTP**: `ns-n8n.yaml`
-- **App with SSH egress**: `ns-termix.yaml`
-- **Service with API server + vault egress**: `ns-external-secrets.yaml`
-- **Service with webhook ingress**: `ns-monitoring.yaml`
-- **DNS with DoT-only egress**: `ns-dns.yaml`
-- **Tunnel proxy with multi-namespace egress**: `ns-cloudflared.yaml`
-- **LAN-facing service (MetalLB LoadBalancer)**: `ns-pihole.yaml`
-- **App with Cloudflare tunnel ingress (non-standard port)**: `ns-openclaw.yaml` (port 18789)
+- **Isolated app (no internet)**: `apps/linkding/linkding-netpol.yaml`
+- **App with internet HTTPS+HTTP**: `apps/n8n/n8n-netpol.yaml`
+- **App with SSH egress**: `apps/termix/termix-netpol.yaml`
+- **Service with API server + vault egress**: `infra/external-secrets/external-secrets-netpol.yaml`
+- **Service with webhook ingress**: `infra/monitoring/monitoring-netpol.yaml`
+- **DNS with DoT-only egress**: `services/dns/unbound/k8s/dns-netpol.yaml`
+- **Tunnel proxy with multi-namespace egress**: `services/tunnel/cloudflare/k8s/cloudflared-netpol.yaml`
+- **LAN-facing service (MetalLB LoadBalancer)**: `services/dns/pihole/k8s/pihole-netpol.yaml`
+- **App with Cloudflare tunnel ingress (non-standard port)**: `infra/openclaw/openclaw-netpol.yaml` (port 18789)
 
 ## Structure Blueprint By Area
 
@@ -187,14 +191,13 @@ Use these existing policies as templates:
 Target shape (default):
 - `apps/<name>/kustomization.yaml`
 - `apps/<name>/<name>-namespace.yaml`
+- `apps/<name>/<name>-netpol.yaml` (Zero Trust — always required, co-located)
 - `apps/<name>/<name>-pvc.yaml` (when persistence is needed)
 - `apps/<name>/<name>-deployment.yaml`
 - `apps/<name>/<name>-service.yaml`
-- `infra/network-policies/ns-<name>.yaml` (Zero Trust — always required)
 
 Parent registration:
 - add `- <name>/` to `apps/kustomization.yaml`
-- add `- ns-<name>.yaml` to `infra/network-policies/kustomization.yaml`
 - add test cases to `scripts/zero-trust-validate.sh`
 
 Notes:
@@ -206,6 +209,7 @@ Notes:
 Target shape:
 - `services/<category>/<name>/k8s/kustomization.yaml`
 - `services/<category>/<name>/k8s/<name>-namespace.yaml`
+- `services/<category>/<name>/k8s/<name>-netpol.yaml` (Zero Trust — co-located)
 - `services/<category>/<name>/k8s/<name>-configmap.yaml`
 - `services/<category>/<name>/k8s/<name>-externalsecret.yaml`
 - `services/<category>/<name>/k8s/<name>-deployment.yaml`
@@ -214,7 +218,6 @@ Target shape:
 
 Parent registration:
 - add `- <category>/<name>/k8s` to `services/kustomization.yaml`
-- add `- ns-<name>.yaml` to `infra/network-policies/kustomization.yaml`
 - add test cases to `scripts/zero-trust-validate.sh`
 
 Notes:
@@ -239,7 +242,6 @@ Target shape:
 Parent registration:
 - add `- <component>/` to `infra/kustomization.yaml` when needed
 - ensure cluster-level infra wiring in `clusters/k8s-homelab/infra/kustomization.yaml` remains correct
-- add `- ns-<component>.yaml` to `infra/network-policies/kustomization.yaml`
 - add test cases to `scripts/zero-trust-validate.sh`
 
 Notes:
@@ -260,8 +262,8 @@ Notes:
 
 Always respond in this order:
 1. Clarifying questions (starting with area, then image/imageTag).
-2. Proposed file tree (must include `infra/network-policies/ns-<namespace>.yaml`).
-3. Required edits to parent `kustomization.yaml` files (including `infra/network-policies/kustomization.yaml`).
+2. Proposed file tree (must include `<name>-netpol.yaml` co-located with the component).
+3. Required edits to parent `kustomization.yaml` files.
 4. Connectivity analysis table (ingress sources, in-cluster egress, outbound internet, API server, webhooks).
 5. Security notes (secrets via ExternalSecret, no plaintext secrets).
 6. Validation checklist (kustomize path correctness, selector/label consistency, namespace alignment, network policy completeness).
@@ -309,6 +311,25 @@ infra/network-policies/
   5. Update both: `ns-cloudflared.yaml` egress AND `ns-<destination>.yaml` ingress
 - **Flux overwrites manual kubectl changes within 1 minute**: Never rely on `kubectl apply` alone to test NetworkPolicy fixes — Flux will revert them. Validate logic via direct pod port-forward or netshoot debug pod, then commit+push the fix to Git so Flux reconciles the correct state.
 - **Cloudflare tunnel pod has no shell/wget**: The cloudflare-tunnel container is a minimal image with no shell, wget, or curl. To test connectivity from the cloudflared namespace, run `kubectl run nettest --rm -i --restart=Never --image=curlimages/curl:latest -n cloudflared -- curl ...`.
+- **OIDC egress to Kong (post-DNAT port trap)**: Any namespace running a workload that authenticates via OIDC against Authentik (e.g., Vault, Headlamp, Homebox) makes HTTPS requests to `auth.${DOMAIN}`, which CoreDNS resolves to the Kong ClusterIP. kube-proxy DNAT rewrites the destination to the Kong pod on **containerPort 8443** (not the Service port 443). Calico evaluates egress AFTER DNAT, so the egress policy in the source namespace must allow `port: 8443` (not `port: 443`). Similarly, HTTP OIDC discovery calls use port **8000** (not 80). Add the following named policy to any namespace that needs OIDC:
+  ```yaml
+  - name: allow-egress-to-kong
+    egress:
+      - ports:
+          - port: 8000
+            protocol: TCP
+          - port: 8443
+            protocol: TCP
+        to:
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: kong
+  ```
+  Reference implementations: `infra/vault/vault-netpol.yaml`, `infra/headlamp/headlamp-netpol.yaml`, `apps/homebox/homebox-netpol.yaml`.
+- **Staging TLS certs break OIDC**: Go-based OIDC clients (Homebox, Vault, Headlamp) and other strict TLS clients reject self-signed or Let's Encrypt staging certificates. Always use the `letsencrypt-prod` issuer for any cluster-wide wildcard cert used by Kong. Staging certs silently fail OIDC discovery (no error shown to user, provider reported as "not available").
+- **cert-manager DNS01 + CoreDNS split-brain**: When CoreDNS has an internal split-brain zone (e.g., `*.${DOMAIN} → Kong ClusterIP`), cert-manager's DNS01 solver cannot follow the ACME NS record chain using the cluster's default resolver. Fix: add `--dns01-recursive-nameservers=1.1.1.1:53,8.8.8.8:53` and `--dns01-recursive-nameservers-only` to the cert-manager controller args (or in `cert-manager-values.yaml` as `dns01RecursiveNameservers` / `dns01RecursiveNameserversOnly`). Without this, `_acme-challenge` TXT lookups fail and certificates never become Ready.
+- **Flux suspended + `${DOMAIN}` substitution**: When `flux suspend kustomization --all` is active, Flux substitution variables (`${DOMAIN}`, `${KONG_LB_IP}`) are NOT replaced. Any manifest applied manually with `kubectl apply -f` will retain the literal `${DOMAIN}` string. Always pipe through `sed 's/${DOMAIN}/<your-domain>/g'` (substituting the actual domain at apply time) before applying. Use `kubectl replace` (not `apply`) when you need to remove environment variables — strategic merge patch keeps old items.
+- **Image-only tags for some apps**: Some images (e.g., `ghcr.io/sysadminsmedia/homebox`) only publish a `latest` tag with no versioned alternatives. Use `imagePullPolicy: Always` so Kubernetes pulls the latest image on pod restart. Document this as an exception in the secrets/deployment notes and set `renovate.json` ignore for that image.
 
 ### Cluster Network Facts
 - Pod CIDR: `10.244.0.0/16`
@@ -344,6 +365,51 @@ This is the ground truth for all active tunnel routes. Both `ns-cloudflared.yaml
 | pihole | pihole.pihole | 80 | 80 | 80 (no DNAT) |
 | forgejo | forgejo.forgejo:3000 | 3000 | 3000 | 3000 (no DNAT) |
 | openclaw | openclaw.openclaw:18789 | 18789 | 18789 | 18789 (no DNAT) |
+
+### OIDC Integration via Authentik + Kong
+
+All user-facing OIDC in this cluster routes through Kong OSS acting as the TLS termination proxy in front of Authentik.
+
+**Traffic path (in-cluster OIDC)**:
+```
+Pod (needs OIDC) → CoreDNS resolves auth.${DOMAIN} → Kong ClusterIP
+  → iptables DNAT → Kong pod:8443 (HTTPS) / pod:8000 (HTTP)
+  → Kong → Authentik (identity namespace, port 9000)
+```
+
+**Kong Service port map** (relevant for NetworkPolicy port rules):
+
+| Protocol | Service port | Container targetPort | Use in NetworkPolicy |
+|---|---|---|---|
+| HTTP | 80 | 8000 | `port: 8000` |
+| HTTPS | 443 | 8443 | `port: 8443` |
+
+**Mandatory network policy for any OIDC-enabled namespace**:
+```yaml
+- name: allow-egress-to-kong
+  egress:
+    - ports:
+        - port: 8000
+          protocol: TCP
+        - port: 8443
+          protocol: TCP
+      to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+```
+
+**Checklist for adding OIDC to an existing app**:
+1. Create Authentik provider (OAuth2/OIDC) with the correct redirect URI — match exactly (scheme + path)
+2. Create Authentik application and assign the provider
+3. Add `OIDC_*` env vars via ExternalSecret (client ID + secret from Vault)
+4. Verify the Kong wildcard TLS cert uses `letsencrypt-prod` (not staging)
+5. Add `allow-egress-to-kong` policy to the app's netpol file (port 8443 for HTTPS)
+6. Add `allow-egress-dns` (port 53) so the OIDC issuer URL hostname resolves
+7. Restart the pod with `kubectl rollout restart` after policy changes
+8. Check pod logs for TLS/OIDC errors — Go clients log TLS failures to stderr
+
+**Reference implementations**: `infra/vault/vault-netpol.yaml`, `infra/headlamp/headlamp-netpol.yaml`, `apps/homebox/homebox-netpol.yaml`
 
 ### Validation Script
 `scripts/zero-trust-validate.sh` must be updated for every new namespace:

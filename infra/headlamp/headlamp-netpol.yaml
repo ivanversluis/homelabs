@@ -107,3 +107,24 @@ spec:
       ports:
         - protocol: TCP
           port: 443
+---
+# Headlamp -> Kong proxy (OIDC via auth.${DOMAIN} routes through Kong)
+# Calico evaluates egress after kube-proxy DNAT, so we need targetPorts 8000/8443
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-to-kong
+  namespace: headlamp
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 8000
+        - protocol: TCP
+          port: 8443

@@ -4,6 +4,10 @@
 #   --version v1.17.2 \
 #   -f infra/cert-manager/cert-manager-values.yaml
 installCRDs: true
+# Use public recursive DNS for ACME DNS-01 propagation checks
+# (CoreDNS split-brain breaks NS lookups from inside the cluster)
+dns01RecursiveNameservers: "1.1.1.1:53,8.8.8.8:53"
+dns01RecursiveNameserversOnly: true
 prometheus:
   enabled: true
   servicemonitor:

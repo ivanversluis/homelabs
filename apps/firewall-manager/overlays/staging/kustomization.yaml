@@ -5,6 +5,7 @@ namespace: firewall-manager-staging
 
 resources:
   - ../../base
+  - firewall-manager-netpol.yaml
   - vault
 
 commonLabels:

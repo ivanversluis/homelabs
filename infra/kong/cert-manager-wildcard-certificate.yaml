@@ -14,9 +14,7 @@ metadata:
 spec:
   secretName: kong-tls-wildcard
   issuerRef:
-    # TODO: switch back to letsencrypt-prod after 2026-05-13 17:25 UTC
-    # (LE rate limit: 5 certs per exact set of identifiers per 168h)
-    name: letsencrypt-staging
+    name: letsencrypt-prod
     kind: ClusterIssuer
   dnsNames:
     - "${DOMAIN}"

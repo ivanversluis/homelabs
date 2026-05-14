@@ -29,7 +29,7 @@ spec:
       containers:
         - name: homebox
           image: ghcr.io/sysadminsmedia/homebox:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 7745
               name: http
@@ -43,18 +43,18 @@ spec:
             - name: HBOX_OPTIONS_ALLOW_ANALYTICS
               value: "false"
             # OIDC integration via Authentik
-            - name: HBOX_AUTH_OIDC_REDIRECT_URL
-              value: "https://homebox.${DOMAIN}/api/v1/oauth/callback"
-            - name: HBOX_AUTH_OIDC_ISSUER_URL
+            - name: HBOX_OIDC_ENABLED
+              value: "true"
+            - name: HBOX_OIDC_ISSUER_URL
               value: "https://auth.${DOMAIN}/application/o/homebox/"
-            - name: HBOX_AUTH_OIDC_NAME
-              value: "Authentik"
-            - name: HBOX_AUTH_OIDC_CLIENT_ID
+            - name: HBOX_OIDC_BUTTON_TEXT
+              value: "Sign in with Authentik"
+            - name: HBOX_OIDC_CLIENT_ID
               valueFrom:
                 secretKeyRef:
                   name: homebox-oidc
                   key: client-id
-            - name: HBOX_AUTH_OIDC_CLIENT_SECRET
+            - name: HBOX_OIDC_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: homebox-oidc
