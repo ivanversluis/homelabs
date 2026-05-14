@@ -56,6 +56,11 @@ spec:
                 secretKeyRef:
                   name: openwebui-oidc
                   key: ENABLE_LOGIN_FORM
+            - name: DEFAULT_USER_ROLE
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-oidc
+                  key: DEFAULT_USER_ROLE
             - name: ENABLE_OAUTH_SIGNUP
               valueFrom:
                 secretKeyRef:
