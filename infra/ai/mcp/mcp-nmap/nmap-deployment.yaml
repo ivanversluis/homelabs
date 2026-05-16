@@ -1,10 +1,9 @@
 # mcp-nmap: MCP server for network scanning via nmap.
-# Uses mcpo as OpenAPI proxy (same pattern as kubernetes-mcpo).
+# Uses mcpo (bundled in the mcp-nmap Alpine image) as OpenAPI proxy.
 #
 # Architecture:
-#   initContainer copies mcp-nmap binary + nmap from the CI-built image into shared volumes.
-#   mcpo container spawns /shared/mcp-nmap as a stdio subprocess.
-#   nmap is available in PATH via the shared bin volume.
+#   Single container: mcp-nmap image (Alpine) runs mcpo, which spawns mcp-nmap as a stdio subprocess.
+#   nmap is installed natively in the same image — no cross-distro binary issues.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -32,52 +31,32 @@ spec:
         runAsUser: 1000
         runAsGroup: 1000
         fsGroup: 1000
-      initContainers:
-        - name: fetch-mcp-nmap
-          image: ghcr.io/ivanversluis/mcp-hub/mcp-nmap:latest
-          command:
-            - sh
-            - -c
-            - |
-              cp /usr/local/bin/mcp-nmap /shared/mcp-nmap
-              cp /usr/bin/nmap /shared/nmap 2>/dev/null || true
-          volumeMounts:
-            - name: shared-bin
-              mountPath: /shared
-          securityContext:
-            allowPrivilegeEscalation: false
-            runAsNonRoot: true
-            runAsUser: 1000
-            capabilities:
-              drop: ["ALL"]
       containers:
-        - name: mcpo
-          image: ghcr.io/open-webui/mcpo:latest
+        - name: mcp-nmap
+          image: ghcr.io/ivanversluis/mcp-hub/mcp-nmap:latest
+          imagePullPolicy: Always
+          # mcpo is installed in the same Alpine image; it wraps mcp-nmap as a stdio subprocess.
+          # Everything runs in one container — no cross-distro binary issues.
+          command: ["mcpo"]
           args:
             - "--host=0.0.0.0"
             - "--port=8000"
             - "--api-key=$(MCPO_API_KEY)"
             - "--"
-            - "/shared/mcp-nmap"
+            - "mcp-nmap"
           env:
             - name: MCPO_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: mcpo-api-key
                   key: api-key
-            - name: PATH
-              value: "/app/.venv/bin:/shared:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games"
           ports:
             - containerPort: 8000
               name: http
-          volumeMounts:
-            - name: shared-bin
-              mountPath: /shared
-              readOnly: true
           resources:
             requests:
               cpu: 50m
-              memory: 64Mi
+              memory: 128Mi
             limits:
               cpu: 200m
               memory: 256Mi
@@ -99,9 +78,6 @@ spec:
             periodSeconds: 30
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: false  # mcpo needs temp writes
+            readOnlyRootFilesystem: false
             capabilities:
               drop: ["ALL"]
-      volumes:
-        - name: shared-bin
-          emptyDir: {}
