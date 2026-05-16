@@ -51,6 +51,40 @@ spec:
                   key: GRAFANA_PUBLIC_URL
             - name: GF_INSTALL_PLUGINS
               value: ""
+              # ── OIDC via Authentik ──────────────────────────────────────────
+              # Credentials sourced from Vault via ExternalSecret grafana-oidc.
+              # Authentik provider slug: grafana
+              # Redirect URI: https://grafana.${DOMAIN}/login/generic_oauth
+              - name: GF_AUTH_GENERIC_OAUTH_ENABLED
+                value: "true"
+              - name: GF_AUTH_GENERIC_OAUTH_NAME
+                value: "authentik"
+              - name: GF_AUTH_GENERIC_OAUTH_SCOPES
+                value: "openid profile email entitlements"
+              - name: GF_AUTH_GENERIC_OAUTH_AUTH_URL
+                value: "https://auth.${DOMAIN}/application/o/authorize/"
+              - name: GF_AUTH_GENERIC_OAUTH_TOKEN_URL
+                value: "https://auth.${DOMAIN}/application/o/token/"
+              - name: GF_AUTH_GENERIC_OAUTH_API_URL
+                value: "https://auth.${DOMAIN}/application/o/userinfo/"
+              - name: GF_AUTH_SIGNOUT_REDIRECT_URL
+                value: "https://auth.${DOMAIN}/application/o/grafana/end-session/"
+              - name: GF_AUTH_OAUTH_AUTO_LOGIN
+                value: "true"
+              # Role mapping: entitlements claim from Authentik application entitlements.
+              # Create entitlements 'Grafana Admins', 'Grafana Editors' in Authentik UI.
+              - name: GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH
+                value: "contains(entitlements[*], 'Grafana Admins') && 'Admin' || contains(entitlements[*], 'Grafana Editors') && 'Editor' || 'Viewer'"
+              - name: GF_AUTH_GENERIC_OAUTH_CLIENT_ID
+                valueFrom:
+                  secretKeyRef:
+                    name: grafana-oidc
+                    key: client-id
+              - name: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
+                valueFrom:
+                  secretKeyRef:
+                    name: grafana-oidc
+                    key: client-secret
           volumeMounts:
             - name: config
               mountPath: /etc/grafana/grafana.ini

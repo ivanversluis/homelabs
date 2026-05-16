@@ -39,6 +39,7 @@ resources:
   # Vault integration
   - vault/external-secret.yaml
   - vault/grafana-alerting-externalsecret.yaml
+    - vault/grafana-oidc-externalsecret.yaml
 
 generatorOptions:
   labels:
