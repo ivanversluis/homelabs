@@ -100,7 +100,6 @@ spec:
             readOnlyRootFilesystem: false  # mcpo needs temp writes
             capabilities:
               drop: ["ALL"]
-              add: ["NET_RAW"]  # nmap requires NET_RAW for SYN/raw packet scans
       volumes:
         - name: shared-bin
           emptyDir: {}
