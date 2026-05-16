@@ -73,6 +73,7 @@ App Pod (e.g., Homebox, Vault, Headlamp, OpenWebUI)
 | Headlamp | headlamp | infra/headlamp | headlamp | `https://k8s.${DOMAIN}/oidc/callback` | Helm values `oidc.*` |
 | Homebox | homebox | apps/homebox | homebox | `https://homebox.${DOMAIN}/api/v1/users/login/oidc/callback` | `HBOX_OIDC_*` |
 | Open WebUI | ai | infra/openwebui | openwebui | `https://ai-chat.${DOMAIN}/oauth/oidc/callback` | `OAUTH_*`, `OPENID_*` |
+| Grafana | observability | infra/grafana | grafana | `https://grafana.${DOMAIN}/login/generic_oauth` | `GF_AUTH_GENERIC_OAUTH_*` |
 
 ## Adding OIDC to a New Application — Complete Workflow
 
@@ -213,6 +214,7 @@ make iam validate-oidc
 - **Vault**: OIDC is configured via `vault write auth/oidc/config` (not env vars). The Vault pod needs egress to Kong for token validation.
 - **Headlamp**: Configured via Helm values (`oidc.enabled`, `oidc.clientID`, etc.). The Headlamp container listens on port 4466 (not 80).
 - **Open WebUI**: Uses `OAUTH_*` and `OPENID_*` env prefix. Supports `ENABLE_LOGIN_FORM=false` to force OIDC-only login. `OAUTH_MERGE_ACCOUNTS_BY_EMAIL=true` merges existing accounts.
+- **Grafana**: Uses `GF_AUTH_GENERIC_OAUTH_*` env vars. Requires the `entitlements` scope — add `authentik default OAuth Mapping: OpenID 'entitlements'` to the Authentik provider. Role mapping via JMESPath on `entitlements` claim using `GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH`. Create Application Entitlements (`Grafana Admins`, `Grafana Editors`) scoped to the Grafana app in Authentik — not global groups. `GF_SERVER_ROOT_URL` must equal the public URL or OAuth redirects break — sourced from `grafana-alerting-secrets/GRAFANA_PUBLIC_URL`. With `GF_AUTH_OAUTH_AUTO_LOGIN=true`, if the first OIDC login email matches the local `admin` account, Grafana errors with `cannot remove last grafana admin` — create an OIDC-backed admin first, then remove the local account.
 
 ### Flux CD & Substitution
 - **`${DOMAIN}` is a Flux variable**: When Flux is suspended, this is NOT substituted. Any manual `kubectl apply` must pipe through `sed 's/${DOMAIN}/<actual-domain>/g'`.
@@ -232,15 +234,66 @@ secret/infra/<component>
 
 ## Future: Terraform Integration
 
-When Terraform is adopted for Authentik + Vault provisioning:
-1. Terraform creates the Authentik provider + application
-2. Terraform writes client_id/client_secret to Vault at the standard path
-3. ExternalSecret syncs from Vault → Kubernetes Secret
-4. Deployment references the Secret via `valueFrom`
-5. NetworkPolicy is committed as part of the app's kustomize manifests
-6. Validation runs via `make iam validate-oidc`
+Terraform is now implemented at `automation/infra-as-code/terraform/`. The module structure:
 
-This eliminates manual Authentik UI steps and ensures reproducibility.
+```
+automation/infra-as-code/terraform/
+├── modules/
+│   ├── authentik-oidc/        # Groups, OAuth2 provider, application, entitlements
+│   ├── vault-app-secret/      # KV secret + ESO read policy
+│   └── cloudflare-published-app/  # Tunnel published route + optional Access app
+├── compositions/
+│   └── oidc-app/              # Bundles Authentik, Vault, and Cloudflare for one app
+└── deployments/
+    └── grafana/               # First use case — Grafana OIDC
+```
+
+### Workflow: Adding OIDC to a New App via Terraform
+
+1. Create a new directory under `deployments/<app-name>/`
+2. Call the `oidc-app` composition module with app-specific variables
+3. Run `make tf-init APP=<app-name> && make tf-plan APP=<app-name>`
+4. Review plan, then `make tf-apply APP=<app-name>`
+5. Terraform creates: Authentik provider + app + groups + entitlements, Vault secret + ESO policy, Cloudflare published route on the existing tunnel, and an optional Cloudflare Access app
+6. ExternalSecret syncs from Vault → Kubernetes Secret (no manual step)
+7. NetworkPolicy must still be committed as part of the app's kustomize manifests
+8. Validate: `make iam-validate-oidc-app APP=<app-name>`
+
+### Cloudflare Caveat: Tunnel Config Is Shared State
+
+- Cloudflare "Published application routes" are stored in the **tunnel config**, not as independent per-app resources.
+- The Terraform module reads the existing tunnel config, replaces the ingress rule for one hostname, and writes the merged config back.
+- Because the tunnel config is shared, **only one Terraform workflow/state should own a given tunnel**. Multiple states updating the same tunnel can race and overwrite each other.
+- For this repo, the tunnel is pre-existing and deployments pass in `cloudflare_tunnel_id` and `cloudflare_team_name` from sensitive tfvars or `TF_VAR_*` env vars.
+
+### Terraform Resource Map
+
+| Resource | Provider | Purpose |
+|---|---|---|
+| `authentik_provider_oauth2` | `goauthentik/authentik` | Creates OAuth2/OIDC provider with redirect URIs |
+| `authentik_application` | `goauthentik/authentik` | Creates app, binds provider, sets slug |
+| `authentik_application_entitlement` | `goauthentik/authentik` | Creates role entitlements (e.g. `Grafana Admins`) |
+| `authentik_group` | `goauthentik/authentik` | Creates groups for RBAC binding |
+| `vault_generic_secret` | `hashicorp/vault` | Writes `OAUTH_CLIENT_ID` + `OAUTH_CLIENT_SECRET` to Vault |
+| `vault_policy` | `hashicorp/vault` | ESO read policy for the specific secret path |
+| `cloudflare_zero_trust_tunnel_cloudflared_config` | `cloudflare/cloudflare` | Merges one published application route into the existing tunnel config |
+| `cloudflare_zero_trust_access_application` | `cloudflare/cloudflare` | Optionally creates Access app bound to the tunnel route via AUD tag |
+
+### Sensitive Data Handling
+
+- `domain`, all tokens, and `client_secret` are marked `sensitive = true` — hidden from plan output
+- `terraform.tfvars` is gitignored — credentials never committed
+- `vault_generic_secret` uses `disable_read = true` — Vault data not refreshed into state after initial write
+- Future: migrate state to encrypted backend (Vault transit or S3+KMS)
+
+### SemaphoreUI Integration (planned)
+
+When SemaphoreUI runs Terraform:
+- Credentials injected as `TF_VAR_*` environment variables in the SemaphoreUI task
+- State stored in a remote backend (Vault transit or S3)
+- `make tf-plan APP=<name>` and `make tf-apply APP=<name>` are the entrypoints
+
+The ExternalSecret → K8s Secret → deployment env chain requires **no changes** when using Terraform. Only the manual Authentik UI + Vault CLI steps are replaced.
 
 ## Reference Implementations
 
@@ -248,6 +301,8 @@ This eliminates manual Authentik UI steps and ensures reproducibility.
 - **Helm-based OIDC**: `infra/headlamp/` — Helm values for OIDC config
 - **Complex OIDC with MCP**: `infra/ai/openwebui/` — OIDC + Kong consumer + key-auth
 - **Vault OIDC auth method**: `infra/vault/` — server-side OIDC config (not env vars)
+- **GF_AUTH env vars + entitlements**: `infra/observability/grafana/` — role mapping via Authentik application entitlements
+- **Terraform OIDC (full stack)**: `automation/infra-as-code/terraform/deployments/grafana/` — Authentik + Vault + Cloudflare tunnel route + Access
 
 ## Troubleshooting Checklist
 
