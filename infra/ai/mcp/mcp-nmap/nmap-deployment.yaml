@@ -1,0 +1,106 @@
+# mcp-nmap: MCP server for network scanning via nmap.
+# Uses mcpo as OpenAPI proxy (same pattern as kubernetes-mcpo).
+#
+# Architecture:
+#   initContainer copies mcp-nmap binary + nmap from the CI-built image into shared volumes.
+#   mcpo container spawns /shared/mcp-nmap as a stdio subprocess.
+#   nmap is available in PATH via the shared bin volume.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nmap-mcpo
+  namespace: ai
+  labels:
+    app.kubernetes.io/name: nmap-mcpo
+    app.kubernetes.io/component: mcp-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nmap-mcpo
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nmap-mcpo
+      annotations:
+        prometheus.io/scrape: "false"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      initContainers:
+        - name: fetch-mcp-nmap
+          image: ghcr.io/ivanversluis/mcp-hub/mcp-nmap:latest
+          command:
+            - sh
+            - -c
+            - |
+              cp /usr/local/bin/mcp-nmap /shared/mcp-nmap
+              cp /usr/bin/nmap /shared/nmap 2>/dev/null || true
+          volumeMounts:
+            - name: shared-bin
+              mountPath: /shared
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: ["ALL"]
+      containers:
+        - name: mcpo
+          image: ghcr.io/open-webui/mcpo:latest
+          args:
+            - "--host=0.0.0.0"
+            - "--port=8000"
+            - "--api-key=$(MCPO_API_KEY)"
+            - "--"
+            - "/shared/mcp-nmap"
+          env:
+            - name: MCPO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mcpo-api-key
+                  key: api-key
+            - name: PATH
+              value: "/shared:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          ports:
+            - containerPort: 8000
+              name: http
+          volumeMounts:
+            - name: shared-bin
+              mountPath: /shared
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          startupProbe:
+            httpGet:
+              path: /openapi.json
+              port: 8000
+            failureThreshold: 30
+            periodSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /openapi.json
+              port: 8000
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /openapi.json
+              port: 8000
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false  # mcpo needs temp writes
+            capabilities:
+              drop: ["ALL"]
+              add: ["NET_RAW"]  # nmap requires NET_RAW for SYN/raw packet scans
+      volumes:
+        - name: shared-bin
+          emptyDir: {}

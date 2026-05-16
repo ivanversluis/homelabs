@@ -1,0 +1,27 @@
+# Ingress: mcp.${DOMAIN}/nmap → nmap-mcpo service
+# Reuses the same Kong plugin chain as mcp-kubernetes.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nmap-mcpo
+  namespace: ai
+  annotations:
+    konghq.com/protocols: "https"
+    konghq.com/https-redirect-status-code: "301"
+    konghq.com/strip-path: "true"
+    konghq.com/plugins: "mcp-bearer-to-apikey,mcp-key-auth,mcp-acl,rate-limit-global,mcp-inject-api-key"
+    konghq.com/proxy-read-timeout: "300"
+    konghq.com/proxy-send-timeout: "300"
+spec:
+  ingressClassName: kong
+  rules:
+    - host: mcp.${DOMAIN}
+      http:
+        paths:
+          - path: /nmap
+            pathType: Prefix
+            backend:
+              service:
+                name: nmap-mcpo
+                port:
+                  number: 8000

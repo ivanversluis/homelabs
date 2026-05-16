@@ -82,6 +82,26 @@ spec:
         - protocol: TCP
           port: 8000
 ---
+# Kong -> nmap-mcpo (MCP nmap tool API)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kong-ingress-nmap-mcpo
+  namespace: ai
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: nmap-mcpo
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 8000
+---
 # Open WebUI → Kong (for AI gateway LLM calls + OIDC token validation)
 # Open WebUI never calls Azure directly; all LLM traffic goes through Kong AI Gateway
 apiVersion: networking.k8s.io/v1
@@ -104,6 +124,20 @@ spec:
           port: 8000
         - protocol: TCP
           port: 8443
+---
+# nmap-mcpo -> anywhere (required for LAN/subnet and internet host scanning)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-nmap-mcpo-all
+  namespace: ai
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: nmap-mcpo
+  policyTypes: [Egress]
+  egress:
+    - {}
 ---
 # Open WebUI → internet (HuggingFace for embedding model download on first start)
 # sentence-transformers/all-MiniLM-L6-v2 is fetched from huggingface.co
