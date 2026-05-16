@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nmap-mcpo
+  namespace: ai
+  labels:
+    app.kubernetes.io/name: nmap-mcpo
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: nmap-mcpo
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000

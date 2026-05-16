@@ -464,7 +464,7 @@ test_ns() {
       ;;
 
     ai)
-      print_section "ai — Open WebUI + kubernetes-mcpo, Kong ingress only"
+      print_section "ai — Open WebUI + kubernetes-mcpo + nmap-mcpo"
       test_dns "$ns"
       # Open WebUI and mcpo should NOT reach each other directly (goes via Kong)
       test_conn "$ns" "Direct pod-to-pod BLOCKED (openwebui→mcpo)" "deny" \
@@ -477,6 +477,10 @@ test_ns() {
       test_conn "ai" "Egress to API server (mcpo)" "allow" \
         --labels "app.kubernetes.io/name=kubernetes-mcpo" \
         nc -z -w "$TIMEOUT_ALLOW" "$API_CLUSTERIP" 443
+      # nmap-mcpo needs unrestricted egress to scan local networks and external hosts
+      test_conn "ai" "Internet egress allowed (nmap-mcpo)" "allow" \
+        --labels "app.kubernetes.io/name=nmap-mcpo" \
+        nc -z -w "$TIMEOUT_ALLOW" 1.1.1.1 443
       # Open WebUI must NOT reach Azure directly (all LLM traffic through Kong)
       test_conn "ai" "Direct Azure egress BLOCKED" "deny" \
         --labels "app.kubernetes.io/name=openwebui" \
