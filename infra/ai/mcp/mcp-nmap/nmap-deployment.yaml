@@ -25,6 +25,8 @@ spec:
       annotations:
         prometheus.io/scrape: "false"
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
