@@ -22,7 +22,7 @@ services:
 
   # --- Authentik ---
   authentik-server:
-    image: ghcr.io/goauthentik/server:2026.2.2
+    image: ghcr.io/goauthentik/server:2026.2.3
     command: server
     networks:
       - auth-net
@@ -40,7 +40,7 @@ services:
       - authentik:/templates
 
   authentik-worker:
-    image: ghcr.io/goauthentik/server:2026.2.2
+    image: ghcr.io/goauthentik/server:2026.2.3
     command: worker
     networks:
       - auth-net
