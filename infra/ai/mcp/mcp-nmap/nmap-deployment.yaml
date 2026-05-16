@@ -66,7 +66,7 @@ spec:
                   name: mcpo-api-key
                   key: api-key
             - name: PATH
-              value: "/shared:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+              value: "/app/.venv/bin:/shared:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games"
           ports:
             - containerPort: 8000
               name: http
