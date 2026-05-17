@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "kubernetes-security-policies",
+  "owner": "nickcrew",
+  "repo": "claude-cortex",
+  "path": "skills/kubernetes-security-policies",
+  "branch": "main",
+  "sha": "a77353d819310def8ef2478398e51635b60ffe2f",
+  "source": "manual"
+}
