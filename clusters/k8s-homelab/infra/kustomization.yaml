@@ -3,10 +3,11 @@ kind: Kustomization
 resources:
   - ../../../infra
   # Flux Kustomization CRDs for components that use postBuild.substituteFrom
-  # (cert-manager, kong, ai) — managed separately from the main infra path.
+  # (cert-manager, kong, ai, observability) — managed separately from the main infra path.
   - cert-manager-kustomization.yaml
   - cert-manager-config-kustomization.yaml
   - kong-kustomization.yaml
+  - observability-kustomization.yaml
   - ai-kustomization.yaml
   # Identity ingress has ${DOMAIN} — needs its own postBuild Kustomization
   - identity-ingress-kustomization.yaml
