@@ -150,6 +150,7 @@ spec:
         operator: In
         values:
           - api
+          - webui
           - worker
   policyTypes: [Ingress]
   ingress:

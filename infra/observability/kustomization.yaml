@@ -38,6 +38,7 @@ resources:
   - grafana/service.yaml
   # Vault integration
   - vault/external-secret.yaml
+  - vault/grafana-admin-external-secret.yaml
   - vault/grafana-alerting-externalsecret.yaml
   - vault/grafana-oidc-externalsecret.yaml
 
