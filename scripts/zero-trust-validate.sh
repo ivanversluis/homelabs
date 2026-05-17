@@ -225,7 +225,8 @@ echo -e "  GlobalNetworkPolicies: $GNP_COUNT"
 TOTAL_NP=0
 for ns in linkding n8n termix forgejo identity headlamp cloudflared vault \
           external-secrets-system observability monitoring pihole dns \
-          flux-system openclaw semaphoreui portainer; do
+          flux-system openclaw semaphoreui portainer \
+          firewall-manager-dev firewall-manager-staging firewall-manager-prod; do
   c=$(kubectl get networkpolicies -n "$ns" --no-headers 2>/dev/null | wc -l)
   TOTAL_NP=$((TOTAL_NP + c))
 done
@@ -335,6 +336,10 @@ test_ns() {
       test_dns "$ns"
       test_cross_ns_deny "$ns"
       test_internet "$ns" 443 tcp deny
+      # Prometheus can scrape firewall-manager webui (fix: webui added to allow-observability-scrape)
+      test_conn "$ns" "Prometheus scrape fm-webui staging :80" "allow" \
+        --labels "app.kubernetes.io/name=prometheus" \
+        nc -z -w "$TIMEOUT_ALLOW" "fm-webui.firewall-manager-staging.svc.cluster.local" 80
       flush_results
       ;;
 
@@ -463,6 +468,18 @@ test_ns() {
       flush_results
       ;;
 
+    firewall-manager-dev|firewall-manager-staging|firewall-manager-prod)
+      print_section "$ns — FM api/webui/worker"
+      test_dns "$ns"
+      test_cross_ns_deny "$ns"
+      # Worker has internet egress for firewall rule management
+      test_internet "$ns" 443 tcp allow "component=worker"
+      test_internet "$ns" 80 tcp allow "component=worker"
+      # WebUI and API are isolated (no internet egress)
+      test_internet "$ns" 443 tcp deny "component=webui"
+      flush_results
+      ;;
+
     ai)
       print_section "ai — Open WebUI + kubernetes-mcpo + nmap-mcpo"
       test_dns "$ns"
@@ -493,7 +510,9 @@ test_ns() {
 NAMESPACES=(linkding n8n termix forgejo identity headlamp cloudflared vault \
             external-secrets-system observability monitoring pihole dns \
             flux-system openclaw semaphoreui portainer argocd \
-            cert-manager kong ai)
+            cert-manager kong \
+            firewall-manager-dev firewall-manager-staging firewall-manager-prod \
+            ai)
 
 for ns in "${NAMESPACES[@]}"; do
   test_ns "$ns"
