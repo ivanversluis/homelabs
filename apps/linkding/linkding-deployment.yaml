@@ -7,6 +7,8 @@ metadata:
     app: linkding
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: linkding
@@ -15,6 +17,8 @@ spec:
       labels:
         app: linkding
     spec:
+      nodeSelector:
+        node.longhorn.io/create-default-disk: "true"
       containers:
         - name: linkding
           image: sissbruecker/linkding:1.45.0-alpine
