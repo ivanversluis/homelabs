@@ -9,7 +9,9 @@ resources:
   - argocd-image-updater/
   - semaphoreui/
   - monitoring/
-  - observability/
+  # observability is managed exclusively by the dedicated Flux Kustomization
+  # (clusters/k8s-homelab/infra/observability-kustomization.yaml) with
+  # postBuild.substituteFrom so ${DOMAIN} is properly substituted.
   - nodes/
   - portainer/
   - openclaw/
