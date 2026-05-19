@@ -65,13 +65,15 @@ spec:
             - name: config
               mountPath: /opt/unbound/etc/unbound/unbound.conf
               subPath: unbound.conf
+            - name: socket
+              mountPath: /var/run/unbound
         - name: unbound-exporter
           # Temporary: public GHCR mirror of letsencrypt/unbound_exporter v0.6.0
           # TODO: replace with ivanversluis/unbound-exporter once own image is built
           image: ghcr.io/cyb3r-jak3/unbound-exporter:0.6.0
           imagePullPolicy: IfNotPresent
           args:
-            - --unbound.host=tcp://127.0.0.1:8953
+            - --unbound.host=unix:///var/run/unbound/unbound.ctl
           ports:
             - name: metrics
               containerPort: 9167
@@ -103,7 +105,13 @@ spec:
               port: metrics
             initialDelaySeconds: 15
             periodSeconds: 30
+          volumeMounts:
+            - name: socket
+              mountPath: /var/run/unbound
+              readOnly: true
       volumes:
         - name: config
           configMap:
             name: unbound-config
+        - name: socket
+          emptyDir: {}
