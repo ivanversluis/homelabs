@@ -69,6 +69,7 @@ data:
     remote-control:
       control-enable: yes
       control-interface: 127.0.0.1
+      control-interface: /var/run/unbound/unbound.ctl
       control-port: 8953
       control-use-cert: no
 
