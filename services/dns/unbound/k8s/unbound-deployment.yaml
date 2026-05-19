@@ -66,7 +66,9 @@ spec:
               mountPath: /opt/unbound/etc/unbound/unbound.conf
               subPath: unbound.conf
         - name: unbound-exporter
-          image: ghcr.io/letsencrypt/unbound_exporter:v0.6.0
+          # Temporary: public GHCR mirror of letsencrypt/unbound_exporter v0.6.0
+          # TODO: replace with ivanversluis/unbound-exporter once own image is built
+          image: ghcr.io/cyb3r-jak3/unbound-exporter:0.6.0
           imagePullPolicy: IfNotPresent
           args:
             - --unbound.host=tcp://127.0.0.1:8953
