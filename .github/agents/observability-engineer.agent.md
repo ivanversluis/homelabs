@@ -84,6 +84,21 @@ Four dashboards for DNS stack visibility:
 - A `coredns-metrics` ClusterIP Service in `kube-system` selects `k8s-app: kube-dns` on port 9153
 - Note: `kube-prometheus-stack-coredns` (headless) also exists — these are separate, no conflict
 
+### Unbound PromQL Reference
+
+The `letsencrypt/unbound_exporter` metric names are NOT what you'd guess — common mistakes:
+
+| Wrong query | Correct query | Why |
+|-------------|--------------|-----|
+| `unbound_answer_rcode_total` | `unbound_answer_rcodes_total` | metric has `s` — plural |
+| `rate(unbound_recursion_time_seconds_total[5m])` | `unbound_recursion_time_seconds_avg` | gauge, not counter |
+| `histogram_quantile(0.99, rate(unbound_response_time_seconds_bucket[5m]))` | `histogram_quantile(0.99, sum(rate(unbound_response_time_seconds_bucket[5m])) by (le))` | histogram_quantile needs `sum by (le)` |
+| `unbound_response_time_seconds_count{rcode="NOERROR"}` | (no equivalent) | histogram has no `rcode` label |
+
+Cache hit ratio: `sum(rate(unbound_cache_hits_total[5m])) / (sum(rate(unbound_cache_hits_total[5m])) + sum(rate(unbound_cache_misses_total[5m]))) * 100`
+
+DNSSEC bogus: `increase(unbound_answer_bogus[5m])` (gauge counter — use `increase()` not `rate()`)
+
 ### Network Policies
 
 Zero Trust is enforced. All scraping requires explicit policies:
