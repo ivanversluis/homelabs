@@ -64,13 +64,10 @@ spec:
               mountPath: /opt/unbound/etc/unbound/unbound.conf
               subPath: unbound.conf
         - name: unbound-exporter
-          image: ghcr.io/letsencrypt/unbound_exporter:0.4.6
+          image: ghcr.io/letsencrypt/unbound_exporter:v0.6.0
           imagePullPolicy: IfNotPresent
           args:
             - --unbound.host=tcp://127.0.0.1:8953
-            - --unbound.ca=""
-            - --unbound.cert=""
-            - --unbound.key=""
           ports:
             - name: metrics
               containerPort: 9167
