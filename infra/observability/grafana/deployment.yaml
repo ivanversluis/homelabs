@@ -139,6 +139,22 @@ spec:
               mountPath: /etc/grafana/provisioning/dashboards/kubernetes-time-sync.json
               subPath: kubernetes-time-sync.json
               readOnly: true
+            - name: dashboard-dns-overview
+              mountPath: /etc/grafana/provisioning/dashboards/dns-overview.json
+              subPath: dns-overview.json
+              readOnly: true
+            - name: dashboard-coredns
+              mountPath: /etc/grafana/provisioning/dashboards/coredns.json
+              subPath: coredns.json
+              readOnly: true
+            - name: dashboard-pihole
+              mountPath: /etc/grafana/provisioning/dashboards/pihole.json
+              subPath: pihole.json
+              readOnly: true
+            - name: dashboard-unbound
+              mountPath: /etc/grafana/provisioning/dashboards/unbound.json
+              subPath: unbound.json
+              readOnly: true
             - name: data
               mountPath: /var/lib/grafana
           resources:
@@ -205,6 +221,18 @@ spec:
         - name: dashboard-kubernetes-time-sync
           configMap:
             name: grafana-dashboard-kubernetes-time-sync
+        - name: dashboard-dns-overview
+          configMap:
+            name: grafana-dashboard-dns-overview
+        - name: dashboard-coredns
+          configMap:
+            name: grafana-dashboard-coredns
+        - name: dashboard-pihole
+          configMap:
+            name: grafana-dashboard-pihole
+        - name: dashboard-unbound
+          configMap:
+            name: grafana-dashboard-unbound
         - name: data
           persistentVolumeClaim:
             claimName: grafana-data

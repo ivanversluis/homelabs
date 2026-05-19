@@ -7,3 +7,4 @@ resources:
   - unbound-deployment.yaml
   - unbound-service.yaml
   - unbound-pdb.yaml
+  - unbound-exporter-service.yaml

@@ -34,6 +34,10 @@ resources:
   - grafana/dashboard-kubernetes-platform-configmap.yaml
   - grafana/dashboard-kubernetes-nodes-configmap.yaml
   - grafana/dashboard-kubernetes-time-sync-configmap.yaml
+  - grafana/dashboard-dns-overview-configmap.yaml
+  - grafana/dashboard-coredns-configmap.yaml
+  - grafana/dashboard-pihole-configmap.yaml
+  - grafana/dashboard-unbound-configmap.yaml
   - grafana/deployment.yaml
   - grafana/service.yaml
   # Vault integration
@@ -41,6 +45,10 @@ resources:
   - vault/grafana-admin-external-secret.yaml
   - vault/grafana-alerting-externalsecret.yaml
   - vault/grafana-oidc-externalsecret.yaml
+  # DNS ServiceMonitors
+  - dns/coredns-servicemonitor.yaml
+  - dns/pihole-servicemonitor.yaml
+  - dns/unbound-servicemonitor.yaml
 
 generatorOptions:
   labels:

@@ -63,6 +63,45 @@ spec:
             - name: config
               mountPath: /opt/unbound/etc/unbound/unbound.conf
               subPath: unbound.conf
+        - name: unbound-exporter
+          image: ghcr.io/letsencrypt/unbound_exporter:0.4.6
+          imagePullPolicy: IfNotPresent
+          args:
+            - --unbound.host=tcp://127.0.0.1:8953
+            - --unbound.ca=""
+            - --unbound.cert=""
+            - --unbound.key=""
+          ports:
+            - name: metrics
+              containerPort: 9167
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 15
+            periodSeconds: 30
       volumes:
         - name: config
           configMap:

@@ -358,6 +358,10 @@ test_ns() {
       test_cross_ns_deny "$ns"
       test_internet "$ns" 443 tcp allow
       test_internet "$ns" 22 tcp deny
+      # Prometheus scraping must reach pihole-exporter
+      test_conn "$ns" "Prometheus scrape ingress TCP/9617 from observability" "allow" \
+        --labels app.kubernetes.io/name=pihole-exporter \
+        nc -z -w "$TIMEOUT_ALLOW" pihole-exporter.pihole.svc.cluster.local 9617
       flush_results
       ;;
 
@@ -375,6 +379,10 @@ test_ns() {
         nc -z -w "$TIMEOUT_DENY" 1.1.1.1 53
       test_conn "$ns" "Internet HTTPS BLOCKED" "deny" \
         nc -z -w "$TIMEOUT_DENY" 1.1.1.1 443
+      # Prometheus scraping must reach unbound-exporter sidecar
+      test_conn "$ns" "Prometheus scrape ingress TCP/9167 from observability" "allow" \
+        --labels app.kubernetes.io/name=unbound \
+        nc -z -w "$TIMEOUT_ALLOW" unbound-exporter.dns.svc.cluster.local 9167
       flush_results
       ;;
 

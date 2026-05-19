@@ -61,6 +61,17 @@ data:
       private-address: fd00::/8
       private-address: fe80::/10
 
+      # Enable statistics for unbound-exporter
+      extended-statistics: yes
+      statistics-interval: 0
+      statistics-cumulative: no
+
+    remote-control:
+      control-enable: yes
+      control-interface: 127.0.0.1
+      control-port: 8953
+      control-use-cert: no
+
     forward-zone:
       name: "."
       forward-tls-upstream: yes
