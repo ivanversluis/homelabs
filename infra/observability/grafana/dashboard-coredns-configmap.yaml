@@ -39,7 +39,7 @@ data:
           "type": "stat",
           "title": "SERVFAIL Rate",
           "datasource": {"uid": "prometheus"},
-          "targets": [{"expr": "sum(rate(coredns_dns_responses_total{rcode=\"SERVFAIL\"}[5m]))", "refId": "A"}],
+          "targets": [{"expr": "sum(rate(coredns_dns_responses_total{rcode=\"SERVFAIL\"}[5m])) or vector(0)", "refId": "A"}],
           "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
           "fieldConfig": {"defaults": {"unit": "reqps", "thresholds": {"steps": [{"value": 0, "color": "green"}, {"value": 1, "color": "yellow"}, {"value": 5, "color": "red"}]}}}
         },
@@ -94,7 +94,7 @@ data:
           "type": "timeseries",
           "title": "Forward Requests",
           "datasource": {"uid": "prometheus"},
-          "targets": [{"expr": "sum(rate(coredns_forward_requests_total[5m])) by (to)", "legendFormat": "{{to}}", "refId": "A"}],
+          "targets": [{"expr": "sum(rate(coredns_proxy_request_duration_seconds_count{proxy_name=\"forward\"}[5m])) by (to)", "legendFormat": "{{to}}", "refId": "A"}],
           "gridPos": {"h": 8, "w": 24, "x": 0, "y": 20},
           "fieldConfig": {"defaults": {"unit": "reqps"}}
         }

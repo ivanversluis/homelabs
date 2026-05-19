@@ -39,7 +39,7 @@ data:
           "type": "stat",
           "title": "SERVFAIL Rate",
           "datasource": {"uid": "prometheus"},
-          "targets": [{"expr": "sum(rate(unbound_answer_rcodes_total{rcode=\"SERVFAIL\"}[5m]))", "refId": "A"}],
+          "targets": [{"expr": "sum(rate(unbound_answer_rcodes_total{rcode=\"SERVFAIL\"}[5m])) or vector(0)", "refId": "A"}],
           "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
           "fieldConfig": {"defaults": {"unit": "reqps", "thresholds": {"steps": [{"value": 0, "color": "green"}, {"value": 0.5, "color": "yellow"}, {"value": 2, "color": "red"}]}}}
         },
