@@ -99,6 +99,23 @@ Cache hit ratio: `sum(rate(unbound_cache_hits_total[5m])) / (sum(rate(unbound_ca
 
 DNSSEC bogus: `increase(unbound_answer_bogus[5m])` (gauge counter — use `increase()` not `rate()`)
 
+### CoreDNS PromQL Reference
+
+The CoreDNS forward plugin metrics were deprecated in newer CoreDNS versions:
+
+| Deprecated metric | Replacement | Notes |
+|-------------------|-------------|-------|
+| `coredns_forward_requests_total{to}` | `coredns_proxy_request_duration_seconds_count{proxy_name="forward", to}` | use `rate()` to get req/s |
+| `coredns_forward_responses_total{to, rcode}` | `coredns_proxy_request_duration_seconds_count{proxy_name="forward", to, rcode}` | |
+| `coredns_forward_request_duration_seconds{to, rcode}` | `coredns_proxy_request_duration_seconds{proxy_name="forward", to, rcode}` | histogram |
+| `coredns_forward_healthcheck_failures_total{to}` | `coredns_proxy_healthcheck_failures_total{proxy_name="forward", to}` | |
+
+Forward Requests query: `sum(rate(coredns_proxy_request_duration_seconds_count{proxy_name="forward"}[5m])) by (to)`
+
+**CoreDNS 15K req/s in a homelab is normal**: Kubernetes default `ndots:5` means every external hostname lookup first appends cluster search domains (`.default.svc.cluster.local`, `.svc.cluster.local`, `.cluster.local`) before resolving bare. Each generates A + AAAA queries. The AAAA flood visible in dashboards is NXDOMAIN responses from the kubernetes plugin for cluster.local AAAA lookups — fast but counted. Actual forwarded queries are much fewer (30s cache hides repeats).
+
+SERVFAIL stat panels should use `or vector(0)`: `sum(rate(coredns_dns_responses_total{rcode="SERVFAIL"}[5m])) or vector(0)` — without it, a healthy cluster shows "No data" instead of 0.
+
 ### Network Policies
 
 Zero Trust is enforced. All scraping requires explicit policies:
