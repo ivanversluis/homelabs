@@ -19,6 +19,8 @@ spec:
         app.kubernetes.io/part-of: homelab-dns
     spec:
       dnsPolicy: Default
+      imagePullSecrets:
+        - name: ghcr-secret
       securityContext:
         seccompProfile:
           type: RuntimeDefault
