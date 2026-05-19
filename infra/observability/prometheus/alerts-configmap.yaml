@@ -222,6 +222,68 @@ data:
               summary: "{{ $labels.job }} is down"
               description: "{{ $labels.job }} has been down for more than 1 minute"
 
+      # ========================================================================
+      # DNS Alerting Rules
+      # ========================================================================
+      - name: dns
+        interval: 30s
+        rules:
+          - alert: CoreDNSErrorRateHigh
+            expr: >
+              sum(rate(coredns_dns_responses_total{rcode="SERVFAIL"}[5m]))
+              /
+              sum(rate(coredns_dns_responses_total[5m])) * 100 > 5
+            for: 5m
+            labels:
+              severity: warning
+              component: coredns
+            annotations:
+              summary: "CoreDNS SERVFAIL rate high"
+              description: "CoreDNS is returning SERVFAIL for {{ $value | humanize }}% of queries for 5m"
+
+          - alert: CoreDNSLatencyHigh
+            expr: >
+              histogram_quantile(0.99,
+                sum(rate(coredns_dns_request_duration_seconds_bucket[5m])) by (le)
+              ) > 0.5
+            for: 5m
+            labels:
+              severity: warning
+              component: coredns
+            annotations:
+              summary: "CoreDNS p99 latency above 500ms"
+              description: "CoreDNS p99 latency is {{ $value | humanizeDuration }}"
+
+          - alert: UnboundSERVFAILHigh
+            expr: sum(rate(unbound_answer_rcodes_total{rcode="SERVFAIL"}[5m])) > 1
+            for: 5m
+            labels:
+              severity: critical
+              component: unbound
+            annotations:
+              summary: "Unbound upstream resolution failures"
+              description: "Unbound is returning SERVFAIL at {{ $value | humanize }}/s for 5m — upstream DoT may be degraded"
+
+          - alert: UnboundDNSSECBogus
+            expr: increase(unbound_answer_bogus[10m]) > 0
+            for: 0m
+            labels:
+              severity: warning
+              component: unbound
+            annotations:
+              summary: "Unbound DNSSEC validation failures detected"
+              description: "{{ $value }} DNSSEC bogus answers in the last 10 minutes"
+
+          - alert: DNSExporterDown
+            expr: up{job=~"coredns|pihole-exporter|unbound-exporter"} == 0
+            for: 5m
+            labels:
+              severity: critical
+              component: dns-exporters
+            annotations:
+              summary: "DNS exporter {{ $labels.job }} is down"
+              description: "Prometheus cannot scrape {{ $labels.job }} at {{ $labels.instance }} — DNS dashboard data will be missing"
+
           - alert: DatabaseDisconnected
             expr: database_connection_status{job="fm-api"} == 0
             for: 1m

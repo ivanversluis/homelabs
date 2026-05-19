@@ -47,7 +47,7 @@ data:
           "type": "stat",
           "title": "Unbound Cache Hit %",
           "datasource": {"uid": "prometheus"},
-          "targets": [{"expr": "sum(rate(unbound_response_time_seconds_count{rcode=\"NOERROR\"}[5m])) / sum(rate(unbound_queries_total[5m])) * 100", "refId": "A"}],
+          "targets": [{"expr": "sum(rate(unbound_cache_hits_total[5m])) / (sum(rate(unbound_cache_hits_total[5m])) + sum(rate(unbound_cache_misses_total[5m]))) * 100", "refId": "A"}],
           "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
           "fieldConfig": {"defaults": {"unit": "percent", "color": {"mode": "thresholds"}, "thresholds": {"steps": [{"value": 0, "color": "red"}, {"value": 50, "color": "yellow"}, {"value": 80, "color": "green"}]}}}
         },
@@ -83,8 +83,8 @@ data:
           "title": "DNS Error Rates",
           "datasource": {"uid": "prometheus"},
           "targets": [
-            {"expr": "sum(rate(coredns_dns_responses_total{rcode=\"SERVFAIL\"}[5m]))", "legendFormat": "CoreDNS SERVFAIL", "refId": "A"},
-            {"expr": "sum(rate(unbound_answer_rcode_total{rcode=\"SERVFAIL\"}[5m]))", "legendFormat": "Unbound SERVFAIL", "refId": "B"}
+            {"expr": "sum(rate(coredns_dns_responses_total{rcode=\"SERVFAIL\"}[5m])) or vector(0)", "legendFormat": "CoreDNS SERVFAIL", "refId": "A"},
+            {"expr": "sum(rate(unbound_answer_rcodes_total{rcode=\"SERVFAIL\"}[5m])) or vector(0)", "legendFormat": "Unbound SERVFAIL", "refId": "B"}
           ],
           "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
           "fieldConfig": {"defaults": {"unit": "reqps", "custom": {"lineWidth": 2}}}
