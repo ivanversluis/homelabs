@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-pihole
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: dashboard
+    grafana_dashboard: "true"
+data:
+  pihole.json: |
+    {
+      "title": "Pi-hole Client Visibility",
+      "uid": "pihole-visibility",
+      "tags": ["dns", "pihole"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": {"from": "now-24h", "to": "now"},
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Total Queries Today",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "pihole_dns_queries_today", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "short"}}
+        },
+        {
+          "type": "stat",
+          "title": "Blocked Today",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "pihole_ads_blocked_today", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "short", "color": {"mode": "thresholds"}, "thresholds": {"steps": [{"value": 0, "color": "green"}, {"value": 1000, "color": "yellow"}]}}}
+        },
+        {
+          "type": "gauge",
+          "title": "Block Percentage",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "pihole_ads_percentage_today", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100, "thresholds": {"steps": [{"value": 0, "color": "green"}, {"value": 30, "color": "yellow"}, {"value": 60, "color": "red"}]}}}
+        },
+        {
+          "type": "stat",
+          "title": "Domains on Blocklist",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "pihole_domains_being_blocked", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "short"}}
+        },
+        {
+          "type": "timeseries",
+          "title": "Query Volume Over Time",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "rate(pihole_dns_queries_today[5m])", "legendFormat": "all queries", "refId": "A"},
+            {"expr": "rate(pihole_ads_blocked_today[5m])", "legendFormat": "blocked", "refId": "B"}
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+          "fieldConfig": {"defaults": {"unit": "reqps"}}
+        },
+        {
+          "type": "piechart",
+          "title": "Query Types",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "pihole_querytypes", "legendFormat": "{{name}}", "refId": "A"}],
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+          "options": {"legend": {"displayMode": "table", "placement": "right"}}
+        },
+        {
+          "type": "table",
+          "title": "Top Queried Domains",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "topk(20, pihole_top_queries)", "format": "table", "instant": true, "refId": "A"}],
+          "gridPos": {"h": 10, "w": 12, "x": 0, "y": 12},
+          "options": {"sortBy": [{"displayName": "Value", "desc": true}]}
+        },
+        {
+          "type": "table",
+          "title": "Top Blocked Domains",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "topk(20, pihole_top_ads)", "format": "table", "instant": true, "refId": "A"}],
+          "gridPos": {"h": 10, "w": 12, "x": 12, "y": 12},
+          "options": {"sortBy": [{"displayName": "Value", "desc": true}]}
+        },
+        {
+          "type": "table",
+          "title": "Top Clients",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "topk(15, pihole_top_sources)", "format": "table", "instant": true, "refId": "A"}],
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 22},
+          "options": {"sortBy": [{"displayName": "Value", "desc": true}]}
+        },
+        {
+          "type": "stat",
+          "title": "Exporter Up",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "up{job=\"pihole-exporter\"}", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 32},
+          "fieldConfig": {"defaults": {"mappings": [{"type": "value", "options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}}]}}
+        }
+      ]
+    }

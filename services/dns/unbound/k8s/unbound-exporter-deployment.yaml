@@ -1,0 +1,4 @@
+# The unbound-exporter runs as a sidecar container in unbound-deployment.yaml.
+# It connects to Unbound's remote-control interface on 127.0.0.1:8953 (loopback).
+# This file is intentionally empty — see unbound-deployment.yaml for the sidecar spec.
+# The unbound-exporter-service.yaml exposes the metrics port for Prometheus scraping.

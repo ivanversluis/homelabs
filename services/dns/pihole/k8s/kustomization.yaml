@@ -8,3 +8,5 @@ resources:
   - pihole-deployment.yaml
   - pihole-service.yaml
   - pihole-service-lb.yaml
+  - pihole-exporter-deployment.yaml
+  - pihole-exporter-service.yaml

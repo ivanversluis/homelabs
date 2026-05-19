@@ -278,3 +278,49 @@ data:
               summary: "Sync taking too long for firewall {{ $labels.firewall_id }}"
               description: "P95 sync duration is {{ $value | humanize }}s"
 
+      # ========================================================================
+      # DNS Infrastructure Alerts
+      # ========================================================================
+      - name: dns-alerts
+        interval: 30s
+        rules:
+          - alert: CoreDNSErrorRateHigh
+            expr: sum(rate(coredns_dns_responses_total{rcode="SERVFAIL"}[5m])) / sum(rate(coredns_dns_responses_total[5m])) > 0.05
+            for: 5m
+            labels:
+              severity: warning
+              component: coredns
+            annotations:
+              summary: "CoreDNS SERVFAIL rate above 5%"
+              description: "CoreDNS is returning SERVFAIL for {{ $value | humanizeDuration }}% of requests"
+
+          - alert: CoreDNSLatencyHigh
+            expr: histogram_quantile(0.99, sum(rate(coredns_dns_request_duration_seconds_bucket[5m])) by (le)) > 0.5
+            for: 5m
+            labels:
+              severity: warning
+              component: coredns
+            annotations:
+              summary: "CoreDNS P99 latency above 500ms"
+              description: "CoreDNS P99 latency is {{ $value | humanize }}s"
+
+          - alert: UnboundUpstreamFailures
+            expr: sum(rate(unbound_answer_rcode_total{rcode="SERVFAIL"}[5m])) / sum(rate(unbound_queries_total[5m])) > 0.01
+            for: 5m
+            labels:
+              severity: critical
+              component: unbound
+            annotations:
+              summary: "Unbound SERVFAIL rate above 1%"
+              description: "Unbound recursive resolution is failing at {{ $value | humanizePercentage }}"
+
+          - alert: PiholeExporterDown
+            expr: up{job="pihole-exporter"} == 0
+            for: 5m
+            labels:
+              severity: critical
+              component: pihole
+            annotations:
+              summary: "Pi-hole exporter is down"
+              description: "Pi-hole metrics are not being collected — DNS visibility lost"
+

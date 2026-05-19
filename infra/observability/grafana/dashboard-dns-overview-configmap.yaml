@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-dns-overview
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: dashboard
+    grafana_dashboard: "true"
+data:
+  dns-overview.json: |
+    {
+      "title": "DNS Overview",
+      "uid": "dns-overview",
+      "tags": ["dns", "overview"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": {"from": "now-1h", "to": "now"},
+      "panels": [
+        {
+          "type": "stat",
+          "title": "CoreDNS Queries/s",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "sum(rate(coredns_dns_requests_total[5m]))", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "reqps", "color": {"mode": "thresholds"}, "thresholds": {"steps": [{"value": 0, "color": "green"}, {"value": 100, "color": "yellow"}, {"value": 500, "color": "red"}]}}}
+        },
+        {
+          "type": "stat",
+          "title": "Pi-hole Queries Today",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "pihole_dns_queries_today", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "short", "color": {"mode": "thresholds"}, "thresholds": {"steps": [{"value": 0, "color": "green"}]}}}
+        },
+        {
+          "type": "stat",
+          "title": "Pi-hole Blocked %",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "pihole_ads_percentage_today", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "percent", "color": {"mode": "thresholds"}, "thresholds": {"steps": [{"value": 0, "color": "green"}, {"value": 30, "color": "yellow"}, {"value": 50, "color": "red"}]}}}
+        },
+        {
+          "type": "stat",
+          "title": "Unbound Cache Hit %",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "sum(rate(unbound_response_time_seconds_count{rcode=\"NOERROR\"}[5m])) / sum(rate(unbound_queries_total[5m])) * 100", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "percent", "color": {"mode": "thresholds"}, "thresholds": {"steps": [{"value": 0, "color": "red"}, {"value": 50, "color": "yellow"}, {"value": 80, "color": "green"}]}}}
+        },
+        {
+          "type": "timeseries",
+          "title": "CoreDNS Request Rate",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "sum(rate(coredns_dns_requests_total[5m])) by (type)", "legendFormat": "{{type}}", "refId": "A"}],
+          "gridPos": {"h": 8, "w": 8, "x": 0, "y": 4},
+          "fieldConfig": {"defaults": {"unit": "reqps"}}
+        },
+        {
+          "type": "timeseries",
+          "title": "Pi-hole Query Rate",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "rate(pihole_dns_queries_today[5m])", "legendFormat": "total", "refId": "A"},
+            {"expr": "rate(pihole_ads_blocked_today[5m])", "legendFormat": "blocked", "refId": "B"}
+          ],
+          "gridPos": {"h": 8, "w": 8, "x": 8, "y": 4},
+          "fieldConfig": {"defaults": {"unit": "reqps"}}
+        },
+        {
+          "type": "timeseries",
+          "title": "Unbound Query Rate",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "sum(rate(unbound_queries_total[5m]))", "legendFormat": "queries/s", "refId": "A"}],
+          "gridPos": {"h": 8, "w": 8, "x": 16, "y": 4},
+          "fieldConfig": {"defaults": {"unit": "reqps"}}
+        },
+        {
+          "type": "timeseries",
+          "title": "DNS Error Rates",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "sum(rate(coredns_dns_responses_total{rcode=\"SERVFAIL\"}[5m]))", "legendFormat": "CoreDNS SERVFAIL", "refId": "A"},
+            {"expr": "sum(rate(unbound_answer_rcode_total{rcode=\"SERVFAIL\"}[5m]))", "legendFormat": "Unbound SERVFAIL", "refId": "B"}
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+          "fieldConfig": {"defaults": {"unit": "reqps", "custom": {"lineWidth": 2}}}
+        },
+        {
+          "type": "timeseries",
+          "title": "DNS Latency (p99)",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "histogram_quantile(0.99, sum(rate(coredns_dns_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "CoreDNS p99", "refId": "A"}
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+          "fieldConfig": {"defaults": {"unit": "s"}}
+        }
+      ]
+    }

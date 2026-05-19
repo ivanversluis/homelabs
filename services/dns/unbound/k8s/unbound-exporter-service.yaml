@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: unbound-exporter
+  namespace: dns
+  labels:
+    app.kubernetes.io/name: unbound-exporter
+    app.kubernetes.io/component: monitoring
+spec:
+  selector:
+    app.kubernetes.io/name: unbound
+  ports:
+    - name: metrics
+      port: 9167
+      targetPort: metrics
+      protocol: TCP

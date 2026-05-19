@@ -103,6 +103,36 @@ data:
               service: 'loki'
               app: 'monitoring'
 
+      # CoreDNS metrics (kube-system)
+      - job_name: 'coredns'
+        static_configs:
+          - targets: ['coredns-metrics.kube-system.svc.cluster.local:9153']
+            labels:
+              service: 'coredns'
+              app: 'dns'
+        scrape_interval: 30s
+        scrape_timeout: 10s
+
+      # Pi-hole exporter (pihole namespace)
+      - job_name: 'pihole-exporter'
+        static_configs:
+          - targets: ['pihole-exporter.pihole.svc.cluster.local:9617']
+            labels:
+              service: 'pihole-exporter'
+              app: 'dns'
+        scrape_interval: 30s
+        scrape_timeout: 10s
+
+      # Unbound exporter (dns namespace)
+      - job_name: 'unbound-exporter'
+        static_configs:
+          - targets: ['unbound-exporter.dns.svc.cluster.local:9167']
+            labels:
+              service: 'unbound-exporter'
+              app: 'dns'
+        scrape_interval: 30s
+        scrape_timeout: 10s
+
       # HashiCorp Vault metrics (in-cluster service)
       - job_name: 'vault'
         scheme: http
