@@ -98,21 +98,21 @@ data:
         {
           "id": 3,
           "type": "stat",
-          "title": "Query Rate",
-          "description": "Current queries per second from this client (5m derivative of cumulative counter).",
+          "title": "New Queries (last 5m)",
+          "description": "DNS queries from this client in the last 5 minutes. Uses delta() on Pi-hole's cumulative gauge counter (resets handled automatically).",
           "datasource": {"uid": "prometheus"},
           "targets": [
             {
-              "expr": "deriv(pihole_top_sources{source=\"$client\"}[5m])",
+              "expr": "delta(pihole_top_sources{source=\"$client\"}[5m])",
               "refId": "A",
-              "legendFormat": "q/s"
+              "legendFormat": "queries"
             }
           ],
           "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
           "fieldConfig": {
             "defaults": {
-              "unit": "reqps",
-              "decimals": 2,
+              "unit": "short",
+              "decimals": 0,
               "color": {"mode": "thresholds"},
               "thresholds": {
                 "mode": "absolute",
@@ -170,17 +170,17 @@ data:
         {
           "id": 5,
           "type": "timeseries",
-          "title": "Query Rate Over Time — $client",
-          "description": "DNS queries per second from selected client vs all other clients combined.",
+          "title": "Query Activity Over Time — $client",
+          "description": "New DNS queries per 5-minute window. Uses delta() on Pi-hole's cumulative gauge counter. Each point = queries in [t-5m, t].",
           "datasource": {"uid": "prometheus"},
           "targets": [
             {
-              "expr": "deriv(pihole_top_sources{source=\"$client\"}[$__rate_interval])",
+              "expr": "delta(pihole_top_sources{source=\"$client\"}[5m])",
               "refId": "A",
-              "legendFormat": "$client (selected)"
+              "legendFormat": "$client"
             },
             {
-              "expr": "sum(deriv(pihole_top_sources{source!=\"$client\"}[$__rate_interval]))",
+              "expr": "sum(delta(pihole_top_sources{source!=\"$client\"}[5m]))",
               "refId": "B",
               "legendFormat": "all other clients"
             }
@@ -188,7 +188,7 @@ data:
           "gridPos": {"h": 8, "w": 16, "x": 0, "y": 4},
           "fieldConfig": {
             "defaults": {
-              "unit": "reqps",
+              "unit": "short",
               "color": {"mode": "palette-classic"},
               "custom": {
                 "lineWidth": 2,
@@ -310,7 +310,7 @@ data:
         {
           "id": 8,
           "type": "row",
-          "title": "Domain Analysis — Global (per-client domain data planned via RouterOS DHCP enrichment)",
+          "title": "⚠ Domain Tables Are Global — pihole-exporter has no per-client domain metrics (planned: RouterOS DHCP enrichment)",
           "collapsed": false,
           "gridPos": {"h": 1, "w": 24, "x": 0, "y": 25}
         },
