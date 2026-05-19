@@ -8,3 +8,4 @@ resources:
   - unbound-service.yaml
   - unbound-pdb.yaml
   - unbound-exporter-service.yaml
+  - unbound-ghcr-externalsecret.yaml
