@@ -37,6 +37,7 @@ resources:
   - grafana/dashboard-dns-overview-configmap.yaml
   - grafana/dashboard-coredns-configmap.yaml
   - grafana/dashboard-pihole-configmap.yaml
+  - grafana/dashboard-pihole-client-configmap.yaml
   - grafana/dashboard-unbound-configmap.yaml
   - grafana/deployment.yaml
   - grafana/service.yaml

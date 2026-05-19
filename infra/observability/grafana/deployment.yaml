@@ -155,6 +155,10 @@ spec:
               mountPath: /etc/grafana/provisioning/dashboards/unbound.json
               subPath: unbound.json
               readOnly: true
+            - name: dashboard-pihole-client
+              mountPath: /etc/grafana/provisioning/dashboards/pihole-client.json
+              subPath: pihole-client.json
+              readOnly: true
             - name: data
               mountPath: /var/lib/grafana
           resources:
@@ -233,6 +237,9 @@ spec:
         - name: dashboard-unbound
           configMap:
             name: grafana-dashboard-unbound
+        - name: dashboard-pihole-client
+          configMap:
+            name: grafana-dashboard-pihole-client
         - name: data
           persistentVolumeClaim:
             claimName: grafana-data
