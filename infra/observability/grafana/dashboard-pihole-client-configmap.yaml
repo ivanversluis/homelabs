@@ -1,0 +1,410 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-pihole-client
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: dashboard
+    grafana_dashboard: "true"
+data:
+  pihole-client.json: |
+    {
+      "title": "Pi-hole Client Drill-down",
+      "uid": "pihole-client-drilldown",
+      "tags": ["dns", "pihole"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": {"from": "now-6h", "to": "now"},
+      "templating": {
+        "list": [
+          {
+            "name": "client",
+            "label": "Client IP",
+            "type": "query",
+            "datasource": {"uid": "prometheus", "type": "prometheus"},
+            "query": {
+              "query": "label_values(pihole_top_sources{source!=\"\"}, source)",
+              "refId": "StandardVariableQuery"
+            },
+            "current": {},
+            "options": [],
+            "refresh": 2,
+            "sort": 1,
+            "multi": false,
+            "includeAll": false,
+            "hide": 0,
+            "description": "Select a client IP. Hostname enrichment from RouterOS DHCP planned."
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "Total Queries",
+          "description": "Cumulative query count for this client since Pi-hole last reset.",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {
+              "expr": "pihole_top_sources{source=\"$client\"}",
+              "refId": "A",
+              "legendFormat": "queries"
+            }
+          ],
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {"mode": "fixed", "fixedColor": "blue"}
+            }
+          },
+          "options": {
+            "reduceOptions": {"calcs": ["lastNotNull"]},
+            "textMode": "auto",
+            "graphMode": "none",
+            "colorMode": "background"
+          }
+        },
+        {
+          "id": 2,
+          "type": "stat",
+          "title": "Hostname",
+          "description": "Hostname resolved by Pi-hole for this client (PTR lookup or DHCP name). Future: enriched with RouterOS DHCP client comments.",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {
+              "expr": "pihole_top_sources{source=\"$client\"}",
+              "refId": "A",
+              "legendFormat": "{{source_name}}"
+            }
+          ],
+          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+          "fieldConfig": {
+            "defaults": {
+              "noValue": "(no hostname)",
+              "color": {"mode": "fixed", "fixedColor": "text"}
+            }
+          },
+          "options": {
+            "reduceOptions": {"calcs": ["lastNotNull"]},
+            "textMode": "name",
+            "graphMode": "none",
+            "colorMode": "none"
+          }
+        },
+        {
+          "id": 3,
+          "type": "stat",
+          "title": "Query Rate",
+          "description": "Current queries per second from this client (5m derivative of cumulative counter).",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {
+              "expr": "deriv(pihole_top_sources{source=\"$client\"}[5m])",
+              "refId": "A",
+              "legendFormat": "q/s"
+            }
+          ],
+          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "decimals": 2,
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"value": null, "color": "green"},
+                  {"value": 2, "color": "yellow"},
+                  {"value": 10, "color": "red"}
+                ]
+              }
+            }
+          },
+          "options": {
+            "reduceOptions": {"calcs": ["lastNotNull"]},
+            "textMode": "auto",
+            "graphMode": "none",
+            "colorMode": "background"
+          }
+        },
+        {
+          "id": 4,
+          "type": "stat",
+          "title": "Traffic Share",
+          "description": "This client's share of all DNS queries visible to Pi-hole.",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {
+              "expr": "pihole_top_sources{source=\"$client\"} / scalar(sum(pihole_top_sources)) * 100",
+              "refId": "A",
+              "legendFormat": "% of total"
+            }
+          ],
+          "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "decimals": 1,
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"value": null, "color": "green"},
+                  {"value": 20, "color": "yellow"},
+                  {"value": 40, "color": "red"}
+                ]
+              }
+            }
+          },
+          "options": {
+            "reduceOptions": {"calcs": ["lastNotNull"]},
+            "textMode": "auto",
+            "graphMode": "none",
+            "colorMode": "background"
+          }
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "Query Rate Over Time — $client",
+          "description": "DNS queries per second from selected client vs all other clients combined.",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {
+              "expr": "deriv(pihole_top_sources{source=\"$client\"}[$__rate_interval])",
+              "refId": "A",
+              "legendFormat": "$client (selected)"
+            },
+            {
+              "expr": "sum(deriv(pihole_top_sources{source!=\"$client\"}[$__rate_interval]))",
+              "refId": "B",
+              "legendFormat": "all other clients"
+            }
+          ],
+          "gridPos": {"h": 8, "w": 16, "x": 0, "y": 4},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 10
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "all other clients"},
+                "properties": [
+                  {"id": "color", "value": {"fixedColor": "semi-dark-gray", "mode": "fixed"}},
+                  {"id": "custom.fillOpacity", "value": 5},
+                  {"id": "custom.lineWidth", "value": 1}
+                ]
+              }
+            ]
+          },
+          "options": {
+            "tooltip": {"mode": "multi", "sort": "desc"},
+            "legend": {"displayMode": "list", "placement": "bottom"}
+          }
+        },
+        {
+          "id": 6,
+          "type": "piechart",
+          "title": "Traffic Share vs Others",
+          "description": "Selected client share of total Pi-hole query volume.",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {
+              "expr": "pihole_top_sources{source=\"$client\"}",
+              "refId": "A",
+              "legendFormat": "$client"
+            },
+            {
+              "expr": "sum(pihole_top_sources{source!=\"$client\"})",
+              "refId": "B",
+              "legendFormat": "all other clients"
+            }
+          ],
+          "gridPos": {"h": 8, "w": 8, "x": 16, "y": 4},
+          "options": {
+            "pieType": "donut",
+            "legend": {"displayMode": "table", "placement": "bottom"},
+            "tooltip": {"mode": "single"}
+          }
+        },
+        {
+          "id": 7,
+          "type": "row",
+          "title": "Top 10 Clients — click a row to drill down",
+          "collapsed": false,
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 12}
+        },
+        {
+          "id": 12,
+          "type": "table",
+          "title": "Top Clients by Query Volume",
+          "description": "All Pi-hole clients ranked by total queries. The selected client ($client) is highlighted above.",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {
+              "expr": "sort_desc(pihole_top_sources)",
+              "format": "table",
+              "instant": true,
+              "refId": "A"
+            }
+          ],
+          "gridPos": {"h": 12, "w": 24, "x": 0, "y": 13},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "source"},
+                "properties": [
+                  {"id": "displayName", "value": "Client IP"},
+                  {"id": "custom.width", "value": 150}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "source_name"},
+                "properties": [
+                  {"id": "displayName", "value": "Hostname"},
+                  {"id": "custom.width", "value": 200}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Value"},
+                "properties": [
+                  {"id": "displayName", "value": "Total Queries"},
+                  {"id": "custom.width", "value": 150}
+                ]
+              }
+            ]
+          },
+          "options": {
+            "sortBy": [{"displayName": "Total Queries", "desc": true}],
+            "footer": {"show": false}
+          },
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "__name__": true,
+                  "app": true,
+                  "hostname": true,
+                  "instance": true,
+                  "job": true,
+                  "service": true
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "type": "row",
+          "title": "Domain Analysis — Global (per-client domain data planned via RouterOS DHCP enrichment)",
+          "collapsed": false,
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 25}
+        },
+        {
+          "id": 9,
+          "type": "table",
+          "title": "Top Queried Domains (Global — all clients)",
+          "description": "Top domains queried across ALL clients. The pihole-exporter does not expose per-client domain breakdowns over Prometheus. Per-client domain filtering will be added when RouterOS DHCP labels are enriched.",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {
+              "expr": "topk(25, pihole_top_queries)",
+              "format": "table",
+              "instant": true,
+              "refId": "A"
+            }
+          ],
+          "gridPos": {"h": 12, "w": 12, "x": 0, "y": 26},
+          "fieldConfig": {
+            "defaults": {"unit": "short"},
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "domain"},
+                "properties": [
+                  {"id": "displayName", "value": "Domain"},
+                  {"id": "custom.width", "value": 320}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Value"},
+                "properties": [{"id": "displayName", "value": "Queries"}]
+              }
+            ]
+          },
+          "options": {
+            "sortBy": [{"displayName": "Queries", "desc": true}]
+          },
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true, "__name__": true, "app": true,
+                  "hostname": true, "instance": true, "job": true, "service": true
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": 10,
+          "type": "table",
+          "title": "Top Blocked Domains (Global — all clients)",
+          "description": "Top domains blocked by Pi-hole blocklist across ALL clients.",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {
+              "expr": "topk(25, pihole_top_ads)",
+              "format": "table",
+              "instant": true,
+              "refId": "A"
+            }
+          ],
+          "gridPos": {"h": 12, "w": 12, "x": 12, "y": 26},
+          "fieldConfig": {
+            "defaults": {"unit": "short"},
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "domain"},
+                "properties": [
+                  {"id": "displayName", "value": "Domain"},
+                  {"id": "custom.width", "value": 320}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Value"},
+                "properties": [{"id": "displayName", "value": "Block Count"}]
+              }
+            ]
+          },
+          "options": {
+            "sortBy": [{"displayName": "Block Count", "desc": true}]
+          },
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true, "__name__": true, "app": true,
+                  "hostname": true, "instance": true, "job": true, "service": true
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
