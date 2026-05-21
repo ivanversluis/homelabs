@@ -1,0 +1,42 @@
+---
+# local-path-provisioner configuration.
+# Volumes are created under /opt/local-path-provisioner on the node.
+# Since the provisioner Deployment is pinned to k8s-worker03 (nodeSelector),
+# ALL dynamically provisioned PVCs from the local-path-vms StorageClass
+# will land on k8s-worker03.
+#
+# The directory /opt/local-path-provisioner must exist on k8s-worker03 before
+# VMs can be provisioned. The deploy-kubevirt-local.sh script ensures this.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-path-config
+  namespace: local-path-storage
+data:
+  config.json: |-
+    {
+      "nodePathMap": [
+        {
+          "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES",
+          "paths": ["/opt/local-path-provisioner"]
+        }
+      ]
+    }
+  setup: |-
+    #!/bin/sh
+    set -eu
+    mkdir -m 0777 -p "$VOL_DIR"
+  teardown: |-
+    #!/bin/sh
+    set -eu
+    rm -rf "$VOL_DIR"
+  helperPod.yaml: |-
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: helper-pod
+    spec:
+      containers:
+      - name: helper-pod
+        image: docker.io/busybox:stable
+        imagePullPolicy: IfNotPresent

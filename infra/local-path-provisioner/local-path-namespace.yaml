@@ -1,0 +1,8 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: local-path-storage
+  labels:
+    kubernetes.io/metadata.name: local-path-storage
+    name: local-path-storage

@@ -1,0 +1,66 @@
+---
+# Zero Trust NetworkPolicy for the local-path-storage namespace.
+#
+# Traffic analysis:
+#   - local-path-provisioner: API server egress (watch PVs/PVCs/nodes, manage helper pods)
+#   - helper pods (busybox): launched temporarily to create/delete directory tree on node;
+#     they do NOT need network access
+
+# 1. DNS egress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-dns
+  namespace: local-path-storage
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# 2. In-namespace communication
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: local-path-storage
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+---
+# 3. API server egress (provisioner watches PVCs/nodes and creates/deletes PVs)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-apiserver
+  namespace: local-path-storage
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.1/32
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 172.16.20.200/32
+      ports:
+        - protocol: TCP
+          port: 6443

@@ -1,0 +1,22 @@
+---
+# Flux Kustomization: KubeVirt operator CR and namespace.
+#
+# IMPORTANT: The KubeVirt operator manifest (CRDs, RBAC, Deployment) must be
+# bootstrapped manually BEFORE Flux can reconcile this Kustomization.
+# Run scripts/deploy-kubevirt-local.sh for the initial bootstrap.
+#
+# Operator version: v1.8.2
+# Bootstrap: kubectl apply -f https://github.com/kubevirt/kubevirt/releases/download/v1.8.2/kubevirt-operator.yaml
+# (after downloading and reviewing locally per external-source safety policy)
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: kubevirt
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./infra/kubevirt
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

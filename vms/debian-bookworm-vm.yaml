@@ -1,0 +1,109 @@
+---
+# Debian 12 (Bookworm) Virtual Machine
+#
+# Prerequisites:
+#   - KubeVirt v1.8.2 operator deployed and KubeVirt CR Ready
+#   - CDI v1.65.0 operator deployed and CDI CR Ready
+#   - local-path StorageClass available (pre-existing rancher/local-path-provisioner)
+#   - k8s-worker03 node has /dev/kvm and /opt/local-path-provisioner directory
+#
+# Storage: DataVolume imports debian-12-genericcloud-amd64.qcow2 from Debian mirrors
+#          into a 20Gi PVC on k8s-worker03 using local-path-vms StorageClass.
+#
+# Network: masquerade (VM traffic NAT'd through pod network)
+#
+# Lifecycle:
+#   virtctl start  debian-bookworm -n vms    # start VM
+#   virtctl stop   debian-bookworm -n vms    # graceful shutdown
+#   virtctl console debian-bookworm -n vms   # serial console
+#   virtctl ssh    debian@debian-bookworm -n vms  # SSH via virtctl
+#   virtctl port-forward vmi/debian-bookworm 2222:22 -n vms  # forward SSH port
+
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: debian-bookworm
+  namespace: vms
+  labels:
+    app: debian-bookworm
+    kubevirt.io/os: debian
+spec:
+  # RerunOnFailure: auto-restarts on node/process crash; stays stopped after clean shutdown.
+  # Start initially with: virtctl start debian-bookworm -n vms
+  runStrategy: RerunOnFailure
+  template:
+    metadata:
+      labels:
+        app: debian-bookworm
+        kubevirt.io/os: debian
+    spec:
+      # Pin VM to k8s-worker03 — this node has KVM and local storage
+      nodeSelector:
+        kubernetes.io/hostname: k8s-worker03
+      domain:
+        cpu:
+          cores: 2
+        resources:
+          requests:
+            memory: 2Gi
+          limits:
+            memory: 2Gi
+        devices:
+          disks:
+            - name: rootdisk
+              disk:
+                bus: virtio
+            - name: cloudinitdisk
+              disk:
+                bus: virtio
+          interfaces:
+            - name: default
+              masquerade: {}
+          # Enable the QEMU guest agent channel for lifecycle hooks
+          rng: {}
+      networks:
+        - name: default
+          pod: {}
+      volumes:
+        - name: rootdisk
+          dataVolume:
+            name: debian-bookworm-dv
+        - name: cloudinitdisk
+          cloudInitNoCloud:
+            userData: |
+              #cloud-config
+              hostname: debian-bookworm
+              users:
+                - name: debian
+                  sudo: ALL=(ALL) NOPASSWD:ALL
+                  shell: /bin/bash
+                  ssh_authorized_keys:
+                    - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOtYrf7JzedK+TGynX3/Xmr2wODvzginTY1yr1bcQT1J
+              packages:
+                - qemu-guest-agent
+                - curl
+                - wget
+              runcmd:
+                - systemctl enable --now qemu-guest-agent
+                - echo "VM provisioned by KubeVirt on k8s-homelab" > /etc/motd
+  dataVolumeTemplates:
+    - metadata:
+        name: debian-bookworm-dv
+        annotations:
+          # CDI will schedule the importer pod on k8s-worker03 (WaitForFirstConsumer)
+          cdi.kubevirt.io/storage.node: k8s-worker03
+      spec:
+        pvc:
+          # Use pre-existing local-path StorageClass (rancher.io/local-path).
+          # WaitForFirstConsumer + CDI workload.nodeSelector (in cdi-cr.yaml)
+          # ensures this PVC is provisioned on k8s-worker03.
+          storageClassName: local-path
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 20Gi
+        source:
+          http:
+            # Debian 12 genericcloud image (qcow2) — CDI imports and converts to raw
+            url: https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-amd64.qcow2

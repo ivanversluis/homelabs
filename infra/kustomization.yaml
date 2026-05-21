@@ -20,3 +20,9 @@ resources:
   # cert-manager, kong, and ai have their own Flux Kustomization CRDs
   # (clusters/k8s-homelab/infra/*-kustomization.yaml) with substituteFrom.
   - flux-substitution/
+  # KubeVirt virtualization stack: operator CRs only (operators bootstrapped via script)
+  - kubevirt/
+  - cdi/
+  # local-path-provisioner is a PRE-EXISTING cluster deployment (83d old, local-path-storage ns).
+  # infra/local-path-provisioner/ kept for reference but NOT applied here to avoid conflicts.
+  # StorageClass used: local-path (default, rancher.io/local-path, WaitForFirstConsumer)

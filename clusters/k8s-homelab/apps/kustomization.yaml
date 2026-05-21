@@ -6,3 +6,5 @@ resources:
   # (homepage, homebox) — managed separately so ${DOMAIN} is substituted.
   - homepage-kustomization.yaml
   - homebox-kustomization.yaml
+  # VM workloads — depends on kubevirt + cdi Flux Kustomizations
+  - vms-kustomization.yaml

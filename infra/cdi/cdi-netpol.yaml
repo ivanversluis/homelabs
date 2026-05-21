@@ -1,0 +1,154 @@
+---
+# Zero Trust NetworkPolicy for the cdi namespace.
+#
+# Traffic analysis:
+#   - cdi-operator:       API server egress (manage CRDs/deployments)
+#   - cdi-deployment:     API server egress (controller)
+#   - cdi-apiserver:      API server egress; webhook ingress (port 8443)
+#   - cdi-uploadproxy:    ingress from vms namespace (image upload); API server egress
+#   - cdi-importer pods:  HTTPS egress to download VM images (per DataVolume source URL)
+#
+# Note: CDI importer pods run in the TARGET namespace (vms), not in cdi namespace.
+# The cdi-deployment controller pod and cdi-operator need API server + in-namespace access.
+
+# 1. DNS egress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-dns
+  namespace: cdi
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# 2. In-namespace bidirectional
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: cdi
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+---
+# 3. API server egress (cdi-operator, cdi-deployment, cdi-apiserver)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-apiserver
+  namespace: cdi
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.1/32
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 172.16.20.200/32
+      ports:
+        - protocol: TCP
+          port: 6443
+---
+# 4. API server → cdi-apiserver webhook (port 8443)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-apiserver-webhook-ingress
+  namespace: cdi
+spec:
+  podSelector:
+    matchLabels:
+      cdi.kubevirt.io: cdi-apiserver
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 172.16.20.200/32
+        - ipBlock:
+            cidr: 10.96.0.1/32
+      ports:
+        - protocol: TCP
+          port: 8443
+---
+# 5. Upload proxy ingress — allows virtctl image-upload / CDI upload clients
+# from vms namespace and the cluster (any pod with upload token)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-uploadproxy-ingress
+  namespace: cdi
+spec:
+  podSelector:
+    matchLabels:
+      cdi.kubevirt.io: cdi-uploadproxy
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: vms
+      ports:
+        - protocol: TCP
+          port: 8443
+---
+# 6. HTTPS egress — cdi-deployment checks for CDI release updates / image validation
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-internet-https
+  namespace: cdi
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+---
+# 7. Prometheus scraping from observability namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: cdi
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - protocol: TCP
+          port: 8443
+        - protocol: TCP
+          port: 8080

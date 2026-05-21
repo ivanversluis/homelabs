@@ -1,0 +1,24 @@
+---
+# Flux Kustomization: CDI (Containerized Data Importer) operator CR and namespace.
+#
+# IMPORTANT: The CDI operator manifest (CRDs, RBAC, Deployment) must be
+# bootstrapped manually BEFORE Flux can reconcile this Kustomization.
+# Run scripts/deploy-kubevirt-local.sh for the initial bootstrap.
+#
+# Operator version: v1.65.0
+# Bootstrap: kubectl apply -f https://github.com/kubevirt/containerized-data-importer/releases/download/v1.65.0/cdi-operator.yaml
+# (after downloading and reviewing locally per external-source safety policy)
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: cdi
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./infra/cdi
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  dependsOn:
+    - name: kubevirt

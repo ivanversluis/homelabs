@@ -1,0 +1,65 @@
+---
+# local-path-provisioner Deployment.
+# Pinned to k8s-worker03 via nodeSelector so that all dynamically provisioned
+# volumes from the local-path-vms StorageClass are created on that node only.
+#
+# Image: rancher/local-path-provisioner:v0.0.36
+# Release: https://github.com/rancher/local-path-provisioner/releases/tag/v0.0.36
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: local-path-provisioner
+  namespace: local-path-storage
+  labels:
+    app: local-path-provisioner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: local-path-provisioner
+  template:
+    metadata:
+      labels:
+        app: local-path-provisioner
+    spec:
+      serviceAccountName: local-path-provisioner-service-account
+      # Pin provisioner to k8s-worker03 — only this node hosts local VM storage
+      nodeSelector:
+        kubernetes.io/hostname: k8s-worker03
+      containers:
+        - name: local-path-provisioner
+          image: rancher/local-path-provisioner:v0.0.36
+          imagePullPolicy: IfNotPresent
+          command:
+            - local-path-provisioner
+            - start
+            - --config
+            - /etc/config/config.json
+            - --service-account-name
+            - local-path-provisioner-service-account
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config/
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+            runAsUser: 65534
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: config-volume
+          configMap:
+            name: local-path-config
