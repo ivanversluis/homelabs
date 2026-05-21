@@ -40,6 +40,18 @@ spec:
       # Pin VM to k8s-worker03 — this node has KVM and local storage
       nodeSelector:
         kubernetes.io/hostname: k8s-worker03
+      # SSH keys are sourced from Vault via ESO (Secret: vms-ssh-keys).
+      # KubeVirt uses QEMU guest agent to propagate keys live — no restart needed.
+      # See vms-secrets.md-local for Vault setup.
+      accessCredentials:
+        - sshPublicKey:
+            source:
+              secret:
+                secretName: vms-ssh-keys
+            propagationMethod:
+              qemuGuestAgent:
+                users:
+                  - debian
       domain:
         cpu:
           cores: 2
@@ -77,8 +89,8 @@ spec:
                 - name: debian
                   sudo: ALL=(ALL) NOPASSWD:ALL
                   shell: /bin/bash
-                  ssh_authorized_keys:
-                    - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOtYrf7JzedK+TGynX3/Xmr2wODvzginTY1yr1bcQT1J
+                  # SSH keys are managed by accessCredentials + QEMU guest agent.
+                  # No static key needed here.
               packages:
                 - qemu-guest-agent
                 - curl
