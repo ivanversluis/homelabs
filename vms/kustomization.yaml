@@ -3,4 +3,5 @@ kind: Kustomization
 resources:
   - vms-namespace.yaml
   - vms-netpol.yaml
+  - vms-externalsecret.yaml
   - debian-bookworm-vm.yaml
