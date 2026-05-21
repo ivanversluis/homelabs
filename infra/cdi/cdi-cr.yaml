@@ -1,0 +1,36 @@
+---
+# CDI (Containerized Data Importer) custom resource.
+# CDI provides DataVolume support for KubeVirt — it imports, clones, and
+# manages VM disk images as PVCs.
+#
+# The CDI operator manifest (CRDs, RBAC, Deployment) is applied separately
+# from the pinned upstream release during bootstrap:
+#   scripts/deploy-kubevirt-local.sh
+#
+# Pinned operator version: v1.65.0
+# Release: https://github.com/kubevirt/containerized-data-importer/releases/tag/v1.65.0
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: CDI
+metadata:
+  name: cdi
+spec:
+  imagePullPolicy: IfNotPresent
+  config:
+    # Use existing local-path StorageClass for scratch space PVCs.
+    # local-path provisioner was pre-deployed in local-path-storage namespace.
+    scratchSpaceStorageClass: local-path
+    uploadProxyURLOverride: ""
+    featureGates: []
+    podResourceRequirements:
+      requests:
+        cpu: "100m"
+        memory: "60M"
+      limits:
+        cpu: "750m"
+        memory: "600M"
+  # Pin ALL CDI importer/uploader/cloner pods to k8s-worker03.
+  # This ensures WaitForFirstConsumer PVCs bind on worker03 (the only KVM node),
+  # so VM disks land on the same node as virt-launcher pods.
+  workload:
+    nodeSelector:
+      kubernetes.io/hostname: k8s-worker03

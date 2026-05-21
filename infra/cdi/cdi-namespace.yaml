@@ -1,0 +1,8 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cdi
+  labels:
+    kubernetes.io/metadata.name: cdi
+    name: cdi

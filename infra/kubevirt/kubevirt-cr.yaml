@@ -1,0 +1,30 @@
+---
+# KubeVirt custom resource — tells the kubevirt operator what to deploy.
+# The operator manifest itself (CRDs, RBAC, Deployment) is applied separately
+# from the pinned upstream release during bootstrap:
+#   scripts/deploy-kubevirt-local.sh
+#
+# Pinned operator version: v1.8.2
+# Release: https://github.com/kubevirt/kubevirt/releases/tag/v1.8.2
+apiVersion: kubevirt.io/v1
+kind: KubeVirt
+metadata:
+  name: kubevirt
+  namespace: kubevirt
+spec:
+  imagePullPolicy: IfNotPresent
+  # virt-handler DaemonSet will only run on nodes that have /dev/kvm
+  # (controlled by node-labeller or scheduling constraints in the VMI spec).
+  # For homelab, KVM is configured only on k8s-worker03.
+  workloadUpdateStrategy:
+    workloadUpdateMethods:
+      - LiveMigrate
+      - Evict
+  configuration:
+    developerConfiguration:
+      featureGates:
+        - LiveMigration
+        - Snapshot
+        - HotplugVolumes
+      # Disable emulation — k8s-worker03 has real KVM (/dev/kvm confirmed)
+      useEmulation: false

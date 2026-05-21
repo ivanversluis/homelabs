@@ -1,0 +1,114 @@
+---
+# Zero Trust NetworkPolicy for the kubevirt namespace.
+#
+# Traffic analysis:
+#   - virt-operator:    API server egress (watch/create CRDs/deployments)
+#   - virt-api:         API server egress; webhook ingress from API server (port 8443)
+#   - virt-controller:  API server egress; in-namespace comms with virt-api
+#   - virt-handler:     API server egress; in-namespace comms; virt-handler listens on 8185
+#
+# Internet egress: BLOCKED (operators pull images from cluster registry/pod pull, not HTTP)
+# Prometheus scraping: ingress from observability namespace (virt-api :8443, virt-controller :8443)
+
+# 1. DNS egress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-dns
+  namespace: kubevirt
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# 2. In-namespace bidirectional (virt-api <-> virt-controller <-> virt-handler etc.)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: kubevirt
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+---
+# 3. API server egress — virt-controller/virt-api/virt-operator/virt-handler all need this
+# ClusterIP: 10.96.0.1:443 and node endpoint: 172.16.20.200:6443
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-apiserver
+  namespace: kubevirt
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.1/32
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 172.16.20.200/32
+      ports:
+        - protocol: TCP
+          port: 6443
+---
+# 4. API server → virt-api webhook (port 8443)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-apiserver-webhook-ingress
+  namespace: kubevirt
+spec:
+  podSelector:
+    matchLabels:
+      kubevirt.io: virt-api
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 172.16.20.200/32
+        - ipBlock:
+            cidr: 10.96.0.1/32
+      ports:
+        - protocol: TCP
+          port: 8443
+---
+# 5. Prometheus scraping from observability namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: kubevirt
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - protocol: TCP
+          port: 8443
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8082

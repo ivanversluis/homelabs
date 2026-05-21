@@ -1,0 +1,17 @@
+---
+# StorageClass for VM local storage on k8s-worker03.
+# Used by all VMs in the vms namespace (DataVolumeTemplates + CDI scratch space).
+# All PVCs are provisioned on k8s-worker03 because the local-path-provisioner
+# Deployment is pinned there via nodeSelector.
+#
+# WaitForFirstConsumer: volume binding is deferred until a pod using the PVC
+# is scheduled, ensuring PVC and pod land on the same node.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-path-vms
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+provisioner: rancher.io/local-path
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Retain

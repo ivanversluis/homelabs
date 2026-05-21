@@ -226,7 +226,8 @@ TOTAL_NP=0
 for ns in linkding n8n termix forgejo identity headlamp cloudflared vault \
           external-secrets-system observability monitoring pihole dns \
           flux-system openclaw semaphoreui portainer \
-          firewall-manager-dev firewall-manager-staging firewall-manager-prod; do
+          firewall-manager-dev firewall-manager-staging firewall-manager-prod \
+          local-path-storage vms; do
   c=$(kubectl get networkpolicies -n "$ns" --no-headers 2>/dev/null | wc -l)
   TOTAL_NP=$((TOTAL_NP + c))
 done
@@ -512,6 +513,29 @@ test_ns() {
         nc -z -w "$TIMEOUT_DENY" 1.1.1.1 443
       flush_results
       ;;
+
+    local-path-storage)
+      print_section "local-path-storage — local-path-provisioner, API server only"
+      test_dns "$ns"
+      test_cross_ns_deny "$ns"
+      test_apiserver "$ns" allow
+      test_internet "$ns" 443 tcp deny
+      test_internet "$ns" 22 tcp deny
+      flush_results
+      ;;
+
+    vms)
+      print_section "vms — KubeVirt VMs, internet access + SSH ingress"
+      test_dns "$ns"
+      test_cross_ns_deny "$ns"
+      # VMs and CDI importer pods need internet HTTPS (packages + image download)
+      test_internet "$ns" 443 tcp allow
+      # VMs need HTTP for Debian apt mirrors
+      test_internet "$ns" 80 tcp allow
+      # No SSH egress from VM pods (VMs receive SSH, they don't initiate it)
+      test_internet "$ns" 22 tcp deny
+      flush_results
+      ;;
   esac
 }
 
@@ -520,7 +544,7 @@ NAMESPACES=(linkding n8n termix forgejo identity headlamp cloudflared vault \
             flux-system openclaw semaphoreui portainer argocd \
             cert-manager kong \
             firewall-manager-dev firewall-manager-staging firewall-manager-prod \
-            ai)
+            ai local-path-storage vms)
 
 for ns in "${NAMESPACES[@]}"; do
   test_ns "$ns"

@@ -13,3 +13,6 @@ resources:
   - identity-ingress-kustomization.yaml
   # CoreDNS split-brain DNS — managed declaratively, replaces deploy-03-coredns.sh
   - coredns-kustomization.yaml
+  # KubeVirt virtualization stack (operators bootstrapped via scripts/deploy-kubevirt-local.sh)
+  - kubevirt-kustomization.yaml
+  - cdi-kustomization.yaml
