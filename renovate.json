@@ -8,11 +8,11 @@
 
   "mode": "full",
   "prCreation": "immediate",
+  "recreateWhen": "always",
   "automerge": false,
   "automergeType": "pr",
 
-  "dependencyDashboard": true,
-  "dependencyDashboardApproval": false,
+  "dependencyDashboard": false,
 
   "timezone": "Europe/Amsterdam",
   "labels": [
