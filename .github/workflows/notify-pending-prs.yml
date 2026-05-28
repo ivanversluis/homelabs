@@ -1,0 +1,75 @@
+name: Notify Pending PRs
+
+on:
+  pull_request:
+    types: [opened, reopened]
+  schedule:
+    - cron: "0 9 * * *" # Daily at 09:00 UTC
+
+jobs:
+  notify-on-open:
+    name: Notify new PR via Discord
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord notification for new PR
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_URL="${{ github.event.pull_request.html_url }}"
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+
+          curl -s -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"🔄 New PR: ${PR_TITLE}\",
+                \"url\": \"${PR_URL}\",
+                \"color\": 3447003,
+                \"fields\": [
+                  {\"name\": \"Author\", \"value\": \"${PR_AUTHOR}\", \"inline\": true},
+                  {\"name\": \"Repository\", \"value\": \"${{ github.repository }}\", \"inline\": true}
+                ],
+                \"footer\": {\"text\": \"Review and merge when ready\"}
+              }]
+            }" \
+            "$DISCORD_WEBHOOK_URL"
+
+  daily-summary:
+    name: Daily pending PR summary
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for open PRs and notify
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Get open PRs
+          PRS=$(gh pr list --repo "${{ github.repository }}" --state open --json number,title,url,createdAt --limit 20)
+          COUNT=$(echo "$PRS" | jq length)
+
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No open PRs, skipping notification"
+            exit 0
+          fi
+
+          # Build PR list for Discord
+          PR_LIST=""
+          echo "$PRS" | jq -r '.[] | "• [#\(.number)] \(.title) - \(.url)"' | while read -r line; do
+            PR_LIST="${PR_LIST}${line}\n"
+          done
+
+          DESCRIPTION=$(echo "$PRS" | jq -r '.[] | "• [#\(.number) \(.title)](\(.url))"' | head -15)
+
+          curl -s -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"📋 ${COUNT} PRs pending review in homelabs\",
+                \"url\": \"https://github.com/${{ github.repository }}/pulls\",
+                \"description\": $(echo "$DESCRIPTION" | jq -Rs .),
+                \"color\": 15105570,
+                \"footer\": {\"text\": \"Daily summary - review and merge when ready\"}
+              }]
+            }" \
+            "$DISCORD_WEBHOOK_URL"
