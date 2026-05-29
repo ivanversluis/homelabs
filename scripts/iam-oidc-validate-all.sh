@@ -40,6 +40,8 @@ APPS[linkding]="linkding:linkding:linkding-oidc:linkding:/oidc/callback/"
 APPS[semaphoreui]="semaphoreui:semaphoreui:semaphoreui-oidc:semaphoreui:/api/auth/oidc/redirect"
 APPS[argocd]="argocd:argocd-server:argocd-oidc:argocd:/auth/callback"
 APPS[longhorn]="longhorn-system:longhorn-ui:longhorn-oidc:longhorn:/oauth2/callback"
+APPS[portainer]="portainer:portainer:portainer-oidc:portainer:/"
+APPS[termix]="termix:termix:termix-oidc:termix:/users/oidc/callback"
 
 echo "═══════════════════════════════════════════════════════════════════════"
 echo " OIDC SSO Validation — $(date)"
