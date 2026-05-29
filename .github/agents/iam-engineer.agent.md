@@ -81,6 +81,8 @@ App Pod (e.g., Homebox, Vault, Headlamp, OpenWebUI)
 | SemaphoreUI | semaphoreui | infra/semaphoreui | semaphoreui | `https://demo-semaphore.${DOMAIN}/api/auth/oidc/redirect` | Yes (Admin/User groups) | `deployments/semaphoreui/` |
 | ArgoCD | argocd | infra/argocd | argocd | `https://demo-argocd.${DOMAIN}/auth/callback` | Yes (Admin/Viewer groups) | `deployments/argocd/` |
 | Longhorn | longhorn-system | infra/longhorn | longhorn | `https://storage.${DOMAIN}/oauth2/callback` | Yes (Kong OIDC proxy) | `deployments/longhorn/` |
+| Portainer | portainer | infra/portainer | portainer | `https://demo-portainer.${DOMAIN}` | Yes (Admin group) | `deployments/portainer/` |
+| Termix | termix | apps/termix | termix | `https://termix.${DOMAIN}/api/auth/callback` | No (single-user) | `deployments/termix/` |
 
 ## Adding OIDC to a New Application — Complete Workflow
 
@@ -220,14 +222,16 @@ make iam validate-oidc
 - **Homebox**: Uses `HBOX_OIDC_*` env vars (not the old `HBOX_AUTH_OIDC_*`). Only has `latest` image tag — use `imagePullPolicy: Always`. Must use `kubectl replace` (not apply) to remove stale env vars.
 - **Vault**: OIDC is configured via `vault write auth/oidc/config` (not env vars). The Vault pod needs egress to Kong for token validation.
 - **Headlamp**: Configured via env vars (`HEADLAMP_CONFIG_OIDC_*`). The Headlamp container listens on port 4466 (not 80). RBAC is via Kubernetes ClusterRoleBindings mapped to Authentik group claims.
-- **Open WebUI**: Uses `OAUTH_*` and `OPENID_*` env prefix. Supports `ENABLE_LOGIN_FORM=false` to force OIDC-only login. `OAUTH_MERGE_ACCOUNTS_BY_EMAIL=true` merges existing accounts.
+- **Open WebUI**: Uses `OAUTH_*` and `OPENID_*` env prefix. Supports `ENABLE_LOGIN_FORM=false` to force OIDC-only login. `OAUTH_MERGE_ACCOUNTS_BY_EMAIL=true` merges existing accounts. Requires `WEBUI_URL` in Vault secret for proper OAuth redirect construction.
 - **Grafana**: Uses `GF_AUTH_GENERIC_OAUTH_*` env vars. Requires the `entitlements` scope — add `authentik default OAuth Mapping: OpenID 'entitlements'` to the Authentik provider. Role mapping via JMESPath on `entitlements` claim using `GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH`. Create Application Entitlements (`Grafana Admins`, `Grafana Editors`) scoped to the Grafana app in Authentik — not global groups. `GF_SERVER_ROOT_URL` must equal the public URL or OAuth redirects break — sourced from `grafana-alerting-secrets/GRAFANA_PUBLIC_URL`. With `GF_AUTH_OAUTH_AUTO_LOGIN=true`, if the first OIDC login email matches the local `admin` account, Grafana errors with `cannot remove last grafana admin` — create an OIDC-backed admin first, then remove the local account.
-- **Forgejo**: Uses env vars to configure the OAuth2 authentication source. The OAuth2 source must be registered via the Forgejo admin API or first-boot env vars. Redirect URI pattern: `/user/oauth2/<source-name>/callback`. Group-to-admin mapping requires `FORGEJO__openid__ENABLE_OPENID_SIGNIN=true`.
+- **Forgejo**: Uses env vars to configure the OAuth2 authentication source. Requires a **dedicated Flux Kustomization** (`clusters/k8s-homelab/apps/forgejo-kustomization.yaml`) with `postBuild.substituteFrom` to resolve `${DOMAIN}` in its ConfigMap. The OAuth2 source must be registered via the Forgejo admin API or first-boot env vars. Redirect URI pattern: `/user/oauth2/<source-name>/callback`. Also needs security keys (`FORGEJO__security__SECRET_KEY`, `FORGEJO__security__INTERNAL_TOKEN`, `FORGEJO__oauth2__JWT_SECRET`) stored in Vault alongside OIDC creds.
 - **N8N**: Uses `N8N_AUTH_TYPE=oidc` with `N8N_OIDC_CLIENT_ID`, `N8N_OIDC_CLIENT_SECRET`, `N8N_OIDC_ISSUER`. Basic auth remains as fallback (env vars kept but `N8N_BASIC_AUTH_ACTIVE=false`). Single-owner instance — no multi-user RBAC.
 - **Linkding**: Uses `LD_ENABLE_OIDC=True`, `LD_OIDC_URL`, `LD_OIDC_CLIENT_ID`, `LD_OIDC_CLIENT_SECRET`. Single-user bookmark manager — OIDC provides SSO convenience, no RBAC. Trailing slash on redirect URI is required: `/oidc/callback/`.
 - **SemaphoreUI**: OIDC configured via Helm values `oidc.providers.authentik.*`. Maps `preferred_username` to Semaphore user. Admin mapping via Authentik group membership. Cookie hash/encryption secrets must remain in the existing `semaphoreui-secrets`.
-- **ArgoCD**: OIDC configured via `configs.cm.oidc.config` in HelmRelease values. Client secret referenced as `$argocd-oidc:client-secret` (ArgoCD's built-in secret substitution from the `argocd-oidc` Secret). RBAC via `configs.rbac.policy.csv` mapping Authentik groups (`ArgoCD Admins`, `ArgoCD Viewers`) to ArgoCD roles. Requires `scopes: '[groups]'` in rbac config.
-- **Longhorn**: No native authentication. Protected by Kong OpenID Connect plugin on the Ingress route. Kong handles the full OIDC flow (redirect → token exchange → session cookie). Only users in "Longhorn Admins" Authentik group gain access. Note: Kong OSS does NOT include the `openid-connect` plugin — requires Kong Enterprise OR use Authentik Proxy Provider (forward-auth) as alternative.
+- **ArgoCD**: OIDC configured via `configs.cm.oidc.config` in HelmRelease values. Client secret referenced as `$argocd-oidc:client-secret` (ArgoCD's built-in secret substitution from the `argocd-oidc` Secret). RBAC via `configs.rbac.policy.csv` mapping Authentik groups (`ArgoCD Admins`, `ArgoCD Viewers`) to ArgoCD roles. Requires `scopes: '[groups]'` in rbac config. **Container has no curl/wget** — OIDC discovery validation uses external check.
+- **Longhorn**: No native authentication. Protected by Kong OpenID Connect plugin on the Ingress route. Kong handles the full OIDC flow (redirect → token exchange → session cookie). Only users in "Longhorn Admins" Authentik group gain access. Note: Kong OSS does NOT include the `openid-connect` plugin — requires Kong Enterprise OR use Authentik Proxy Provider (forward-auth) as alternative. Uses `allow-kong-ingress` NetworkPolicy pattern (not `allow-egress-to-kong`) since traffic flows inbound.
+- **Portainer**: OIDC configured via UI settings (not env vars). **Container has no curl/wget** — OIDC discovery validation uses external check. Admin access via "Portainer Admins" Authentik group.
+- **Termix**: Uses standard OIDC env vars. Single-user terminal access.
 
 ### Flux CD & Substitution
 - **`${DOMAIN}` is a Flux variable**: When Flux is suspended, this is NOT substituted. Any manual `kubectl apply` must pipe through `sed 's/${DOMAIN}/<actual-domain>/g'`.
@@ -268,7 +272,10 @@ automation/infra-as-code/terraform/
     ├── linkding/              # Linkding OIDC (single-user)
     ├── semaphoreui/           # SemaphoreUI OIDC (Admin/User RBAC)
     ├── argocd/                # ArgoCD OIDC (Admin/Viewer RBAC)
-    └── longhorn/              # Longhorn OIDC (Kong proxy, admin-only)
+    ├── longhorn/              # Longhorn OIDC (Kong proxy, admin-only)
+    ├── portainer/             # Portainer OIDC (Admin group)
+    ├── termix/                # Termix OIDC (single-user)
+    └── vault/                 # Vault config (prometheus token, policies)
 ```
 
 ### Workflow: Adding OIDC to a New App via Terraform
@@ -318,6 +325,25 @@ When SemaphoreUI runs Terraform:
 
 The ExternalSecret → K8s Secret → deployment env chain requires **no changes** when using Terraform. Only the manual Authentik UI + Vault CLI steps are replaced.
 
+### Terraform Lifecycle Patterns
+
+- **`authentik_provider_oauth2`**: Uses `lifecycle { ignore_changes = [client_secret, client_id] }` — Authentik auto-generates these and they drift on every plan. Once imported, never overwrite.
+- **`authentik_application`**: Uses `lifecycle { ignore_changes = [meta_icon] }` — Authentik persists the icon even when TF sets it to null, causing perpetual drift.
+- **`vault_generic_secret`**: Uses `disable_read = true` — prevents Vault data from being read back into state (secrets stay in Vault only).
+
+### Vault ESO Role Management
+
+The `auth/kubernetes/role/external-secrets` role must include ALL ESO read policies for every OIDC-enabled app. When adding a new app via Terraform, the policy is auto-created but the role must also be updated:
+```bash
+# Current policies (17 total):
+vault write auth/kubernetes/role/external-secrets \
+  bound_service_account_names=external-secrets \
+  bound_service_account_namespaces=external-secrets-system \
+  policies="eso-read-apps-forgejo,eso-read-apps-homebox,eso-read-apps-homepage,eso-read-apps-linkding,eso-read-apps-n8n,eso-read-apps-termix,eso-read-infra-argocd,eso-read-infra-grafana,eso-read-infra-headlamp,eso-read-infra-longhorn,eso-read-infra-openwebui,eso-read-infra-portainer,eso-read-infra-semaphoreui,eso-read-infra-vault,eso-read-vms,external-secrets-operator,prometheus-metrics-read" \
+  ttl=1h
+```
+**TODO**: Automate role-policy attachment in Terraform (currently manual step after `tf-apply`).
+
 ## Reference Implementations
 
 - **Simple OIDC app**: `apps/homebox/` — env vars, ExternalSecret, netpol
@@ -331,6 +357,8 @@ The ExternalSecret → K8s Secret → deployment env chain requires **no changes
 - **Forgejo OAuth2 source**: `apps/forgejo/` — env-based OAuth2 login source registration
 - **Linkding OIDC**: `apps/linkding/` — `LD_ENABLE_OIDC=True` single-user SSO
 - **SemaphoreUI OIDC**: `infra/semaphoreui/` — Helm values `oidc.*` config
+- **Portainer OIDC**: `infra/portainer/` — OIDC via UI settings, Admin group binding
+- **Termix OIDC**: `apps/termix/` — Standard OIDC env vars, single-user
 
 ## Troubleshooting Checklist
 
@@ -363,6 +391,7 @@ When OIDC fails ("provider not available" or redirect loops):
 | SemaphoreUI | Semaphore Admins | Admin | Manage all projects, inventories |
 | SemaphoreUI | Semaphore Users | User | Run tasks in assigned projects |
 | Longhorn | Longhorn Admins | Access granted | Full storage dashboard access |
+| Portainer | Portainer Admins | Admin | Full container management |
 
 ### Apps Without RBAC (Single-User/Binary Access)
 - **Homebox**: Any authenticated user has full access
@@ -370,6 +399,7 @@ When OIDC fails ("provider not available" or redirect loops):
 - **Homepage**: Dashboard — any authenticated user sees all widgets
 - **N8N**: Single-owner workflow tool
 - **Linkding**: Single-user bookmark manager
+- **Termix**: Single-user terminal app
 
 ### Onboarding a New User
 1. Create user in Authentik
