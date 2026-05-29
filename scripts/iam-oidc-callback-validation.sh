@@ -227,6 +227,56 @@ test_oidc_endpoint() {
         return 0
       fi
       ;;
+    portainer)
+      # Portainer EE OIDC is configured in UI; just check the UI is reachable
+      local p_resp
+      p_resp=$(curl -sk --max-time 10 -o /dev/null -w "%{http_code}" \
+        "https://${subdomain}.${DOMAIN}/" 2>/dev/null) || p_resp="000"
+      if [[ "$p_resp" =~ ^(200|302|303|307) ]]; then
+        log_result "$app" "UI reachable (OIDC via UI config)" "PASS" "HTTP $p_resp"
+        return 0
+      elif [[ "$p_resp" == "000" ]]; then
+        log_result "$app" "UI reachable (OIDC via UI config)" "FAIL" "Timeout/unreachable"
+        return 1
+      else
+        log_result "$app" "UI reachable (OIDC via UI config)" "WARN" "HTTP $p_resp"
+        return 0
+      fi
+      ;;
+    termix)
+      # Termix OIDC — check the app is reachable and OIDC callback returns expected response
+      local t_resp
+      t_resp=$(curl -sk --max-time 10 -o /dev/null -w "%{http_code}" \
+        -L --max-redirs 0 \
+        "https://${subdomain}.${DOMAIN}/users/oidc/callback" 2>/dev/null) || t_resp="000"
+      if [[ "$t_resp" =~ ^(302|303|307|400|401|422) ]]; then
+        log_result "$app" "OIDC callback endpoint" "PASS" "HTTP $t_resp (expected)"
+        return 0
+      elif [[ "$t_resp" == "000" ]]; then
+        log_result "$app" "OIDC callback endpoint" "FAIL" "Timeout/unreachable"
+        return 1
+      else
+        log_result "$app" "OIDC callback endpoint" "WARN" "HTTP $t_resp"
+        return 0
+      fi
+      ;;
+    *)
+      # Generic: check the callback path returns an expected HTTP code
+      local generic_resp
+      generic_resp=$(curl -sk --max-time 10 -o /dev/null -w "%{http_code}" \
+        -L --max-redirs 0 \
+        "https://${subdomain}.${DOMAIN}${callback_path}" 2>/dev/null) || generic_resp="000"
+      if [[ "$generic_resp" =~ ^(200|302|303|307|400|401|422) ]]; then
+        log_result "$app" "OIDC callback endpoint" "PASS" "HTTP $generic_resp"
+        return 0
+      elif [[ "$generic_resp" == "000" ]]; then
+        log_result "$app" "OIDC callback endpoint" "FAIL" "Timeout/unreachable"
+        return 1
+      else
+        log_result "$app" "OIDC callback endpoint" "WARN" "HTTP $generic_resp"
+        return 0
+      fi
+      ;;
   esac
 }
 
