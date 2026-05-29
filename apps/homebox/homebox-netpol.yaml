@@ -53,6 +53,26 @@ spec:
         - protocol: TCP
           port: 7745
 ---
+# Cloudflare Tunnel -> Homebox (direct tunnel route)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-tunnel-ingress
+  namespace: homebox
+spec:
+  podSelector:
+    matchLabels:
+      app: homebox
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cloudflared
+      ports:
+        - protocol: TCP
+          port: 7745
+---
 # Homebox -> Kong (ClusterIP for OIDC/split-brain DNS traffic)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

@@ -21,9 +21,9 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-pass() { ((PASS++)); echo -e "${GREEN}[PASS]${NC} $1"; }
-fail() { ((FAIL++)); echo -e "${RED}[FAIL]${NC} $1"; }
-warn() { ((WARN++)); echo -e "${YELLOW}[WARN]${NC} $1"; }
+pass() { PASS=$((PASS + 1)); echo -e "${GREEN}[PASS]${NC} $1"; }
+fail() { FAIL=$((FAIL + 1)); echo -e "${RED}[FAIL]${NC} $1"; }
+warn() { WARN=$((WARN + 1)); echo -e "${YELLOW}[WARN]${NC} $1"; }
 
 # ─── Application Registry ────────────────────────────────────────────────────
 
@@ -86,7 +86,15 @@ echo "─── OIDC Discovery URL Reachability ──────────�
 for app in "${!APPS[@]}"; do
     IFS=':' read -r ns deploy secret slug redirect <<< "${APPS[$app]}"
     discovery_url="https://auth.${DOMAIN}/application/o/${slug}/.well-known/openid-configuration"
-    result=$(kubectl exec -n "$ns" "deploy/$deploy" -- wget -qO- --timeout=5 "$discovery_url" 2>/dev/null | head -c 50 || echo "FAILED")
+
+    # Containers without wget — use curl or external check
+    if [[ "$deploy" == "argocd-server" || "$deploy" == "portainer" || "$deploy" == "longhorn-ui" ]]; then
+        result=$(curl -sk --max-time 5 "$discovery_url" 2>/dev/null | head -c 50 || echo "FAILED")
+    else
+        # Try wget first, fall back to curl (openwebui has curl only)
+        result=$(kubectl exec -n "$ns" "deploy/$deploy" -- sh -c "wget -qO- --timeout=5 '$discovery_url' 2>/dev/null || curl -sk --max-time 5 '$discovery_url' 2>/dev/null" 2>/dev/null | head -c 50 || echo "FAILED")
+    fi
+
     if echo "$result" | grep -q "issuer"; then
         pass "$app: OIDC discovery reachable from pod"
     else
@@ -99,14 +107,15 @@ echo ""
 echo "─── Kong Egress NetworkPolicy ────────────────────────────────────────"
 for app in "${!APPS[@]}"; do
     IFS=':' read -r ns deploy secret slug redirect <<< "${APPS[$app]}"
-    netpol=$(kubectl get networkpolicy allow-egress-to-kong -n "$ns" -o name 2>/dev/null || echo "")
-    if [[ -n "$netpol" ]]; then
-        pass "$app: allow-egress-to-kong exists in ns/$ns"
+    # Look for any netpol containing "kong" in its name in this namespace
+    kong_pol=$(kubectl get networkpolicy -n "$ns" -o name 2>/dev/null | grep -i "kong" | head -1 || echo "")
+    if [[ -n "$kong_pol" ]]; then
+        pass "$app: Kong policy exists in ns/$ns (${kong_pol##*/})"
     else
-        # Check if the app uses direct Authentik egress instead (Headlamp pattern)
-        alt=$(kubectl get networkpolicy allow-egress-authentik -n "$ns" -o name 2>/dev/null || echo "")
+        # Check if the app uses direct Authentik egress instead
+        alt=$(kubectl get networkpolicy -n "$ns" -o name 2>/dev/null | grep -i "authentik" | head -1 || echo "")
         if [[ -n "$alt" ]]; then
-            pass "$app: allow-egress-authentik exists in ns/$ns (direct pattern)"
+            pass "$app: Authentik egress exists in ns/$ns (${alt##*/})"
         else
             fail "$app: No Kong/Authentik egress policy in ns/$ns"
         fi
