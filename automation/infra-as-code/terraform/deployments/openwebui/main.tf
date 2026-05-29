@@ -20,6 +20,7 @@ module "oidc" {
     "OPENID_PROVIDER_URL"           = "https://auth.${var.domain}/application/o/openwebui/.well-known/openid-configuration"
     "OPENID_REDIRECT_URI"           = "https://ai-chat.${var.domain}/oauth/oidc/callback"
     "DEFAULT_USER_ROLE"             = "user"
+    "WEBUI_URL"                     = "https://ai-chat.${var.domain}"
   }
 
   cloudflare_account_id        = var.cloudflare_account_id
