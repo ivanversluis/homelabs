@@ -24,3 +24,8 @@ output "tunnel_id" {
   value       = var.tunnel_id
   sensitive   = true
 }
+
+output "manage_tunnel_config" {
+  description = "Whether this module instance manages the tunnel config"
+  value       = var.manage_tunnel_config
+}

@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - portainer-namespace.yaml
   - portainer-netpol.yaml
+  - portainer-externalsecret.yaml
   - portainer-serviceaccount.yaml
   - portainer-clusterrole.yaml
   - portainer-clusterrolebinding.yaml

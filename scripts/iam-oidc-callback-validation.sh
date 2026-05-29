@@ -51,6 +51,15 @@ OIDC_APPS=(
   "headlamp|headlamp|headlamp|headlamp|/oidc/callback|headlamp-oidc"
   "homebox|homebox|homebox|homebox|/api/v1/users/login/oidc/callback|homebox-oidc"
   "openwebui|ai|openwebui|openwebui|/oauth/oidc/callback|openwebui-oidc"
+  "grafana|observability|grafana|grafana|/login/generic_oauth|grafana-oidc"
+  "forgejo|forgejo|forgejo|forgejo|/user/oauth2/authentik/callback|forgejo-oidc"
+  "n8n|n8n|n8n|n8n|/rest/oauth2-credential/callback|n8n-oidc"
+  "linkding|linkding|linkding|linkding|/oidc/callback/|linkding-oidc"
+  "semaphoreui|semaphoreui|semaphoreui|semaphoreui|/api/auth/oidc/redirect|semaphoreui-oidc"
+  "argocd|argocd|argocd-server|argocd|/auth/callback|argocd-oidc"
+  "longhorn|longhorn-system|longhorn-ui|longhorn|/oauth2/callback|longhorn-oidc"
+  "termix|termix|termix|termix|/users/oidc/callback|termix-oidc"
+  "portainer|portainer|portainer|portainer|/|portainer-oidc"
 )
 
 # --- Hostname map (app → subdomain) ----------------------------------------
@@ -59,6 +68,15 @@ declare -A SUBDOMAIN_MAP=(
   [headlamp]="k8s"
   [homebox]="homebox"
   [openwebui]="ai-chat"
+  [grafana]="grafana"
+  [forgejo]="forgejo"
+  [n8n]="n8n"
+  [linkding]="bookmarks"
+  [semaphoreui]="demo-semaphore"
+  [argocd]="demo-argocd"
+  [longhorn]="storage"
+  [termix]="demo-termix"
+  [portainer]="portainer"
 )
 
 # --- Kong ClusterIP (for direct TLS check) ---------------------------------

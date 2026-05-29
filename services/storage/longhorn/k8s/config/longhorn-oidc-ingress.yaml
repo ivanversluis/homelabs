@@ -1,0 +1,76 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Kong OIDC Proxy for Longhorn UI
+# ─────────────────────────────────────────────────────────────────────────────
+# Longhorn has no native authentication. Kong's OpenID Connect plugin
+# acts as an authentication proxy in front of the Longhorn frontend.
+#
+# Flow:
+#   1. User visits storage.${DOMAIN}
+#   2. Kong OIDC plugin redirects to Authentik for login
+#   3. Authentik returns to /oauth2/callback with auth code
+#   4. Kong exchanges code for token, sets session cookie
+#   5. Requests are proxied to longhorn-frontend:8000
+# ─────────────────────────────────────────────────────────────────────────────
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: longhorn-oidc
+  namespace: longhorn-system
+  annotations:
+    konghq.com/plugins: longhorn-oidc-auth
+    konghq.com/strip-path: "false"
+spec:
+  ingressClassName: kong
+  rules:
+    - host: "storage.${DOMAIN}"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: longhorn-frontend
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - "storage.${DOMAIN}"
+      secretName: wildcard-tls
+---
+# Kong OpenID Connect plugin configuration.
+# NOTE: Kong OSS does not include the openid-connect plugin — it requires Kong
+# Enterprise or Kong Gateway (licensed). For OSS, use the session + oauth2 plugins
+# or a forward-auth pattern with Authentik's outpost.
+#
+# Alternative for Kong OSS: Use Authentik Proxy Provider (forward-auth) instead.
+# The Ingress annotation `konghq.com/plugins: forward-auth-authentik` delegates
+# authentication to Authentik's embedded outpost.
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: longhorn-oidc-auth
+  namespace: longhorn-system
+spec:
+  plugin: openid-connect
+  config:
+    issuer: "https://auth.${DOMAIN}/application/o/longhorn/.well-known/openid-configuration"
+    client_id:
+      - "{vault://secret/infra/longhorn/OAUTH_CLIENT_ID}"
+    client_secret:
+      - "{vault://secret/infra/longhorn/OAUTH_CLIENT_SECRET}"
+    redirect_uri:
+      - "https://storage.${DOMAIN}/oauth2/callback"
+    scopes:
+      - openid
+      - profile
+      - email
+    response_mode: query
+    auth_methods:
+      - authorization_code
+    login_redirect_mode: preserve
+    logout_redirect_uri:
+      - "https://auth.${DOMAIN}/application/o/longhorn/end-session/"
+    session_cookie_name: longhorn_session
+    session_cookie_secure: true
+    session_cookie_samesite: Lax

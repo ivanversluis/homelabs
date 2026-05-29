@@ -30,9 +30,26 @@ spec:
     configs:
       cm:
         exec.enabled: "true"
+        url: "https://demo-argocd.${DOMAIN}"
+        oidc.config: |
+          name: Authentik
+          issuer: https://auth.${DOMAIN}/application/o/argocd/
+          clientID: $argocd-oidc:client-id
+          clientSecret: $argocd-oidc:client-secret
+          requestedScopes:
+            - openid
+            - profile
+            - email
+            - groups
       rbac:
         policy.csv: |
-          p, role:admin, exec, create, */*, allow
+          p, role:admin, *, *, */*, allow
+          p, role:readonly, applications, get, */*, allow
+          p, role:readonly, logs, get, */*, allow
+          g, ArgoCD Admins, role:admin
+          g, ArgoCD Viewers, role:readonly
+        policy.default: role:readonly
+        scopes: '[groups]'
     server:
       service:
         type: ClusterIP

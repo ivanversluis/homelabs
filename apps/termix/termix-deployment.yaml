@@ -29,6 +29,30 @@ spec:
               value: "3000"
             - name: TZ
               value: 'Europe/Amsterdam'
+            - name: OIDC_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: termix-oidc
+                  key: client-id
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: termix-oidc
+                  key: client-secret
+            - name: OIDC_ISSUER_URL
+              value: "https://auth.${DOMAIN}/application/o/termix/"
+            - name: OIDC_AUTHORIZATION_URL
+              value: "https://auth.${DOMAIN}/application/o/authorize/"
+            - name: OIDC_TOKEN_URL
+              value: "https://auth.${DOMAIN}/application/o/token/"
+            - name: OIDC_USERINFO_URL
+              value: "https://auth.${DOMAIN}/application/o/userinfo/"
+            - name: OIDC_FORCE_HTTPS
+              value: "true"
+            - name: OIDC_ALLOW_REGISTRATION
+              value: "true"
+            - name: OIDC_SCOPES
+              value: "openid email profile"
           readinessProbe:
             httpGet:
               path: /

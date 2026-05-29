@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - termix-namespace.yaml
   - termix-netpol.yaml
+  - termix-externalsecret.yaml
   - termix-pvc.yaml
   - termix-deployment.yaml
   - termix-service.yaml

@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - linkding-namespace.yaml
   - linkding-netpol.yaml
+  - linkding-oidc-externalsecret.yaml
   - linkding-pvc.yaml
   - linkding-deployment.yaml
   - linkding-service.yaml

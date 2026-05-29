@@ -5,6 +5,7 @@ resources:
   - forgejo-netpol.yaml
   - forgejo-configmap.yaml
   - forgejo-externalsecret.yaml
+  - forgejo-oidc-externalsecret.yaml
   - forgejo-pvc.yaml
   - forgejo-deployment.yaml
   - forgejo-service.yaml

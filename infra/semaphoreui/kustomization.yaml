@@ -5,6 +5,7 @@ resources:
   - semaphoreui-netpol.yaml
   - semaphoreui-helmrepository.yaml
   - semaphoreui-externalsecret.yaml
+  - semaphoreui-oidc-externalsecret.yaml
   - semaphoreui-postgres-externalsecret.yaml
   - semaphoreui-postgres-pvc.yaml
   - semaphoreui-postgres-deployment.yaml

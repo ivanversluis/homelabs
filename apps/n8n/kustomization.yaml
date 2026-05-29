@@ -5,6 +5,7 @@ resources:
   - n8n-netpol.yaml
   - n8n-configmap.yaml
   - n8n-externalsecret.yaml
+  - n8n-oidc-externalsecret.yaml
   - n8n-postgres-externalsecret.yaml
   - n8n-pvc.yaml
   - n8n-postgres-pvc.yaml
