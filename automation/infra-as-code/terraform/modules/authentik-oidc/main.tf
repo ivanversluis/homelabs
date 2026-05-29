@@ -68,7 +68,7 @@ resource "authentik_provider_oauth2" "provider" {
   access_token_validity = var.access_token_validity
 
   lifecycle {
-    ignore_changes = [client_secret]
+    ignore_changes = [client_secret, client_id]
   }
 }
 
@@ -80,6 +80,10 @@ resource "authentik_application" "app" {
   protocol_provider = authentik_provider_oauth2.provider.id
   meta_launch_url   = var.launch_url
   open_in_new_tab   = true
+
+  lifecycle {
+    ignore_changes = [meta_icon]
+  }
 }
 
 # ── Application Entitlements ─────────────────────────────────────────────────

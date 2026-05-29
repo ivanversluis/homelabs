@@ -67,11 +67,12 @@ module "longhorn" {
 }
 
 module "vault" {
-  source                = "./vault"
-  domain                = var.domain
-  cloudflare_account_id = local.cf.account_id
-  cloudflare_tunnel_id  = local.cf.tunnel_id
-  cloudflare_team_name  = local.cf.team_name
+  source                         = "./vault"
+  domain                         = var.domain
+  cloudflare_account_id          = local.cf.account_id
+  cloudflare_tunnel_id           = local.cf.tunnel_id
+  cloudflare_team_name           = local.cf.team_name
+  vault_prometheus_metrics_token = var.vault_prometheus_metrics_token
 }
 
 module "portainer" {

@@ -57,3 +57,9 @@ variable "cloudflare_team_name" {
   type        = string
   sensitive   = true
 }
+
+variable "vault_prometheus_metrics_token" {
+  description = "Existing Vault prometheus metrics token stored in infra/vault secret (sensitive, from tfvars)"
+  type        = string
+  sensitive   = true
+}

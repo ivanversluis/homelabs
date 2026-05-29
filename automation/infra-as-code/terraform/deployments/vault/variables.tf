@@ -17,3 +17,8 @@ variable "cloudflare_team_name" {
   type      = string
   sensitive = true
 }
+
+variable "vault_prometheus_metrics_token" {
+  type      = string
+  sensitive = true
+}
