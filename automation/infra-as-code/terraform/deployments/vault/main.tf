@@ -15,6 +15,10 @@ module "oidc" {
   entitlements = {}
 
   vault_path_prefix = "infra"
+  extra_vault_data = {
+    # Preserve existing Vault prometheus metrics token — value comes from terraform.tfvars (gitignored)
+    "prometheus-metrics-token" = var.vault_prometheus_metrics_token
+  }
 
   cloudflare_account_id        = var.cloudflare_account_id
   cloudflare_tunnel_id         = var.cloudflare_tunnel_id
