@@ -72,6 +72,7 @@ module "cloudflare" {
   origin_service            = var.cf_origin_service
   team_name                 = var.cloudflare_team_name
   create_access_application = var.cf_create_access_application
+  manage_tunnel_config      = var.cf_manage_tunnel_config
   session_duration          = var.cf_session_duration
   auto_redirect_to_identity = var.cf_auto_redirect
   skip_interstitial         = var.cf_skip_interstitial

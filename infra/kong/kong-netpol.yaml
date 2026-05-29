@@ -353,6 +353,14 @@ spec:
           port: 8080   # openwebui (post-DNAT container port)
         - protocol: TCP
           port: 8000   # kubernetes-mcpo (post-DNAT container port)
+    # longhorn-system — Longhorn UI (OIDC proxy via Kong)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: longhorn-system
+      ports:
+        - protocol: TCP
+          port: 8000   # longhorn-frontend container port
 ---
 # Kong -> Azure AI Foundry (HTTPS egress for AI Gateway plugin)
 # Only the Kong proxy pod needs this; the ai-proxy plugin makes outbound

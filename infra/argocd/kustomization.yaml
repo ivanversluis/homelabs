@@ -5,4 +5,5 @@ resources:
   - argocd-netpol.yaml
   - helmrepository.yaml
   - helmrelease.yaml
+  - argocd-oidc-externalsecret.yaml
   - argocd-repo-externalsecret.yaml

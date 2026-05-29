@@ -67,13 +67,20 @@ App Pod (e.g., Homebox, Vault, Headlamp, OpenWebUI)
 
 ## OIDC-Enabled Applications Registry
 
-| Application | Namespace | Vault Path | Provider Name | Redirect URI | Env Prefix |
-|---|---|---|---|---|---|
-| Vault | vault | infra/vault | vault | `https://vault.${DOMAIN}/ui/vault/auth/oidc/oidc/callback` | `VAULT_OIDC_*` (Vault config) |
-| Headlamp | headlamp | infra/headlamp | headlamp | `https://k8s.${DOMAIN}/oidc/callback` | Helm values `oidc.*` |
-| Homebox | homebox | apps/homebox | homebox | `https://homebox.${DOMAIN}/api/v1/users/login/oidc/callback` | `HBOX_OIDC_*` |
-| Open WebUI | ai | infra/openwebui | openwebui | `https://ai-chat.${DOMAIN}/oauth/oidc/callback` | `OAUTH_*`, `OPENID_*` |
-| Grafana | observability | infra/grafana | grafana | `https://grafana.${DOMAIN}/login/generic_oauth` | `GF_AUTH_GENERIC_OAUTH_*` |
+| Application | Namespace | Vault Path | Provider Slug | Redirect URI | RBAC | Terraform |
+|---|---|---|---|---|---|---|
+| Vault | vault | infra/vault | vault | `https://vault.${DOMAIN}/ui/vault/auth/oidc/oidc/callback` | N/A (server-side) | Manual |
+| Headlamp | headlamp | infra/headlamp | headlamp | `https://k8s.${DOMAIN}/oidc/callback` | Yes (K8s groups → ClusterRoleBindings) | `deployments/headlamp/` |
+| Homebox | homebox | apps/homebox | homebox | `https://homebox.${DOMAIN}/api/v1/users/login/oidc/callback` | No (single-user) | `deployments/homebox/` |
+| Open WebUI | ai | infra/openwebui | openwebui | `https://ai-chat.${DOMAIN}/oauth/oidc/callback` | Partial (DEFAULT_USER_ROLE) | `deployments/openwebui/` |
+| Grafana | observability | infra/grafana | grafana | `https://grafana.${DOMAIN}/login/generic_oauth` | Yes (Admin/Editor/Viewer entitlements) | `deployments/grafana/` |
+| Homepage | homepage | apps/homepage | homepage | `https://homepage.${DOMAIN}/api/auth/callback/authentik` | No (dashboard) | `deployments/homepage/` |
+| Forgejo | forgejo | apps/forgejo | forgejo | `https://forgejo.${DOMAIN}/user/oauth2/authentik/callback` | Yes (Admin/User groups) | `deployments/forgejo/` |
+| N8N | n8n | apps/n8n | n8n | `https://n8n.${DOMAIN}/rest/oauth2-credential/callback` | No (single-owner) | `deployments/n8n/` |
+| Linkding | linkding | apps/linkding | linkding | `https://bookmarks.${DOMAIN}/oidc/callback/` | No (single-user) | `deployments/linkding/` |
+| SemaphoreUI | semaphoreui | infra/semaphoreui | semaphoreui | `https://demo-semaphore.${DOMAIN}/api/auth/oidc/redirect` | Yes (Admin/User groups) | `deployments/semaphoreui/` |
+| ArgoCD | argocd | infra/argocd | argocd | `https://demo-argocd.${DOMAIN}/auth/callback` | Yes (Admin/Viewer groups) | `deployments/argocd/` |
+| Longhorn | longhorn-system | infra/longhorn | longhorn | `https://storage.${DOMAIN}/oauth2/callback` | Yes (Kong OIDC proxy) | `deployments/longhorn/` |
 
 ## Adding OIDC to a New Application — Complete Workflow
 
@@ -212,9 +219,15 @@ make iam validate-oidc
 ### Application-Specific Notes
 - **Homebox**: Uses `HBOX_OIDC_*` env vars (not the old `HBOX_AUTH_OIDC_*`). Only has `latest` image tag — use `imagePullPolicy: Always`. Must use `kubectl replace` (not apply) to remove stale env vars.
 - **Vault**: OIDC is configured via `vault write auth/oidc/config` (not env vars). The Vault pod needs egress to Kong for token validation.
-- **Headlamp**: Configured via Helm values (`oidc.enabled`, `oidc.clientID`, etc.). The Headlamp container listens on port 4466 (not 80).
+- **Headlamp**: Configured via env vars (`HEADLAMP_CONFIG_OIDC_*`). The Headlamp container listens on port 4466 (not 80). RBAC is via Kubernetes ClusterRoleBindings mapped to Authentik group claims.
 - **Open WebUI**: Uses `OAUTH_*` and `OPENID_*` env prefix. Supports `ENABLE_LOGIN_FORM=false` to force OIDC-only login. `OAUTH_MERGE_ACCOUNTS_BY_EMAIL=true` merges existing accounts.
 - **Grafana**: Uses `GF_AUTH_GENERIC_OAUTH_*` env vars. Requires the `entitlements` scope — add `authentik default OAuth Mapping: OpenID 'entitlements'` to the Authentik provider. Role mapping via JMESPath on `entitlements` claim using `GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH`. Create Application Entitlements (`Grafana Admins`, `Grafana Editors`) scoped to the Grafana app in Authentik — not global groups. `GF_SERVER_ROOT_URL` must equal the public URL or OAuth redirects break — sourced from `grafana-alerting-secrets/GRAFANA_PUBLIC_URL`. With `GF_AUTH_OAUTH_AUTO_LOGIN=true`, if the first OIDC login email matches the local `admin` account, Grafana errors with `cannot remove last grafana admin` — create an OIDC-backed admin first, then remove the local account.
+- **Forgejo**: Uses env vars to configure the OAuth2 authentication source. The OAuth2 source must be registered via the Forgejo admin API or first-boot env vars. Redirect URI pattern: `/user/oauth2/<source-name>/callback`. Group-to-admin mapping requires `FORGEJO__openid__ENABLE_OPENID_SIGNIN=true`.
+- **N8N**: Uses `N8N_AUTH_TYPE=oidc` with `N8N_OIDC_CLIENT_ID`, `N8N_OIDC_CLIENT_SECRET`, `N8N_OIDC_ISSUER`. Basic auth remains as fallback (env vars kept but `N8N_BASIC_AUTH_ACTIVE=false`). Single-owner instance — no multi-user RBAC.
+- **Linkding**: Uses `LD_ENABLE_OIDC=True`, `LD_OIDC_URL`, `LD_OIDC_CLIENT_ID`, `LD_OIDC_CLIENT_SECRET`. Single-user bookmark manager — OIDC provides SSO convenience, no RBAC. Trailing slash on redirect URI is required: `/oidc/callback/`.
+- **SemaphoreUI**: OIDC configured via Helm values `oidc.providers.authentik.*`. Maps `preferred_username` to Semaphore user. Admin mapping via Authentik group membership. Cookie hash/encryption secrets must remain in the existing `semaphoreui-secrets`.
+- **ArgoCD**: OIDC configured via `configs.cm.oidc.config` in HelmRelease values. Client secret referenced as `$argocd-oidc:client-secret` (ArgoCD's built-in secret substitution from the `argocd-oidc` Secret). RBAC via `configs.rbac.policy.csv` mapping Authentik groups (`ArgoCD Admins`, `ArgoCD Viewers`) to ArgoCD roles. Requires `scopes: '[groups]'` in rbac config.
+- **Longhorn**: No native authentication. Protected by Kong OpenID Connect plugin on the Ingress route. Kong handles the full OIDC flow (redirect → token exchange → session cookie). Only users in "Longhorn Admins" Authentik group gain access. Note: Kong OSS does NOT include the `openid-connect` plugin — requires Kong Enterprise OR use Authentik Proxy Provider (forward-auth) as alternative.
 
 ### Flux CD & Substitution
 - **`${DOMAIN}` is a Flux variable**: When Flux is suspended, this is NOT substituted. Any manual `kubectl apply` must pipe through `sed 's/${DOMAIN}/<actual-domain>/g'`.
@@ -232,9 +245,9 @@ secret/infra/<component>
   └── <app-specific-keys>    # e.g., mcp-consumer-key for OpenWebUI
 ```
 
-## Future: Terraform Integration
+## Terraform Integration (Active)
 
-Terraform is now implemented at `automation/infra-as-code/terraform/`. The module structure:
+All OIDC providers are managed via Terraform at `automation/infra-as-code/terraform/`. The module structure:
 
 ```
 automation/infra-as-code/terraform/
@@ -245,7 +258,17 @@ automation/infra-as-code/terraform/
 ├── compositions/
 │   └── oidc-app/              # Bundles Authentik, Vault, and Cloudflare for one app
 └── deployments/
-    └── grafana/               # First use case — Grafana OIDC
+    ├── grafana/               # Grafana OIDC (Admin/Editor/Viewer RBAC)
+    ├── homebox/               # Homebox OIDC (single-user)
+    ├── headlamp/              # Headlamp OIDC (K8s RBAC via groups)
+    ├── openwebui/             # Open WebUI OIDC (role via config)
+    ├── homepage/              # Homepage OIDC (dashboard)
+    ├── forgejo/               # Forgejo OIDC (Admin/User RBAC)
+    ├── n8n/                   # N8N OIDC (single-owner)
+    ├── linkding/              # Linkding OIDC (single-user)
+    ├── semaphoreui/           # SemaphoreUI OIDC (Admin/User RBAC)
+    ├── argocd/                # ArgoCD OIDC (Admin/Viewer RBAC)
+    └── longhorn/              # Longhorn OIDC (Kong proxy, admin-only)
 ```
 
 ### Workflow: Adding OIDC to a New App via Terraform
@@ -303,6 +326,11 @@ The ExternalSecret → K8s Secret → deployment env chain requires **no changes
 - **Vault OIDC auth method**: `infra/vault/` — server-side OIDC config (not env vars)
 - **GF_AUTH env vars + entitlements**: `infra/observability/grafana/` — role mapping via Authentik application entitlements
 - **Terraform OIDC (full stack)**: `automation/infra-as-code/terraform/deployments/grafana/` — Authentik + Vault + Cloudflare tunnel route + Access
+- **Kong OIDC proxy (no native auth)**: `services/storage/longhorn/k8s/config/longhorn-oidc-ingress.yaml` — Kong OpenID Connect plugin fronting Longhorn UI
+- **ArgoCD OIDC + RBAC**: `infra/argocd/helmrelease.yaml` — configs.cm OIDC + rbac.policy.csv group mapping
+- **Forgejo OAuth2 source**: `apps/forgejo/` — env-based OAuth2 login source registration
+- **Linkding OIDC**: `apps/linkding/` — `LD_ENABLE_OIDC=True` single-user SSO
+- **SemaphoreUI OIDC**: `infra/semaphoreui/` — Helm values `oidc.*` config
 
 ## Troubleshooting Checklist
 
@@ -316,3 +344,55 @@ When OIDC fails ("provider not available" or redirect loops):
 6. **Check DNS resolution**: `kubectl exec -n <ns> deploy/<app> -- nslookup auth.${DOMAIN}` — must resolve to Kong ClusterIP
 7. **Check pod logs**: `kubectl logs -n <ns> deploy/<app> | grep -i "oidc\|oauth\|tls\|certificate"`
 8. **Restart after fixes**: `kubectl rollout restart deploy/<app> -n <ns>`
+
+## RBAC Model
+
+### Group-to-Role Mapping
+
+| Application | Authentik Group | App Role | Permissions |
+|---|---|---|---|
+| Grafana | Grafana Admins | Admin | Full org management, datasources, users |
+| Grafana | Grafana Editors | Editor | Create/edit dashboards, alerts |
+| Grafana | Grafana Viewers | Viewer | Read-only dashboards |
+| Headlamp | Headlamp Admins | cluster-admin | Full K8s cluster access |
+| Headlamp | Headlamp Viewers | view | Read-only cluster access |
+| ArgoCD | ArgoCD Admins | role:admin | App sync, exec, full management |
+| ArgoCD | ArgoCD Viewers | role:readonly | View apps, logs |
+| Forgejo | Forgejo Admins | Site Admin | User management, settings |
+| Forgejo | Forgejo Users | User | Create repos, push code |
+| SemaphoreUI | Semaphore Admins | Admin | Manage all projects, inventories |
+| SemaphoreUI | Semaphore Users | User | Run tasks in assigned projects |
+| Longhorn | Longhorn Admins | Access granted | Full storage dashboard access |
+
+### Apps Without RBAC (Single-User/Binary Access)
+- **Homebox**: Any authenticated user has full access
+- **Open WebUI**: DEFAULT_USER_ROLE=user; admin set via WEBUI_ADMIN_EMAIL
+- **Homepage**: Dashboard — any authenticated user sees all widgets
+- **N8N**: Single-owner workflow tool
+- **Linkding**: Single-user bookmark manager
+
+### Onboarding a New User
+1. Create user in Authentik
+2. Add to relevant groups (e.g., "Grafana Editors", "ArgoCD Viewers")
+3. User logs in via OIDC — automatic account creation in each app
+4. Role is assigned based on group membership (no per-app admin action needed)
+
+## Validation Commands
+
+```bash
+# Full SSO validation (all apps)
+make iam-validate-sso
+
+# Per-app OIDC callback test
+make iam-validate-oidc-app APP=grafana
+
+# Terraform plan for a specific app
+make tf-plan APP=forgejo
+
+# Apply all OIDC Terraform deployments
+make tf-apply-all
+
+# Test OIDC discovery from a specific pod
+DOMAIN=$(kubectl get secret flux-domain-vars -n flux-system -o jsonpath='{.data.DOMAIN}' | base64 -d)
+kubectl exec -n <ns> deploy/<app> -- wget -qO- "https://auth.${DOMAIN}/application/o/<slug>/.well-known/openid-configuration"
+```

@@ -7,9 +7,9 @@
 #   make zt-validate                — Run Zero Trust network policy validation
 #   make zt-validate-ns NS=ai       — Test a single namespace
 #   make zt-cf                      — Test Cloudflare tunnel endpoints
-#   make tf-init APP=grafana        — Terraform init for a deployment
-#   make tf-plan APP=grafana        — Terraform plan for a deployment
-#   make tf-apply APP=grafana       — Terraform apply (auto-approve)
+#   make tf-init                    — Terraform init (single root module)
+#   make tf-plan                    — Terraform plan (all OIDC apps)
+#   make tf-apply                   — Terraform apply (auto-approve)
 # ============================================================================
 
 SHELL := /bin/bash
@@ -26,6 +26,7 @@ help: ## Show available targets
 	@echo "IAM Targets:"
 	@echo "  iam-validate-oidc              Validate all OIDC callback integrations"
 	@echo "  iam-validate-oidc-app APP=x    Validate OIDC for a single app"
+	@echo "  iam-validate-sso               Full SSO validation (all apps)"
 	@echo ""
 	@echo "Zero Trust Targets:"
 	@echo "  zt-validate                    Run network policy validation"
@@ -33,9 +34,10 @@ help: ## Show available targets
 	@echo "  zt-cf                          Test Cloudflare tunnel endpoints"
 	@echo ""
 	@echo "Terraform Targets:"
-	@echo "  tf-init APP=x                  Terraform init for a deployment"
-	@echo "  tf-plan APP=x                  Terraform plan for a deployment"
-	@echo "  tf-apply APP=x                 Terraform apply (auto-approve)"
+	@echo "  tf-init                        Terraform init (single root module)"
+	@echo "  tf-plan                        Terraform plan (all OIDC apps)"
+	@echo "  tf-apply                       Terraform apply (auto-approve)"
+	@echo "  tf-destroy                     Terraform destroy (requires confirmation)"
 
 # ============================================================================
 # IAM Targets
@@ -71,15 +73,23 @@ zt-cf: ## Test all Cloudflare tunnel endpoints
 
 TF_DIR := automation/infra-as-code/terraform/deployments
 
-tf-init: ## Terraform init (APP=deployment_name)
-	@if [ -z "$(APP)" ]; then echo "ERROR: APP= is required (e.g., APP=grafana)"; exit 1; fi
-	@cd $(TF_DIR)/$(APP) && terraform init
+tf-init: ## Terraform init (single root module)
+	@cd $(TF_DIR) && terraform init
 
-tf-plan: ## Terraform plan (APP=deployment_name)
-	@if [ -z "$(APP)" ]; then echo "ERROR: APP= is required (e.g., APP=grafana)"; exit 1; fi
-	@cd $(TF_DIR)/$(APP) && terraform plan
+tf-plan: ## Terraform plan (all OIDC apps)
+	@cd $(TF_DIR) && terraform plan
 
-tf-apply: ## Terraform apply with auto-approve (APP=deployment_name)
-	@if [ -z "$(APP)" ]; then echo "ERROR: APP= is required (e.g., APP=grafana)"; exit 1; fi
-	@cd $(TF_DIR)/$(APP) && terraform apply -auto-approve
+tf-apply: ## Terraform apply with auto-approve
+	@cd $(TF_DIR) && terraform apply -auto-approve
+
+tf-destroy: ## Terraform destroy (requires confirmation)
+	@cd $(TF_DIR) && terraform destroy
+
+# ============================================================================
+# SSO Validation Targets
+# ============================================================================
+
+iam-validate-sso: ## Run comprehensive OIDC SSO validation for all apps
+	@if [ -z "$(DOMAIN)" ]; then echo "ERROR: Cannot resolve domain from flux-domain-vars secret"; exit 1; fi
+	@bash scripts/iam-oidc-validate-all.sh
 

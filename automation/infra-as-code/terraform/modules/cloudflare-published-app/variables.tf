@@ -90,3 +90,9 @@ variable "fallback_service" {
   type        = string
   default     = "http_status:404"
 }
+
+variable "manage_tunnel_config" {
+  description = "Whether this module instance manages the tunnel config. Set to false when tunnel config is managed centrally (single root module pattern)."
+  type        = bool
+  default     = true
+}

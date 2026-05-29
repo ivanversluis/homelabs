@@ -70,3 +70,22 @@ spec:
     runner:
       existingSecret: semaphoreui-secrets
       tokenKey: token
+
+    # OIDC via Authentik
+    oidc:
+      enable: true
+      providers:
+        authentik:
+          display_name: "Sign in with Authentik"
+          provider_url: "https://auth.${DOMAIN}/application/o/semaphoreui/"
+          redirect_url: "https://demo-semaphore.${DOMAIN}/api/auth/oidc/redirect"
+          client_id_from_secret:
+            name: semaphoreui-oidc
+            key: client-id
+          client_secret_from_secret:
+            name: semaphoreui-oidc
+            key: client-secret
+          scopes: "openid profile email"
+          username_claim: "preferred_username"
+          name_claim: "name"
+          email_claim: "email"

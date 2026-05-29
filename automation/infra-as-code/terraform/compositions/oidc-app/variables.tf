@@ -162,3 +162,9 @@ variable "cf_access_policy_ids" {
   type        = list(string)
   default     = []
 }
+
+variable "cf_manage_tunnel_config" {
+  description = "Whether to manage the Cloudflare tunnel config from this module instance. Set to false when using a single root module that manages tunnel config centrally."
+  type        = bool
+  default     = true
+}

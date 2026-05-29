@@ -1,0 +1,26 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Longhorn NetworkPolicies for OIDC-proxied access via Kong
+# ─────────────────────────────────────────────────────────────────────────────
+# Longhorn UI has no native auth. Kong handles OIDC authentication and proxies
+# authenticated requests to the Longhorn frontend.
+# ─────────────────────────────────────────────────────────────────────────────
+---
+# Kong proxy -> Longhorn frontend (after OIDC validation)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kong-ingress
+  namespace: longhorn-system
+spec:
+  podSelector:
+    matchLabels:
+      app: longhorn-ui
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 8000

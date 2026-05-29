@@ -53,6 +53,17 @@ spec:
                 secretKeyRef:
                   name: forgejo-secrets
                   key: FORGEJO__oauth2__JWT_SECRET
+            # OIDC credentials from Vault via ExternalSecret
+            - name: FORGEJO__OIDC_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: forgejo-oidc
+                  key: client-id
+            - name: FORGEJO__OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: forgejo-oidc
+                  key: client-secret
           readinessProbe:
             httpGet:
               path: /api/healthz

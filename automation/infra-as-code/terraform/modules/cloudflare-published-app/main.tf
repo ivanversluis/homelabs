@@ -20,6 +20,8 @@ terraform {
 }
 
 data "cloudflare_zero_trust_tunnel_cloudflared_config" "existing" {
+  count = var.manage_tunnel_config ? 1 : 0
+
   account_id = var.account_id
   tunnel_id  = var.tunnel_id
 }
@@ -53,7 +55,7 @@ resource "cloudflare_zero_trust_access_application" "app" {
 }
 
 locals {
-  existing_ingress = try(data.cloudflare_zero_trust_tunnel_cloudflared_config.existing.config.ingress, [])
+  existing_ingress = var.manage_tunnel_config ? try(data.cloudflare_zero_trust_tunnel_cloudflared_config.existing[0].config.ingress, []) : []
 
   retained_ingress = [
     for rule in local.existing_ingress : rule
@@ -92,6 +94,8 @@ locals {
 }
 
 resource "cloudflare_zero_trust_tunnel_cloudflared_config" "published_apps" {
+  count = var.manage_tunnel_config ? 1 : 0
+
   account_id = var.account_id
   tunnel_id  = var.tunnel_id
 
