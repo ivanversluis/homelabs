@@ -24,3 +24,24 @@ spec:
       ports:
         - protocol: TCP
           port: 8000
+---
+# Cloudflare Tunnel -> Longhorn frontend (direct tunnel route for demo-longhorn.${DOMAIN})
+# Service port 80 → targetPort 8000 (post-DNAT)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-tunnel-ingress
+  namespace: longhorn-system
+spec:
+  podSelector:
+    matchLabels:
+      app: longhorn-ui
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cloudflared
+      ports:
+        - protocol: TCP
+          port: 8000

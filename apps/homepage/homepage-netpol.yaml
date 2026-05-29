@@ -74,3 +74,23 @@ spec:
           port: 8000
         - protocol: TCP
           port: 8443
+---
+# Cloudflare Tunnel -> Homepage (direct tunnel route, bypasses Kong)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-tunnel-ingress
+  namespace: homepage
+spec:
+  podSelector:
+    matchLabels:
+      app: homepage
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cloudflared
+      ports:
+        - protocol: TCP
+          port: 3000

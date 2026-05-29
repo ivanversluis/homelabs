@@ -209,3 +209,27 @@ spec:
           port: 8000   # Kong proxy HTTP (post-DNAT from service port 80)
         - protocol: TCP
           port: 8443   # Kong proxy HTTPS (post-DNAT from service port 443)
+    # Homepage — direct from tunnel (post-DNAT: service 80 → pod 3000)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: homepage
+      ports:
+        - protocol: TCP
+          port: 3000
+    # Open WebUI (ai namespace) — direct from tunnel (service port = container port 8080)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ai
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Homebox — direct from tunnel (post-DNAT: service 80 → pod 7745)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: homebox
+      ports:
+        - protocol: TCP
+          port: 7745
