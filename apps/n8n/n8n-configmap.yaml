@@ -13,7 +13,3 @@ data:
   N8N_BASIC_AUTH_ACTIVE: "false"
   TZ: Europe/Amsterdam
   GENERIC_TIMEZONE: Europe/Amsterdam
-  # OIDC SSO via Authentik
-  N8N_AUTH_TYPE: "oidc"
-  N8N_OIDC_ISSUER: "https://auth.${DOMAIN}/application/o/n8n/"
-  N8N_OIDC_CALLBACK_URL: "https://n8n.${DOMAIN}/rest/oauth2-credential/callback"

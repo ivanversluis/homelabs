@@ -6,7 +6,7 @@ module "oidc" {
   subdomain = "portainer"
   domain    = var.domain
 
-  redirect_uris = ["https://portainer.${var.domain}"]
+  redirect_uris = ["https://portainer.${var.domain}/"]
 
   groups       = {}
   entitlements = {}
