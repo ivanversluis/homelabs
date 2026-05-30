@@ -29,6 +29,11 @@ spec:
           env:
             - name: LD_DISABLE_BACKGROUND_TASKS
               value: "False"
+              # Reverse proxy / public URL handling
+            - name: LD_USE_X_FORWARDED_HOST
+              value: "true"
+            - name: LD_CSRF_TRUSTED_ORIGINS
+              value: "https://bookmarks.${DOMAIN}"
             # OIDC via Authentik
             - name: LD_ENABLE_OIDC
               value: "True"
