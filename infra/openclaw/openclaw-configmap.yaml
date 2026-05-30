@@ -3,6 +3,8 @@ kind: ConfigMap
 metadata:
   name: openclaw-config
   namespace: openclaw
+  annotations:
+    kustomize.toolkit.fluxcd.io/skip: "true"
 data:
   openclaw.json: |
     {
