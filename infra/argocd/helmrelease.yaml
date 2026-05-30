@@ -26,7 +26,7 @@ spec:
       install: true
       keep: false
     global:
-      domain: argocd.local
+      domain: demo-argocd.${DOMAIN}
     configs:
       cm:
         exec.enabled: "true"

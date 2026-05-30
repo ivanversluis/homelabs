@@ -7,7 +7,7 @@ module "oidc" {
   domain    = var.domain
 
   redirect_uris = [
-    "https://vault.${var.domain}/ui/vault/auth/oidc/oidc/callback",
+    "https://demo-vault.${var.domain}/ui/vault/auth/oidc/oidc/callback",
     "http://localhost:8250/oidc/callback",
   ]
 
