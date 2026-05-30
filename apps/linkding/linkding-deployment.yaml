@@ -42,12 +42,12 @@ spec:
               value: "https://auth.${DOMAIN}/application/o/linkding/jwks/"
             - name: OIDC_RP_SCOPES
               value: "openid email profile"
-            - name: OIDC_CLIENT_ID
+            - name: OIDC_RP_CLIENT_ID
               valueFrom:
                 secretKeyRef:
                   name: linkding-oidc
                   key: client-id
-            - name: OIDC_CLIENT_SECRET
+            - name: OIDC_RP_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: linkding-oidc
