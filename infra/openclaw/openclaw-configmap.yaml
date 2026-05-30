@@ -210,12 +210,12 @@ data:
 
     function buildAlertMessage(sev, sum, det) {
       const icon = (sev === SEV.ERROR || sev === SEV.CRITICAL) ? "\uD83D\uDD34" : "\uD83D\uDFE1";
-      let msg = `${icon} **K8s Alert** \u2014 Severity: **${sev.toUpperCase()}**\n`;
-      msg += `\n**Summary:** ${sum.criticalEvents} critical events | ${sum.unhealthyPods} unhealthy pods | ${sum.nodesNotReady} nodes not ready\n`;
+      let msg = `\${icon} **K8s Alert** \u2014 Severity: **\${sev.toUpperCase()}**\n`;
+      msg += `\n**Summary:** \${sum.criticalEvents} critical events | \${sum.unhealthyPods} unhealthy pods | \${sum.nodesNotReady} nodes not ready\n`;
       if (det.criticalEvents.length > 0) {
         msg += `\n**Critical Events:**\n`;
         det.criticalEvents.slice(0, 3).forEach((e) => {
-          msg += `\u2022 \`${e.name}\` (${e.namespace}) \u2014 ${e.reason}: ${String(e.message || "").substring(0, 100)} (${e.count || 1}\u00d7)\n`;
+          msg += `\u2022 \`\${e.name}\` (\${e.namespace}) \u2014 \${e.reason}: \${String(e.message || "").substring(0, 100)} (\${e.count || 1}\u00d7)\n`;
         });
       }
       if (det.badPods.length > 0) {
@@ -224,7 +224,7 @@ data:
           const reason = p.containers[0]?.state?.waiting?.reason
             || p.containers[0]?.state?.terminated?.reason
             || "unknown";
-          msg += `\u2022 \`${p.name}\` (${p.namespace}) \u2014 ${reason}\n`;
+          msg += `\u2022 \`\${p.name}\` (\${p.namespace}) \u2014 \${reason}\n`;
         });
       }
       return msg.substring(0, 2000);
