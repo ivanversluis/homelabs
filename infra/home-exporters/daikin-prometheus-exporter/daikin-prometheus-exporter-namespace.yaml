@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: home-exporters
+  labels:
+    app.kubernetes.io/name: daikin-prometheus-exporter
+    app.kubernetes.io/managed-by: flux

@@ -41,6 +41,7 @@ module "authentik" {
   authorization_flow_slug = var.authorization_flow_slug
   invalidation_flow_slug  = var.invalidation_flow_slug
   signing_key_name        = var.signing_key_name
+  grant_types             = var.grant_types
 }
 
 # ── Vault Secret ─────────────────────────────────────────────────────────────

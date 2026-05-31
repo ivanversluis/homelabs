@@ -223,8 +223,8 @@ echo -e "  GlobalNetworkPolicies: $GNP_COUNT"
 
 # Count per-namespace policies
 TOTAL_NP=0
-for ns in linkding n8n termix forgejo identity headlamp cloudflared vault \
-          external-secrets-system observability monitoring pihole dns \
+  for ns in linkding n8n termix forgejo identity headlamp cloudflared vault \
+    external-secrets-system observability monitoring pihole dns home-exporters \
           flux-system openclaw semaphoreui portainer \
           firewall-manager-dev firewall-manager-staging firewall-manager-prod \
           local-path-storage vms; do
@@ -387,6 +387,18 @@ test_ns() {
       flush_results
       ;;
 
+    home-exporters)
+      print_section "home-exporters — home climate exporter"
+      test_dns "$ns"
+      test_cross_ns_deny "$ns"
+      test_internet "$ns" 443 tcp allow
+      test_internet "$ns" 22 tcp deny
+      test_conn "$ns" "Prometheus scrape ingress TCP/9100 from observability" "allow" \
+        --labels app.kubernetes.io/name=daikin-prometheus-exporter \
+        nc -z -w "$TIMEOUT_ALLOW" daikin-prometheus-exporter.home-exporters.svc.cluster.local 9100
+      flush_results
+      ;;
+
     flux-system)
       # Note: Flux installs its own 'allow-egress' K8s NetworkPolicy with egress:[{}]
       # which permits all egress. TCP/80 is allowed despite our ns-flux-system.yaml restrictions.
@@ -540,7 +552,7 @@ test_ns() {
 }
 
 NAMESPACES=(linkding n8n termix forgejo identity headlamp cloudflared vault \
-            external-secrets-system observability monitoring pihole dns \
+            external-secrets-system observability monitoring pihole dns home-exporters \
             flux-system openclaw semaphoreui portainer argocd \
             cert-manager kong \
             firewall-manager-dev firewall-manager-staging firewall-manager-prod \
