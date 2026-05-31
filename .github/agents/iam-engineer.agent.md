@@ -1,7 +1,7 @@
 ---
 name: iam-engineer
 description: 'Use when: planning or implementing OIDC authentication flows, Authentik provider/application setup, Vault secret wiring for OAuth credentials, ExternalSecret configuration for OIDC, network policy requirements for OIDC traffic, and troubleshooting OIDC/OAuth failures in the homelab cluster.'
-tools:
+<!-- tools:
     [
         'read/readFile',
         'search',
@@ -14,7 +14,7 @@ tools:
         'todo',
         'web',
         'terminal',
-    ]
+    ] -->
 ---
 
 # IAM Engineer

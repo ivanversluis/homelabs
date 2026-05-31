@@ -27,7 +27,6 @@ variable "redirect_uris" {
   description = "OAuth2 redirect URIs (full URLs including scheme)"
   type        = list(string)
 }
-
 variable "groups" {
   description = "Map of Authentik group names to create (value = description)"
   type        = map(string)
@@ -167,4 +166,9 @@ variable "cf_manage_tunnel_config" {
   description = "Whether to manage the Cloudflare tunnel config from this module instance. Set to false when using a single root module that manages tunnel config centrally."
   type        = bool
   default     = true
+}
+variable "grant_types" {
+  description = "OAuth2 grant types supported by the provider"
+  type        = list(string)
+  default     = null
 }

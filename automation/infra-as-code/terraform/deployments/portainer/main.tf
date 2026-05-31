@@ -8,7 +8,10 @@ module "oidc" {
 
   redirect_uris = ["https://portainer.${var.domain}/"]
 
-  groups       = {}
+  groups = {
+    "Portainer Admins" = "Portainer administrators with full access"
+    "Portainer Users"  = "Portainer users with standard access"
+  }
   entitlements = {}
 
   vault_path_prefix = "infra"

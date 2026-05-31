@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: daikin-prometheus-exporter-config-file
+  namespace: home-exporters
+data:
+  config.yaml: |
+    daikin:
+      poll_interval: 600
+      metrics_port: 9100
+      token_file: /data/tokens.json

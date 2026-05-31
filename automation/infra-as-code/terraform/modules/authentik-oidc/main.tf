@@ -68,8 +68,34 @@ resource "authentik_provider_oauth2" "provider" {
   access_token_validity = var.access_token_validity
 
   lifecycle {
-    ignore_changes = [client_secret, client_id]
+    ignore_changes = [client_secret, client_id, logout_uri]
   }
+}
+
+# ── API Patch for Grant Types (Workaround) ───────────────────────────────────
+# The authentik_provider_oauth2 resource in v2026.2.0 does not natively support 
+# grant_types. We use a local-exec provisioner to patch the provider via the API.
+resource "terraform_data" "oauth2_provider_grant_types" {
+  count = var.grant_types != null ? 1 : 0
+
+  triggers_replace = [
+    join(",", var.grant_types)
+  ]
+
+  provisioner "local-exec" {
+    command = <<EOT
+export AUTHENTIK_URL=$(grep '^authentik_url' terraform.tfvars | awk -F '"' '{print $2}')
+export AUTHENTIK_TOKEN=$(grep '^authentik_token' terraform.tfvars | awk -F '"' '{print $2}')
+
+curl -X PATCH "$AUTHENTIK_URL/api/v3/providers/oauth2/${tonumber(authentik_provider_oauth2.provider.id)}/" \
+  -H "Authorization: Bearer $AUTHENTIK_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"grant_types": ${jsonencode(var.grant_types)}}' \
+  --fail --silent --show-error
+EOT
+  }
+
+  depends_on = [authentik_provider_oauth2.provider]
 }
 
 # ── Application ──────────────────────────────────────────────────────────────

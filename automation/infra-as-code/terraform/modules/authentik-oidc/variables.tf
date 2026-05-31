@@ -64,3 +64,8 @@ variable "access_token_validity" {
   type        = string
   default     = "minutes=5"
 }
+variable "grant_types" {
+  description = "OAuth2 grant types supported by the provider (bypasses terraform provider limitation via API patch)"
+  type        = list(string)
+  default     = null
+}

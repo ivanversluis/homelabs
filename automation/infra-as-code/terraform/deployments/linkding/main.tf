@@ -7,6 +7,7 @@ module "oidc" {
   domain    = var.domain
 
   redirect_uris = ["https://bookmarks.${var.domain}/oidc/callback/"]
+  grant_types   = ["authorization_code", "refresh_token"]
 
   groups       = {}
   entitlements = {}

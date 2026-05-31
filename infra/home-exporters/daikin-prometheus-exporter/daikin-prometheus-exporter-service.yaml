@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: daikin-prometheus-exporter
+  namespace: home-exporters
+  labels:
+    app: daikin-prometheus-exporter
+    app.kubernetes.io/name: daikin-prometheus-exporter
+spec:
+  type: ClusterIP
+  selector:
+    app: daikin-prometheus-exporter
+    app.kubernetes.io/name: daikin-prometheus-exporter
+  ports:
+    - name: metrics
+      port: 9100
+      targetPort: metrics

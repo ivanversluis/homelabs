@@ -15,7 +15,7 @@ locals {
   # The cloudflared egress policy uses the post-DNAT port (targetPort).
   managed_apps = {
     "grafana.${var.domain}"        = { service = "http://grafana.observability.svc.cluster.local:3000" }
-    "k8s.${var.domain}"            = { service = "http://headlamp.headlamp.svc.cluster.local:80" }
+    "headlamp.${var.domain}"            = { service = "http://headlamp.headlamp.svc.cluster.local:80" }
     "ai-chat.${var.domain}"        = { service = "http://openwebui.ai.svc.cluster.local:8080" }
     "demo-semaphore.${var.domain}" = { service = "http://semaphoreui.semaphoreui.svc.cluster.local:3000" }
     "demo-argocd.${var.domain}"    = { service = "http://argocd-server.argocd.svc.cluster.local:80" }

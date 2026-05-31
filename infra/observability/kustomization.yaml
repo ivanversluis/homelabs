@@ -39,6 +39,7 @@ resources:
   - grafana/dashboard-pihole-configmap.yaml
   - grafana/dashboard-pihole-client-configmap.yaml
   - grafana/dashboard-unbound-configmap.yaml
+  - grafana/dashboard-home-climate-configmap.yaml
   - grafana/deployment.yaml
   - grafana/service.yaml
   # Vault integration

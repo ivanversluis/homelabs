@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-home-climate
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: dashboard
+    grafana_dashboard: "true"
+data:
+  home-climate.json: |
+    {
+      "title": "Home Climate",
+      "uid": "home-climate",
+      "tags": ["home", "climate", "daikin"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": {"from": "now-6h", "to": "now"},
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Indoor Temp",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "avg(daikin_indoor_temperature_celsius)", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "celsius"}}
+        },
+        {
+          "type": "stat",
+          "title": "Target Temp",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "avg(daikin_target_temperature_celsius)", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "celsius"}}
+        },
+        {
+          "type": "stat",
+          "title": "Outdoor Temp",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "avg(daikin_outdoor_temperature_celsius)", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "celsius"}}
+        },
+        {
+          "type": "stat",
+          "title": "Units On",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "sum(daikin_is_on)", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "short"}}
+        },
+        {
+          "type": "timeseries",
+          "title": "Room Temperature",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "daikin_indoor_temperature_celsius", "legendFormat": "{{device_name}}", "refId": "A"}
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+          "fieldConfig": {"defaults": {"unit": "celsius"}}
+        },
+        {
+          "type": "timeseries",
+          "title": "Setpoint vs Outdoor",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "daikin_target_temperature_celsius", "legendFormat": "target - {{device_name}}", "refId": "A"},
+            {"expr": "daikin_outdoor_temperature_celsius", "legendFormat": "outdoor - {{device_name}}", "refId": "B"}
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+          "fieldConfig": {"defaults": {"unit": "celsius"}}
+        },
+        {
+          "type": "timeseries",
+          "title": "Operating Mode",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "daikin_operating_mode", "legendFormat": "{{device_name}}", "refId": "A"}
+          ],
+          "gridPos": {"h": 8, "w": 8, "x": 0, "y": 12},
+          "fieldConfig": {"defaults": {"unit": "none"}}
+        },
+        {
+          "type": "timeseries",
+          "title": "Fan Speed",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "daikin_fan_speed", "legendFormat": "{{device_name}}", "refId": "A"}
+          ],
+          "gridPos": {"h": 8, "w": 8, "x": 8, "y": 12},
+          "fieldConfig": {"defaults": {"unit": "short"}}
+        },
+        {
+          "type": "stat",
+          "title": "Scrape Errors",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "increase(daikin_scrape_errors_total[1d])", "refId": "A"}],
+          "gridPos": {"h": 8, "w": 4, "x": 16, "y": 12},
+          "fieldConfig": {"defaults": {"unit": "short"}}
+        },
+        {
+          "type": "stat",
+          "title": "Last Success",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "daikin_last_scrape_success_timestamp", "refId": "A"}],
+          "gridPos": {"h": 8, "w": 4, "x": 20, "y": 12},
+          "fieldConfig": {"defaults": {"unit": "dateTimeAsIso"}}
+        }
+      ]
+    }
