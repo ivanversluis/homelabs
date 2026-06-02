@@ -41,6 +41,8 @@ spec:
             - profile
             - email
             - groups
+      params:
+        server.insecure: "true"
       rbac:
         policy.csv: |
           p, role:admin, *, *, */*, allow
