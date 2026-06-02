@@ -167,6 +167,10 @@ Create the network policy file **co-located** with the component it belongs to:
 - For internet egress, always exclude RFC1918: `except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]`
 - Use specific `/32` CIDRs when targeting known external IPs (e.g., DoT upstreams)
 - If the workload has admission webhooks, the policy must be applied manually via `kubectl apply` first to break the chicken-and-egg deadlock with Flux
+- **Cloudflare Tunnel dual-policy rule (CRITICAL):** Exposing a workload via the Cloudflare Tunnel requires NetworkPolicy changes in TWO places:
+  1. In the **workload's own namespace** (`<name>-netpol.yaml`): add an `allow-tunnel-ingress` policy allowing ingress TCP on the service port from the `cloudflared` namespace.
+  2. In **`services/tunnel/cloudflare/k8s/cloudflared-netpol.yaml`**: add an egress rule in `allow-egress-proxied-services` for the new namespace/port. Omitting this causes an `i/o timeout` in cloudflared logs even though the workload policy looks correct. After editing this file, apply it immediately: `kubectl apply -f services/tunnel/cloudflare/k8s/cloudflared-netpol.yaml`
+  3. Add a cloudflared→workload connectivity test to `scripts/zero-trust-validate.sh` under the workload's test case (source namespace = `cloudflared`, label = `app=cloudflare-tunnel`).
 
 #### 6c. Registration
 - Add `<name>-netpol.yaml` to the component's own `kustomization.yaml` (right after the namespace resource)
@@ -403,12 +407,13 @@ Pod (needs OIDC) → CoreDNS resolves auth.${DOMAIN} → Kong ClusterIP
 **Checklist for adding OIDC to an existing app**:
 1. Create Authentik provider (OAuth2/OIDC) with the correct redirect URI — match exactly (scheme + path)
 2. Create Authentik application and assign the provider
-3. Add `OIDC_*` env vars via ExternalSecret (client ID + secret from Vault)
-4. Verify the Kong wildcard TLS cert uses `letsencrypt-prod` (not staging)
-5. Add `allow-egress-to-kong` policy to the app's netpol file (port 8443 for HTTPS)
-6. Add `allow-egress-dns` (port 53) so the OIDC issuer URL hostname resolves
-7. Restart the pod with `kubectl rollout restart` after policy changes
-8. Check pod logs for TLS/OIDC errors — Go clients log TLS failures to stderr
+3. **Set `grant_types = ["authorization_code", "refresh_token"]` in the deployment `main.tf`** — since Authentik 2026.x providers default to empty grant_types, which causes `Client ID Error`. The Terraform module uses a `local-exec` curl PATCH after creation; if a provider ends up with empty grant_types (visible in the Authentik provider edit UI with all checkboxes unchecked), fix it immediately: `curl -X PATCH "$AUTHENTIK_URL/api/v3/providers/oauth2/<id>/" -H "Authorization: Bearer $AUTHENTIK_TOKEN" -H "Content-Type: application/json" -d '{"grant_types": ["authorization_code","refresh_token"]}'`
+4. Add `OIDC_*` env vars via ExternalSecret (client ID + secret from Vault)
+5. Verify the Kong wildcard TLS cert uses `letsencrypt-prod` (not staging)
+6. Add `allow-egress-to-kong` policy to the app's netpol file (port 8443 for HTTPS)
+7. Add `allow-egress-dns` (port 53) so the OIDC issuer URL hostname resolves
+8. Restart the pod with `kubectl rollout restart` after policy changes
+9. Check pod logs for TLS/OIDC errors — Go clients log TLS failures to stderr
 
 **Reference implementations**: `infra/vault/vault-netpol.yaml`, `infra/headlamp/headlamp-netpol.yaml`, `apps/homebox/homebox-netpol.yaml`
 

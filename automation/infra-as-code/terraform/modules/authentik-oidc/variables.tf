@@ -67,5 +67,5 @@ variable "access_token_validity" {
 variable "grant_types" {
   description = "OAuth2 grant types supported by the provider (bypasses terraform provider limitation via API patch)"
   type        = list(string)
-  default     = null
+  default     = ["authorization_code", "refresh_token"]
 }

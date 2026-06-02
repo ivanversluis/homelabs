@@ -133,4 +133,10 @@ module "termix" {
   cloudflare_team_name  = local.cf.team_name
 }
 
-
+module "vaultwarden" {
+  source                = "./vaultwarden"
+  domain                = var.domain
+  cloudflare_account_id = local.cf.account_id
+  cloudflare_tunnel_id  = local.cf.tunnel_id
+  cloudflare_team_name  = local.cf.team_name
+}

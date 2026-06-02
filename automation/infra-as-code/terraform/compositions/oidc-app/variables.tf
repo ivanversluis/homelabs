@@ -170,5 +170,5 @@ variable "cf_manage_tunnel_config" {
 variable "grant_types" {
   description = "OAuth2 grant types supported by the provider"
   type        = list(string)
-  default     = null
+  default     = ["authorization_code", "refresh_token"]
 }

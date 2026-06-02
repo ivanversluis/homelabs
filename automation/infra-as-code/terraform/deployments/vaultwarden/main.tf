@@ -1,28 +1,24 @@
 module "oidc" {
   source = "../../compositions/oidc-app"
 
-  app_name  = "Forgejo"
-  app_slug  = "forgejo"
-  subdomain = "forgejo"
+  app_name  = "Vaultwarden"
+  app_slug  = "vaultwarden"
+  subdomain = "stargate"
   domain    = var.domain
 
-  redirect_uris = ["https://forgejo.${var.domain}/user/oauth2/authentik/callback"]
+  redirect_uris = [
+    "https://stargate.${var.domain}/identity/connect/oidc-signin",
+  ]
 
-  groups = {
-    "Forgejo Admins" = "Forgejo site administrators"
-    "Forgejo Users"  = "Regular Forgejo users"
-  }
-  entitlements = {
-    "Forgejo Admins" = "Maps to Forgejo site admin"
-    "Forgejo Users"  = "Maps to regular user access"
-  }
+  groups       = {}
+  entitlements = {}
 
   vault_path_prefix = "apps"
 
   cloudflare_account_id        = var.cloudflare_account_id
   cloudflare_tunnel_id         = var.cloudflare_tunnel_id
   cloudflare_team_name         = var.cloudflare_team_name
-  cf_origin_service            = "http://forgejo.forgejo.svc.cluster.local:3000"
+  cf_origin_service            = "http://vaultwarden.vaultwarden.svc.cluster.local:80"
   grant_types                  = ["authorization_code", "refresh_token"]
 
   cf_create_access_application = false

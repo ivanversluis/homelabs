@@ -1,0 +1,117 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vaultwarden
+  namespace: vaultwarden
+  labels:
+    app: vaultwarden
+spec:
+  replicas: 1
+  # SQLite is single-writer — Recreate prevents dual-attach on RWO PVC
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: vaultwarden
+  template:
+    metadata:
+      labels:
+        app: vaultwarden
+    spec:
+      enableServiceLinks: false
+      nodeSelector:
+        node.longhorn.io/create-default-disk: "true"
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: vaultwarden
+          image: ghcr.io/dani-garcia/vaultwarden:1.36.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            # ── Public URL (must match Cloudflare tunnel hostname) ──────────
+            - name: DOMAIN
+              value: "https://stargate.${DOMAIN}"
+            # ── Rocket web server ───────────────────────────────────────────
+            - name: ROCKET_PORT
+              value: "80"
+            # ── Sign-up & registration controls ────────────────────────────
+            - name: SIGNUPS_ALLOWED
+              value: "false"
+            - name: INVITATIONS_ALLOWED
+              value: "false"
+            - name: SHOW_PASSWORD_HINT
+              value: "false"
+            # ── Admin panel ─────────────────────────────────────────────────
+            - name: ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: vaultwarden-secret
+                  key: admin-token
+            # ── SSO / OIDC (Authentik) ──────────────────────────────────────
+            - name: SSO_ENABLED
+              value: "true"
+            - name: SSO_ONLY
+              value: "false"
+            - name: SSO_PKCE
+              value: "true"
+            - name: SSO_AUTHORITY
+              value: "https://auth.${DOMAIN}/application/o/vaultwarden/"
+            - name: SSO_SCOPES
+              value: "openid email profile"
+            - name: SSO_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: vaultwarden-secret
+                  key: client-id
+            - name: SSO_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: vaultwarden-secret
+                  key: client-secret
+            # ── Logging ─────────────────────────────────────────────────────
+            - name: LOG_LEVEL
+              value: "warn"
+            # ── Data path ───────────────────────────────────────────────────
+            - name: DATA_FOLDER
+              value: "/data"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          livenessProbe:
+            httpGet:
+              path: /alive
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /alive
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: vaultwarden-pvc

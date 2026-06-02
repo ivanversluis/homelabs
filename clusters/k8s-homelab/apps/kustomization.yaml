@@ -7,5 +7,6 @@ resources:
   - homepage-kustomization.yaml
   - homebox-kustomization.yaml
   - forgejo-kustomization.yaml
+  - vaultwarden-kustomization.yaml
   # VM workloads — depends on kubevirt + cdi Flux Kustomizations
   - vms-kustomization.yaml
