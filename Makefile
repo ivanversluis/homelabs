@@ -18,7 +18,7 @@ SHELL := /bin/bash
 # Resolve domain from cluster secret (never hardcode)
 DOMAIN := $(shell kubectl get secret flux-domain-vars -n flux-system -o jsonpath='{.data.DOMAIN}' 2>/dev/null | base64 -d)
 
-.PHONY: help iam-validate-oidc iam-validate-oidc-app zt-validate zt-validate-ns zt-cf tf-init tf-plan tf-apply
+.PHONY: help iam-validate-oidc iam-validate-oidc-app iam-patch-redirect-uris zt-validate zt-validate-ns zt-cf tf-init tf-plan tf-apply
 
 help: ## Show available targets
 	@echo "Usage: make <target> [options]"
@@ -27,6 +27,7 @@ help: ## Show available targets
 	@echo "  iam-validate-oidc              Validate all OIDC callback integrations"
 	@echo "  iam-validate-oidc-app APP=x    Validate OIDC for a single app"
 	@echo "  iam-validate-sso               Full SSO validation (all apps)"
+	@echo "  iam-patch-redirect-uris        Re-patch all Authentik redirect URIs (run after Authentik upgrades)"
 	@echo ""
 	@echo "Zero Trust Targets:"
 	@echo "  zt-validate                    Run network policy validation"
@@ -50,6 +51,9 @@ iam-validate-oidc: ## Validate all OIDC callback integrations
 iam-validate-oidc-app: ## Validate OIDC for a single app (APP=name)
 	@if [ -z "$(APP)" ]; then echo "ERROR: APP= is required"; exit 1; fi
 	@bash scripts/iam-oidc-callback-validation.sh --app $(APP)
+
+iam-patch-redirect-uris: ## Re-patch all Authentik redirect_uris (run after Authentik upgrades)
+	@bash scripts/iam-patch-authentik-redirect-uris.sh
 
 # ============================================================================
 # Zero Trust Targets
