@@ -82,7 +82,7 @@ spec:
         authentik:
           display_name: "Sign in with Authentik"
           provider_url: "https://auth.${DOMAIN}/application/o/semaphoreui/"
-          redirect_url: "https://demo-semaphore.${DOMAIN}/api/auth/oidc/authentik/redirect"
+          redirect_url: "https://demo-semaphoreui.${DOMAIN}/api/auth/oidc/authentik/redirect"
           scopes:
             - openid
             - profile
