@@ -1,0 +1,99 @@
+---
+# ── DNS: All pods can resolve cluster DNS ───────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-dns
+  namespace: vaultwarden
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# ── Same-namespace pods can talk to each other ───────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: vaultwarden
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+---
+# ── Kong → Vaultwarden (Ingress route) ─────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kong-ingress
+  namespace: vaultwarden
+spec:
+  podSelector:
+    matchLabels:
+      app: vaultwarden
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 80
+---
+# ── Cloudflare Tunnel → Vaultwarden (direct tunnel route) ──────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-tunnel-ingress
+  namespace: vaultwarden
+spec:
+  podSelector:
+    matchLabels:
+      app: vaultwarden
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cloudflared
+      ports:
+        - protocol: TCP
+          port: 80
+---
+# ── Vaultwarden → Kong (OIDC discovery via split-brain DNS) ─────────────────
+# Calico evaluates after DNAT: Kong service 80→8000, 443→8443 (container ports)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-to-kong
+  namespace: vaultwarden
+spec:
+  podSelector:
+    matchLabels:
+      app: vaultwarden
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 8000
+        - protocol: TCP
+          port: 8443

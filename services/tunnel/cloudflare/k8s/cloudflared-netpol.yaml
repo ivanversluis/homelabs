@@ -233,3 +233,11 @@ spec:
       ports:
         - protocol: TCP
           port: 7745
+    # Vaultwarden — password manager exposed via tunnel on port 80
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: vaultwarden
+      ports:
+        - protocol: TCP
+          port: 80

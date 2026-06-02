@@ -76,7 +76,7 @@ resource "authentik_provider_oauth2" "provider" {
 # The authentik_provider_oauth2 resource in v2026.2.0 does not natively support 
 # grant_types. We use a local-exec provisioner to patch the provider via the API.
 resource "terraform_data" "oauth2_provider_grant_types" {
-  count = var.grant_types != null ? 1 : 0
+  count = length(var.grant_types) > 0 ? 1 : 0
 
   triggers_replace = [
     join(",", var.grant_types)

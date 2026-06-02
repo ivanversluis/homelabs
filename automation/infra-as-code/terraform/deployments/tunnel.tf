@@ -28,6 +28,7 @@ locals {
     "n8n.${var.domain}"            = { service = "http://n8n.n8n.svc.cluster.local:80" }
     "bookmarks.${var.domain}"      = { service = "http://linkding.linkding.svc.cluster.local:9090" }
     "demo-termix.${var.domain}"    = { service = "http://termix.termix.svc.cluster.local:3000" }
+    "stargate.${var.domain}"       = { service = "http://vaultwarden.vaultwarden.svc.cluster.local:80" }
   }
 
   managed_hostnames = keys(local.managed_apps)

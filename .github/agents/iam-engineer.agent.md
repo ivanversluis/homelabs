@@ -217,6 +217,7 @@ make iam validate-oidc
   - Trailing slash mismatch (`/callback` vs `/callback/`)
 - **AUTHENTIK_HOST_BROWSER**: Must be set to the external domain in Authentik's deployment so that issued tokens reference the correct issuer URL.
 - **Provider slug = path segment**: The OIDC discovery URL is `https://auth.${DOMAIN}/application/o/<slug>/.well-known/openid-configuration`. The slug is set when creating the Application in Authentik (not the Provider).
+- **`grant_types` must be explicitly set (CRITICAL)**: Since Authentik 2026.x, newly created OAuth2 providers default to an **empty `grant_types` list**, causing a `Client ID Error` on the authorization screen. The Terraform `authentik-oidc` module applies grant types via a `local-exec` curl PATCH to the Authentik API after provider creation. **Every deployment `main.tf` MUST include `grant_types = ["authorization_code", "refresh_token"]`**. The module default is now set to these two types, so omitting the argument still works — but being explicit is required for apps that need only specific flows. If you see `Client ID Error` in Authentik, check: `curl -s -H "Authorization: Bearer $AUTHENTIK_TOKEN" "$AUTHENTIK_URL/api/v3/providers/oauth2/<id>/" | python3 -c "import sys,json; print(json.load(sys.stdin)['grant_types'])"`. Fix: `curl -X PATCH "$AUTHENTIK_URL/api/v3/providers/oauth2/<id>/" -H "Authorization: Bearer $AUTHENTIK_TOKEN" -H "Content-Type: application/json" -d '{"grant_types": ["authorization_code","refresh_token"]}'`.
 
 ### Application-Specific Notes
 - **Homebox**: Uses `HBOX_OIDC_*` env vars (not the old `HBOX_AUTH_OIDC_*`). Only has `latest` image tag — use `imagePullPolicy: Always`. Must use `kubectl replace` (not apply) to remove stale env vars.
@@ -278,16 +279,16 @@ automation/infra-as-code/terraform/
     └── vault/                 # Vault config (prometheus token, policies)
 ```
 
-### Workflow: Adding OIDC to a New App via Terraform
-
+**Checklist for adding OIDC to a New App via Terraform**
 1. Create a new directory under `deployments/<app-name>/`
 2. Call the `oidc-app` composition module with app-specific variables
-3. Run `make tf-init APP=<app-name> && make tf-plan APP=<app-name>`
-4. Review plan, then `make tf-apply APP=<app-name>`
-5. Terraform creates: Authentik provider + app + groups + entitlements, Vault secret + ESO policy, Cloudflare published route on the existing tunnel, and an optional Cloudflare Access app
-6. ExternalSecret syncs from Vault → Kubernetes Secret (no manual step)
-7. NetworkPolicy must still be committed as part of the app's kustomize manifests
-8. Validate: `make iam-validate-oidc-app APP=<app-name>`
+3. **Always include `grant_types = ["authorization_code", "refresh_token"]`** — even though the module default now sets this, being explicit prevents the `Client ID Error` if the default is ever changed
+4. Run `make tf-init APP=<app-name> && make tf-plan APP=<app-name>`
+5. Review plan, then `make tf-apply APP=<app-name>`
+6. Terraform creates: Authentik provider + app + groups + entitlements, Vault secret + ESO policy, Cloudflare published route on the existing tunnel, and an optional Cloudflare Access app
+7. ExternalSecret syncs from Vault → Kubernetes Secret (no manual step)
+8. NetworkPolicy must still be committed as part of the app's kustomize manifests
+9. Validate: `make iam-validate-oidc-app APP=<app-name>`
 
 ### Cloudflare Caveat: Tunnel Config Is Shared State
 

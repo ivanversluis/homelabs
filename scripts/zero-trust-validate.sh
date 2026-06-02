@@ -227,7 +227,7 @@ TOTAL_NP=0
     external-secrets-system observability monitoring pihole dns home-exporters \
           flux-system openclaw semaphoreui portainer \
           firewall-manager-dev firewall-manager-staging firewall-manager-prod \
-          local-path-storage vms; do
+          local-path-storage vms vaultwarden; do
   c=$(kubectl get networkpolicies -n "$ns" --no-headers 2>/dev/null | wc -l)
   TOTAL_NP=$((TOTAL_NP + c))
 done
@@ -501,6 +501,24 @@ test_ns() {
       flush_results
       ;;
 
+    vaultwarden)
+      print_section "vaultwarden — password manager, no internet egress"
+      test_dns "$ns"
+      test_cross_ns_deny "$ns"
+      # No internet egress allowed — data stays in-cluster
+      test_internet "$ns" 443 tcp deny
+      test_internet "$ns" 80 tcp deny
+      # Kong must be able to reach vaultwarden
+      test_conn "$ns" "Kong ingress TCP/80" "allow" \
+        --labels "app=vaultwarden" \
+        nc -z -w "$TIMEOUT_ALLOW" "vaultwarden.vaultwarden.svc.cluster.local" 80
+      # Cloudflare tunnel must be able to reach vaultwarden (stargate route)
+      test_conn "cloudflared" "Tunnel egress to vaultwarden:80" "allow" \
+        --labels "app=cloudflare-tunnel" \
+        nc -z -w "$TIMEOUT_ALLOW" "vaultwarden.vaultwarden.svc.cluster.local" 80
+      flush_results
+      ;;
+
     ai)
       print_section "ai — Open WebUI + kubernetes-mcpo + nmap-mcpo"
       test_dns "$ns"
@@ -556,7 +574,7 @@ NAMESPACES=(linkding n8n termix forgejo identity headlamp cloudflared vault \
             flux-system openclaw semaphoreui portainer argocd \
             cert-manager kong \
             firewall-manager-dev firewall-manager-staging firewall-manager-prod \
-            ai local-path-storage vms)
+            ai local-path-storage vms vaultwarden)
 
 for ns in "${NAMESPACES[@]}"; do
   test_ns "$ns"
