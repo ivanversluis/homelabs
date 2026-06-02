@@ -172,6 +172,11 @@ variable "grant_types" {
   type        = list(string)
   default     = ["authorization_code", "refresh_token"]
 }
+variable "sub_mode" {
+  description = "OIDC sub claim mode (hashed_user_id, user_username, user_email, user_id, user_uuid)"
+  type        = string
+  default     = "hashed_user_id"
+}
 variable "access_token_validity" {
   description = "Access token validity duration (e.g. 'minutes=5', 'hours=1')"
   type        = string

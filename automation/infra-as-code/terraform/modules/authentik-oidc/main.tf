@@ -66,6 +66,7 @@ resource "authentik_provider_oauth2" "provider" {
   ]
 
   access_token_validity = var.access_token_validity
+  sub_mode              = var.sub_mode
 
   lifecycle {
     ignore_changes = [client_secret, client_id, logout_uri]

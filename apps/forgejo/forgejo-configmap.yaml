@@ -16,5 +16,7 @@ data:
   FORGEJO__openid__ENABLE_OPENID_SIGNIN: "false"
   FORGEJO__openid__ENABLE_OPENID_SIGNUP: "false"
   # Allow external OAuth2 registration so Authentik users can log in and get a Forgejo account
-  FORGEJO__service__ALLOW_ONLY_EXTERNAL_REGISTRATION: "false"
+  # Setting to true auto-creates accounts for new OIDC users (skips link_account page)
+  # Existing local users (e.g. ivan) can still log in with password as fallback
+  FORGEJO__service__ALLOW_ONLY_EXTERNAL_REGISTRATION: "true"
   FORGEJO__service__ENABLE_NOTIFY_MAIL: "false"

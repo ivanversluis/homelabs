@@ -8,7 +8,6 @@ module "oidc" {
 
   redirect_uris = [
     "https://headlamp.${var.domain}/oidc/callback",
-    "https://k8s.${var.domain}/oidc/callback",
   ]
 
   groups = {
