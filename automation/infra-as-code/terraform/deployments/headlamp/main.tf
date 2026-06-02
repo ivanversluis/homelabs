@@ -7,7 +7,7 @@ module "oidc" {
   domain    = var.domain
 
   redirect_uris = [
-    "https://headlamp.${var.domain}/oidc/callback",
+    "https://headlamp.${var.domain}/oidc-callback",
   ]
 
   groups = {
@@ -22,7 +22,7 @@ module "oidc" {
   vault_path_prefix = "infra"
   extra_vault_data = {
     "idp-issuer-url"    = "https://auth.${var.domain}/application/o/headlamp/"
-    "oidc-callback-url" = "https://headlamp.${var.domain}/oidc/callback"
+    "oidc-callback-url" = "https://headlamp.${var.domain}/oidc-callback"
   }
 
   cloudflare_account_id        = var.cloudflare_account_id

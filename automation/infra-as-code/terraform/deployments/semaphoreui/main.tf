@@ -3,10 +3,10 @@ module "oidc" {
 
   app_name  = "SemaphoreUI"
   app_slug  = "semaphoreui"
-  subdomain = "demo-semaphore"
+  subdomain = "demo-semaphoreui"
   domain    = var.domain
 
-  redirect_uris = ["https://demo-semaphore.${var.domain}/api/auth/oidc/redirect"]
+  redirect_uris = ["https://demo-semaphoreui.${var.domain}/api/auth/oidc/redirect"]
 
   groups = {
     "Semaphore Admins" = "SemaphoreUI administrators with full access"
