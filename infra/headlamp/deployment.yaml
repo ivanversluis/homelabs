@@ -41,6 +41,11 @@ spec:
             - -in-cluster
             - -plugins-dir=/headlamp/plugins
             - -log-level=debug
+            - -oidc-client-id=$(HEADLAMP_CONFIG_OIDC_CLIENT_ID)
+            - -oidc-client-secret=$(HEADLAMP_CONFIG_OIDC_CLIENT_SECRET)
+            - -oidc-idp-issuer-url=$(HEADLAMP_CONFIG_OIDC_IDP_ISSUER_URL)
+            - -oidc-callback-url=$(HEADLAMP_CONFIG_OIDC_CALLBACK_URL)
+            - -oidc-scopes=$(HEADLAMP_CONFIG_OIDC_SCOPES)
           env:
             - name: HEADLAMP_CONFIG_OIDC_CLIENT_ID
               valueFrom:
