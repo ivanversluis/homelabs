@@ -52,7 +52,9 @@ spec:
             - name: OIDC_ALLOW_REGISTRATION
               value: "true"
             - name: OIDC_SCOPES
-              value: "openid email profile"
+              value: "openid email profile offline_access"
+            - name: OIDC_CALLBACK_URL
+              value: "https://demo-termix.${DOMAIN}/users/oidc/callback"
           readinessProbe:
             httpGet:
               path: /

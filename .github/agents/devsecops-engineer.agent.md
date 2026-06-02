@@ -47,6 +47,7 @@ Primary mission:
 15. **Every new deployment MUST include a Zero Trust NetworkPolicy file.** No namespace may be deployed without corresponding network policies. See the Zero Trust section below.
 16. **Every new deployment MUST be added to the validation script** `scripts/zero-trust-validate.sh` with appropriate test cases.
 17. **NEVER hardcode the cluster domain name in any repo file** — not in manifests, comments, or documentation. Always use the Flux substitution variable `${DOMAIN}`. The actual domain is a runtime secret read by Flux from the `flux-domain-vars` Secret (sourced from Vault). If a file must reference the domain without Flux (e.g., a script), read it from the cluster at runtime: `kubectl get secret flux-domain-vars -n flux-system -o jsonpath='{.data.DOMAIN}' | base64 -d`. Violations in comments are just as important to fix as violations in values.
+18. **NEVER `kubectl apply` a Flux-managed resource that contains `${DOMAIN}` placeholders** — Flux performs `postBuild.substituteFrom` before applying. A direct `kubectl apply` applies the file with the literal `${DOMAIN}` string, which overwrites the live (substituted) value and will crash apps that try to parse it as a URL. Use `kubectl patch` with explicit values instead (e.g., `kubectl patch configmap <name> -n <ns> --type merge -p '{"data": {"KEY": "value"}}'`).
 
 ## Canonical References In This Repo
 
@@ -408,7 +409,9 @@ Pod (needs OIDC) → CoreDNS resolves auth.${DOMAIN} → Kong ClusterIP
 1. Create Authentik provider (OAuth2/OIDC) with the correct redirect URI — match exactly (scheme + path)
 2. Create Authentik application and assign the provider
 3. **Set `grant_types = ["authorization_code", "refresh_token"]` in the deployment `main.tf`** — since Authentik 2026.x providers default to empty grant_types, which causes `Client ID Error`. The Terraform module uses a `local-exec` curl PATCH after creation; if a provider ends up with empty grant_types (visible in the Authentik provider edit UI with all checkboxes unchecked), fix it immediately: `curl -X PATCH "$AUTHENTIK_URL/api/v3/providers/oauth2/<id>/" -H "Authorization: Bearer $AUTHENTIK_TOKEN" -H "Content-Type: application/json" -d '{"grant_types": ["authorization_code","refresh_token"]}'`
-4. Add `OIDC_*` env vars via ExternalSecret (client ID + secret from Vault)
+4. **Verify `email_verified` claim (CRITICAL for Vaultwarden and strict OIDC apps)**: Authentik's managed `email` scope hardcodes `email_verified: False`. Apps like Vaultwarden reject logins with "You need to verify your email with your provider". The fix is managed via `authentik_property_mapping_provider_scope.email_verified_fix` in `deployments/main.tf` — run `terraform apply` to reapply if an Authentik upgrade resets it.
+5. **Check `redirect_uris` in Authentik after every Authentik upgrade**: Upgrades (especially major versions) may clear all `redirect_uris` from OAuth2 providers. `terraform plan` will show NO changes (Terraform state retains the values as `sensitive value` and doesn't detect drift). Symptom: `Redirect URI Error` page for every app. Fix: API PATCH using the `redirect_uris` field: `curl -X PATCH "$AURL/api/v3/providers/oauth2/<id>/" -d '{"redirect_uris": [{"matching_mode": "strict", "url": "..."}]}'`.
+6. Add `OIDC_*` env vars via ExternalSecret (client ID + secret from Vault)
 5. Verify the Kong wildcard TLS cert uses `letsencrypt-prod` (not staging)
 6. Add `allow-egress-to-kong` policy to the app's netpol file (port 8443 for HTTPS)
 7. Add `allow-egress-dns` (port 53) so the OIDC issuer URL hostname resolves

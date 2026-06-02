@@ -12,14 +12,19 @@
 #   5. Requests are proxied to longhorn-frontend:8000
 # ─────────────────────────────────────────────────────────────────────────────
 ---
+# NOTE: Kong OSS does not support the openid-connect plugin.
+# Authentication is delegated to Cloudflare Zero Trust Access (cf_create_access_application=true
+# in Terraform) which enforces authentication before traffic reaches Kong/Longhorn.
+# When Kong Enterprise becomes available, add the KongPlugin below and the annotation.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: longhorn-oidc
   namespace: longhorn-system
   annotations:
-    konghq.com/plugins: longhorn-oidc-auth
     konghq.com/strip-path: "false"
+    # Uncomment when Kong Enterprise openid-connect plugin is available:
+    # konghq.com/plugins: longhorn-oidc-auth
 spec:
   ingressClassName: kong
   rules:
@@ -33,10 +38,6 @@ spec:
                 name: longhorn-frontend
                 port:
                   number: 80
-  tls:
-    - hosts:
-        - "storage.${DOMAIN}"
-      secretName: wildcard-tls
 ---
 # Kong OpenID Connect plugin configuration.
 # NOTE: Kong OSS does not include the openid-connect plugin — it requires Kong

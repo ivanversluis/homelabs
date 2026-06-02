@@ -16,6 +16,21 @@ locals {
   }
 }
 
+# ── Global Authentik Scope Mapping Fixes ─────────────────────────────────────
+# Authentik's managed 'email' scope defaults to email_verified: False.
+# This causes Vaultwarden (and any app checking email_verified) to reject logins
+# with "You need to verify your email with your provider". Patch it to True.
+resource "authentik_property_mapping_provider_scope" "email_verified_fix" {
+  name       = "authentik default OAuth Mapping: OpenID 'email'"
+  scope_name = "email"
+  expression = <<-EOT
+    return {
+        "email": request.user.email,
+        "email_verified": True
+    }
+  EOT
+}
+
 # ── Infrastructure Applications ──────────────────────────────────────────────
 
 module "grafana" {

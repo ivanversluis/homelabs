@@ -6,7 +6,10 @@ module "oidc" {
   subdomain = "headlamp"
   domain    = var.domain
 
-  redirect_uris = ["https://headlamp.${var.domain}/oidc/callback"]
+  redirect_uris = [
+    "https://headlamp.${var.domain}/oidc/callback",
+    "https://k8s.${var.domain}/oidc/callback",
+  ]
 
   groups = {
     "Headlamp Admins"  = "Full cluster-admin access via Headlamp"

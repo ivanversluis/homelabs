@@ -23,7 +23,7 @@ module "oidc" {
   cf_origin_service            = "http://kong-kong-proxy.kong.svc.cluster.local:80"
   grant_types                  = ["authorization_code", "refresh_token"]
 
-  cf_create_access_application = false
+  cf_create_access_application = true
   cf_manage_tunnel_config      = false
   cf_skip_interstitial         = true
   cf_app_launcher_visible      = true

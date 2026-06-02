@@ -11,8 +11,10 @@ data:
   FORGEJO__server__HTTP_PORT: "3000"
   FORGEJO__server__START_SSH_SERVER: "false"
   FORGEJO__server__ROOT_URL: "https://forgejo.${DOMAIN}"
-  # OAuth2 / OIDC via Authentik
-  FORGEJO__openid__ENABLE_OPENID_SIGNIN: "true"
-  FORGEJO__openid__ENABLE_OPENID_SIGNUP: "true"
+  # OAuth2 / OIDC via Authentik — auth source registered in DB via gitea admin auth add-oauth
+  # Disable legacy OpenID 2.0 sign-in (shows "Enter your OpenID URI" prompt — not OIDC)
+  FORGEJO__openid__ENABLE_OPENID_SIGNIN: "false"
+  FORGEJO__openid__ENABLE_OPENID_SIGNUP: "false"
+  # Allow external OAuth2 registration so Authentik users can log in and get a Forgejo account
   FORGEJO__service__ALLOW_ONLY_EXTERNAL_REGISTRATION: "false"
   FORGEJO__service__ENABLE_NOTIFY_MAIL: "false"
