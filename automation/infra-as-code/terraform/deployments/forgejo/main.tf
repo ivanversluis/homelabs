@@ -7,6 +7,7 @@ module "oidc" {
   domain    = var.domain
 
   redirect_uris = ["https://forgejo.${var.domain}/user/oauth2/authentik/callback"]
+  sub_mode      = "user_username"
 
   groups = {
     "Forgejo Admins" = "Forgejo site administrators"

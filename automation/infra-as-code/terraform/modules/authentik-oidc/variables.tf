@@ -69,3 +69,9 @@ variable "grant_types" {
   type        = list(string)
   default     = ["authorization_code", "refresh_token"]
 }
+
+variable "sub_mode" {
+  description = "OIDC sub claim mode. Options: hashed_user_id (default, privacy-preserving), user_username, user_email, user_id, user_uuid. Use user_username when the app links accounts by username (e.g. Forgejo)."
+  type        = string
+  default     = "hashed_user_id"
+}
