@@ -19,6 +19,10 @@ spec:
   upgrade:
     remediation:
       retries: 5
+  valuesFrom:
+    - kind: Secret
+      name: semaphoreui-oidc
+      valuesKey: values.yaml   # Flux merges this on top of .spec.values
   values:
     replicaCount: 1
 
@@ -79,8 +83,6 @@ spec:
           display_name: "Sign in with Authentik"
           provider_url: "https://auth.${DOMAIN}/application/o/semaphoreui/"
           redirect_url: "https://demo-semaphore.${DOMAIN}/api/auth/oidc/authentik/redirect"
-          client_id: "placeholder"        # required so chart includes the key in config.json
-          client_secret: "placeholder"    # will be overridden by env var below
           scopes:
             - openid
             - profile
@@ -88,15 +90,3 @@ spec:
           username_claim: "preferred_username"
           name_claim: "name"
           email_claim: "email"
-
-    extraEnv:
-      - name: SEMAPHORE_OIDC_PROVIDERS_AUTHENTIK_CLIENT_ID
-        valueFrom:
-          secretKeyRef:
-            name: semaphoreui-oidc
-            key: client-id
-      - name: SEMAPHORE_OIDC_PROVIDERS_AUTHENTIK_CLIENT_SECRET
-        valueFrom:
-          secretKeyRef:
-            name: semaphoreui-oidc
-            key: client-secret
