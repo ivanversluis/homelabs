@@ -22,19 +22,23 @@ OpenClaw is deployed as Kubernetes manifests under `infra/openclaw` (Flux-manage
 - ConfigMap for `openclaw.json`, `AGENTS.md`, and `k8s-monitor.js`
 
 ## Vault secret requirements
-Store the OpenClaw secret at path `infra/openclaw` in Vault with these properties:
+Store the OpenClaw runtime secret at path `infra/openclaw` in Vault with these properties:
 
 - `OPENCLAW_GATEWAY_TOKEN` (required)
 - `DISCORD_TOKEN` (required)
 - `DISCORD_BOT_TOKEN` is injected into the pod from `DISCORD_TOKEN` for OpenClaw's Discord send path
-- `OPENROUTER_API_KEY` (required — primary/default LLM provider)
+- `OPENROUTER_API_KEY` (optional fallback LLM provider)
 - `AZURE_API_KEY` (required — Azure AI Foundry / Cognitive Services primary key)
 - `AZURE_RESOURCE_NAME` (required — the resource name portion of the FQDN, e.g. `aifoundry-openclaw-dev` for `aifoundry-openclaw-dev.cognitiveservices.azure.com`; kept out of the repo)
 - `OPENCLAW_ALLOWED_ORIGINS` (required when binding gateway on LAN; comma-separated origins)
 - `OPENCLAW_TRUSTED_PROXIES` (recommended behind Cloudflare Tunnel; comma-separated CIDRs)
 
-OpenRouter (`openrouter/free`) is the default model. Azure AI Foundry is auto-discovered
-as the `azure` provider via the standard `AZURE_API_KEY` and `AZURE_RESOURCE_NAME` env vars.
+- `CODEX` (required — Codex/OpenAI auth material)
+
+OpenAI Codex (`openai/gpt-5.5`) is the default model. The deployment seeds the
+main OpenClaw agent auth profile from the Vault `CODEX` property without logging
+the secret. Azure AI Foundry is auto-discovered as the `azure` provider via the
+standard `AZURE_API_KEY` and `AZURE_RESOURCE_NAME` env vars.
 Models show up as `azure/gpt-4o-mini` and `azure/phi-4` in the UI/CLI.
 
 Retrieve the Azure API key from Terraform output (sensitive):
@@ -53,6 +57,12 @@ vault kv put kv/infra/openclaw \
   OPENROUTER_API_KEY="<openrouter-api-key>" \
   OPENCLAW_ALLOWED_ORIGINS="https://openclaw.$DOMAIN$,http://127.0.0.1:18789,http://localhost:18789" \
   OPENCLAW_TRUSTED_PROXIES="10.244.0.0/16"
+```
+
+Add or rotate the Codex auth material in the same Vault secret:
+
+```bash
+vault kv patch secret/infra/openclaw CODEX="<codex-auth-or-api-key>"
 ```
 
 To switch the active model to Azure, use the OpenClaw UI model picker or:
