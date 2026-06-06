@@ -99,8 +99,32 @@ spec:
                 const t = Date.parse(v);
                 return Number.isFinite(t) ? t : undefined;
               }
+              function normalizeProfile(p) {
+                if (!p || typeof p !== "object") return p;
+                const next = { ...p };
+                if (next.type === "apikey") next.type = "api_key";
+                if (next.apiKey && !next.key) next.key = next.apiKey;
+                if (next.access_token && !next.access) next.access = next.access_token;
+                if (next.refresh_token && !next.refresh) next.refresh = next.refresh_token;
+                if (!next.type && (next.access && next.refresh)) next.type = "oauth";
+                if (!next.type && (next.key || next.keyRef)) next.type = "api_key";
+                if (!next.provider) next.provider = "openai";
+                return next;
+              }
+              function validProfile(p) {
+                if (!p || typeof p !== "object" || typeof p.provider !== "string") return false;
+                if (p.type === "api_key") return !!(p.key || p.keyRef);
+                if (p.type === "token") return !!(p.token || p.tokenRef);
+                if (p.type === "oauth") return !!(p.access && p.refresh);
+                return false;
+              }
 
               const auth = readJson(authPath, { version: 1, profiles: {}, lastGood: {}, usageStats: {} });
+              auth.profiles = Object.fromEntries(
+                Object.entries(auth.profiles || {})
+                  .map(([id, profile]) => [id, normalizeProfile(profile)])
+                  .filter(([, profile]) => validProfile(profile))
+              );
               const profileId = "openai:codex";
 
               let parsed = null;
@@ -108,6 +132,11 @@ spec:
 
               if (parsed && parsed.profiles && typeof parsed.profiles === "object") {
                 auth.profiles = { ...auth.profiles, ...parsed.profiles };
+                auth.profiles = Object.fromEntries(
+                  Object.entries(auth.profiles || {})
+                    .map(([id, profile]) => [id, normalizeProfile(profile)])
+                    .filter(([, profile]) => validProfile(profile))
+                );
                 auth.lastGood = { ...auth.lastGood, ...(parsed.lastGood || {}) };
                 auth.usageStats = { ...auth.usageStats, ...(parsed.usageStats || {}) };
                 if (!auth.profiles[profileId]) {
@@ -133,7 +162,8 @@ spec:
                     provider: "openai",
                     access,
                     refresh,
-                    expires: expiry(tokens.expires || tokens.expires_at || tokens.expiry || parsed.expires_at),
+                    expires: expiry(tokens.expires || tokens.expires_at || tokens.expiry || parsed.expires_at)
+                      || Date.now() + 15 * 60 * 1000,
                     accountId: tokens.accountId || tokens.account_id || parsed.accountId || parsed.account_id,
                     email: tokens.email || parsed.email,
                   };
