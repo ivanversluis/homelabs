@@ -117,3 +117,25 @@ spec:
           port: 8000
         - protocol: TCP
           port: 8443
+
+---
+# Portainer -> Agent of pi4 
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-to-portainer-agents
+  namespace: portainer
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 172.16.21.100/32
+    - to:
+        - ipBlock:
+            cidr: 192.168.200.2/32
+      ports:
+        - protocol: TCP
+          port: 9001
+
