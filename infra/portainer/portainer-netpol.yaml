@@ -119,7 +119,7 @@ spec:
           port: 8443
 
 ---
-# Portainer -> Agent of pi4 
+# Portainer -> Agents
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
