@@ -107,8 +107,14 @@ The `#homelab` channel ID is hardcoded in the skill as `1498285999552204810`.
 
 
 
-The k8s-monitor skill calls the Kubernetes API directly using the pod's service
-account (no `kubectl` binary needed). Use the helper script to test it:
+The k8s-monitor script calls the Kubernetes API directly using the pod's service
+account (no `kubectl` binary needed). It is scheduled by the
+`openclaw-k8s-monitor` Kubernetes CronJob every 4 hours. Do not schedule this
+through OpenClaw cron, because that wakes an LLM agent and wastes tokens for a
+deterministic health check. Each run posts a Discord status message; non-ok
+reports still fail the Kubernetes Job if Discord delivery fails.
+
+Use the helper script to test it:
 
 ```bash
 ./scripts/openclaw-k8s-monitor-report.sh
@@ -119,8 +125,9 @@ Optional environment overrides:
 - `OPENCLAW_NAMESPACE` (default: `openclaw`)
 - `OPENCLAW_SELECTOR` (default: `app.kubernetes.io/name=openclaw`)
 
-After updating the ConfigMap, restart the pod so the init container re-copies
-the skill files from the ConfigMap to the persistent volume:
+After updating the ConfigMap, restart the pod if you need the interactive agent
+to use the latest PVC copy. The Kubernetes CronJob reads the script directly
+from the ConfigMap:
 
 ```bash
 kubectl rollout restart deployment/openclaw -n openclaw

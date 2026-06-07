@@ -9,5 +9,6 @@ resources:
   - openclaw-clusterrolebinding.yaml
   - openclaw-externalsecret.yaml
   - openclaw-configmap.yaml
+  - openclaw-k8s-monitor-cronjob.yaml
   - openclaw-deployment.yaml
   - openclaw-service.yaml

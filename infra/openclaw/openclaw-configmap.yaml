@@ -216,6 +216,8 @@ data:
     const badPods           = parseBadPods(podRaw);
     const nodes             = parseNodes(nodeRaw);
     const criticalEvents    = events.filter((e) => CRITICAL_REASONS.has(e.reason));
+    // Keep noisy non-critical warning events visible in the report without
+    // making an otherwise healthy cluster alert yellow.
     const warnEvents        = events.filter((e) => !CRITICAL_REASONS.has(e.reason) && (e.count || 0) >= 3);
     const nodesNotReady     = nodes.filter((n) => n.ready !== "True");
     const nodesWithPressure = nodes.filter((n) => (n.pressure?.length || 0) > 0);
@@ -223,21 +225,33 @@ data:
     let severity = SEV.OK;
     if (criticalEvents.length > 0 || badPods.length > 0 || nodesNotReady.length > 0) {
       severity = SEV.ERROR;
-    } else if (warnEvents.length > 0 || nodesWithPressure.length > 0) {
+    } else if (nodesWithPressure.length > 0) {
       severity = SEV.WARN;
     }
 
-    function buildAlertMessage(sev, sum, det) {
-      const icon = (sev === SEV.ERROR || sev === SEV.CRITICAL) ? "\uD83D\uDD34" : "\uD83D\uDFE1";
-      let msg = icon + " **K8s Alert** — Severity: **" + sev.toUpperCase() + "**\n";
+    function buildDiscordMessage(sev, sum, det) {
+      const icon = sev === SEV.OK
+        ? "\uD83D\uDFE2"
+        : ((sev === SEV.ERROR || sev === SEV.CRITICAL) ? "\uD83D\uDD34" : "\uD83D\uDFE1");
+      const title = sev === SEV.OK ? "K8s Monitor" : "K8s Alert";
+      let msg = icon + " **" + title + "** - Severity: **" + sev.toUpperCase() + "**\n";
       msg += "\n**Summary:** " + sum.criticalEvents + " critical events | " +
+        sum.warningEvents + " warning event groups | " +
         sum.unhealthyPods + " unhealthy pods | " +
-        sum.nodesNotReady + " nodes not ready\n";
+        sum.nodesNotReady + " nodes not ready | " +
+        sum.nodesWithPressure + " nodes with pressure\n";
       if (det.criticalEvents.length > 0) {
         msg += "\n**Critical Events:**\n";
         det.criticalEvents.slice(0, 3).forEach((e) => {
-          msg += "• `" + e.name + "` (" + e.namespace + ") — " + e.reason + ": " +
-            String(e.message || "").substring(0, 100) + " (" + (e.count || 1) + "×)\n";
+          msg += "- `" + e.name + "` (" + e.namespace + ") - " + e.reason + ": " +
+            String(e.message || "").substring(0, 100) + " (" + (e.count || 1) + "x)\n";
+        });
+      }
+      if (det.warnEvents.length > 0) {
+        msg += "\n**Warning Events:**\n";
+        det.warnEvents.slice(0, 5).forEach((e) => {
+          msg += "- `" + e.name + "` (" + e.namespace + ") - " + e.reason + ": " +
+            String(e.message || "").substring(0, 100) + " (" + (e.count || 1) + "x)\n";
         });
       }
       if (det.badPods.length > 0) {
@@ -246,13 +260,13 @@ data:
           const reason = p.containers[0]?.state?.waiting?.reason
             || p.containers[0]?.state?.terminated?.reason
             || "unknown";
-          msg += "• `" + p.name + "` (" + p.namespace + ") — " + reason + "\n";
+          msg += "- `" + p.name + "` (" + p.namespace + ") - " + reason + "\n";
         });
       }
       return msg.substring(0, 2000);
     }
 
-    function sendDiscordAlert(sev, sum, det) {
+    function sendDiscordMessage(sev, sum, det) {
       const token = process.env.DISCORD_BOT_TOKEN;
       if (!token || token.startsWith("https://")) {
         return { sent: false, error: "DISCORD_BOT_TOKEN not set or is a webhook URL" };
@@ -282,7 +296,7 @@ data:
       const r = spawnSync("node", ["-e", inner], {
         encoding: "utf8",
         timeout: 15000,
-        env: { ...process.env, TOK: token, CHAN: "1498285999552204810", MSG: buildAlertMessage(sev, sum, det) },
+        env: { ...process.env, TOK: token, CHAN: "1498285999552204810", MSG: buildDiscordMessage(sev, sum, det) },
       });
       try { return JSON.parse(r.stdout || "{}"); }
       catch { return { sent: false, error: r.stderr || "parse error" }; }
@@ -298,9 +312,7 @@ data:
     };
     const details = { criticalEvents, warnEvents, badPods, nodesNotReady, nodesWithPressure };
 
-    const discordAlert = severity !== SEV.OK
-      ? sendDiscordAlert(severity, summary, details)
-      : null;
+    const discordAlert = sendDiscordMessage(severity, summary, details);
 
     module.exports = {
       report: {
