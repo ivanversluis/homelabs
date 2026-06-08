@@ -1,7 +1,10 @@
 # KongConsumer: gatus
 # Represents the Gatus monitoring pod as a Kong consumer for key-auth.
-# The credential reference points to the Secret materialised by ESO
-# (mikrotik-proxy-key-auth) which carries the konghq.com/credential: key-auth label.
+# The credential reference is added after the Vault secret is populated and
+# ESO has created the mikrotik-proxy-key-auth Secret (see mikrotik-secrets.md-local).
+# To add credentials after Vault setup, update this file to uncomment credentials
+# or patch: kubectl patch kongconsumer gatus -n monitoring --type merge \
+#   -p '{"credentials":["mikrotik-proxy-key-auth"]}'
 apiVersion: configuration.konghq.com/v1
 kind: KongConsumer
 metadata:
@@ -12,5 +15,6 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: kong
 username: gatus
-credentials:
-  - mikrotik-proxy-key-auth
+# credentials populated after ESO syncs mikrotik-proxy-key-auth from Vault:
+# credentials:
+#   - mikrotik-proxy-key-auth
