@@ -102,12 +102,12 @@ data:
           - "[STATUS] == 200"
           - "[CERTIFICATE_EXPIRATION] > 168h"
           - "[RESPONSE_TIME] < 2500"
-          - "[BODY] == pat(*Homebox*)"
+          - "[BODY] == pat(*homebox-frontend*)"
         alerts: *discord_alert
 
       - name: vaultwarden
         group: 30-apps
-        url: "https://stargate.${DOMAIN}/alive"
+        url: "https://stargate.${DOMAIN}/"
         interval: 60s
         client: *cloudflare_client
         ui: *safe_public_ui
@@ -115,7 +115,7 @@ data:
           - "[STATUS] == 200"
           - "[CERTIFICATE_EXPIRATION] > 168h"
           - "[RESPONSE_TIME] < 2000"
-          - "[BODY] == pat(*OK*)"
+          - "[BODY] == pat(*app-root*)"
         alerts: *discord_alert
 
       - name: forgejo
@@ -237,7 +237,7 @@ data:
 
       - name: semaphore-ui
         group: 10-platform
-        url: "https://demo-semaphore.${DOMAIN}/"
+        url: "https://demo-semaphoreui.${DOMAIN}/"
         interval: 60s
         client: *cloudflare_client
         ui: *safe_public_ui
