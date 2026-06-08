@@ -417,7 +417,9 @@ spec:
 # Kong proxy connects directly to the RouterOS LAN IP resolved from the
 # mikrotik-routeros headless Service EndpointSlice (monitoring namespace).
 # The actual IP is stored in Vault; this CIDR covers the MikroTik default
-# LAN subnet (192.168.88.0/24). Update if your router uses a different range.
+# RouterOS REST API egress — Kong forwards /mikrotik/* to the MikroTik router.
+# api_host in Vault: 172.16.20.254 (management VLAN). Allowing the /24 CIDR to
+# avoid hardcoding a single IP. Update cidr if the router IP changes subnets.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -431,7 +433,7 @@ spec:
   egress:
     - to:
         - ipBlock:
-            cidr: 192.168.88.0/24
+            cidr: 172.16.20.0/24
       ports:
         - protocol: TCP
           port: 443
