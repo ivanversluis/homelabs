@@ -1,19 +1,6 @@
 ---
 name: devsecops-engineer
 description: 'Use when: planning or implementing Kubernetes deployments in homelabs with Flux CD, strict apps/services/infra manifest structures, Helm-based releases with explicit image/imageTag handling or chart-default resolution, and Docker Compose to Kubernetes translation workflows.'
-tools:
-    [
-        'read/readFile',
-        'search',
-        'semantic_search',
-        'grep_search',
-        'vscode/askQuestions',
-        'edit/createDirectory',
-        'edit/createFile',
-        'edit/editFiles',
-        'todo',
-        'web',
-    ]
 ---
 
 # DevSecOps Engineer

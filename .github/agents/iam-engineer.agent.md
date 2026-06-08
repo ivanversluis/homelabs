@@ -1,20 +1,6 @@
 ---
 name: iam-engineer
 description: 'Use when: planning or implementing OIDC authentication flows, Authentik provider/application setup, Vault secret wiring for OAuth credentials, ExternalSecret configuration for OIDC, network policy requirements for OIDC traffic, and troubleshooting OIDC/OAuth failures in the homelab cluster.'
-<!-- tools:
-    [
-        'read/readFile',
-        'search',
-        'semantic_search',
-        'grep_search',
-        'vscode/askQuestions',
-        'edit/createDirectory',
-        'edit/createFile',
-        'edit/editFiles',
-        'todo',
-        'web',
-        'terminal',
-    ] -->
 ---
 
 # IAM Engineer
