@@ -155,3 +155,15 @@ module "vaultwarden" {
   cloudflare_tunnel_id  = local.cf.tunnel_id
   cloudflare_team_name  = local.cf.team_name
 }
+
+# ── Monitoring ────────────────────────────────────────────────────────────────
+
+module "gatus" {
+  source = "./gatus"
+
+  cloudflare_account_id         = local.cf.account_id
+  cloudflare_team_name          = local.cf.team_name
+  gatus_discord_webhook_url     = var.gatus_discord_webhook_url
+  gatus_portainer_monitor_token = var.gatus_portainer_monitor_token
+  gatus_gitlab_monitor_token    = var.gatus_gitlab_monitor_token
+}

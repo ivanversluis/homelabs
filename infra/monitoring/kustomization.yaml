@@ -4,3 +4,4 @@ resources:
   - monitoring-netpol.yaml
   - kps/
   - metrics-server/
+  - gatus/

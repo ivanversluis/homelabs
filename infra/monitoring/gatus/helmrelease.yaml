@@ -1,0 +1,88 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: gatus
+  namespace: monitoring
+spec:
+  interval: 15m
+  chart:
+    spec:
+      chart: gatus
+      version: "1.5.0"
+      sourceRef:
+        kind: HelmRepository
+        name: twin
+        namespace: monitoring
+      interval: 12h
+
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+    cleanupOnFail: true
+
+  values:
+    image:
+      repository: twinproduction/gatus
+      tag: "v5.34.0"
+      pullPolicy: IfNotPresent
+
+    service:
+      type: ClusterIP
+      port: 80
+      portName: http
+      targetPort: 8080
+
+    externalConfigMap: gatus-config
+
+    envFrom:
+      - secretRef:
+          name: gatus-secrets
+          optional: true
+
+    persistence:
+      enabled: true
+      storageClassName: longhorn
+      size: 2Gi
+      mountPath: /data
+      accessModes:
+        - ReadWriteOnce
+
+    serviceAccount:
+      create: true
+      name: gatus
+      autoMount: false
+
+    podSecurityContext:
+      fsGroup: 65534
+
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 65534
+      runAsGroup: 65534
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+
+    resources:
+      requests:
+        cpu: 50m
+        memory: 96Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+
+    serviceMonitor:
+      enabled: true
+      interval: 1m
+      path: /metrics
+      scrapeTimeout: 30s
+      labels:
+        app.kubernetes.io/name: gatus
+
+    networkPolicy:
+      enabled: false

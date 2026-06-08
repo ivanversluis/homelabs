@@ -1,0 +1,354 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gatus-config
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: gatus
+data:
+  00-base.yaml: |
+    storage:
+      type: sqlite
+      path: /data/data.db
+
+    web:
+      address: 0.0.0.0
+      port: 8080
+
+    ui:
+      title: "Homelab Status"
+      header: "Homelab Status"
+      description: "Public-route health checks for the homelab GitOps platform"
+      dashboard-heading: "Homelab Status"
+      dashboard-subheading: "Cloudflare Tunnel, platform services, and application checks"
+      dark-mode: true
+      default-sort-by: group
+      buttons:
+        - name: "Homepage"
+          link: "https://homepage.${DOMAIN}"
+        - name: "Grafana"
+          link: "https://grafana.${DOMAIN}"
+
+    metrics: true
+
+    connectivity:
+      checker:
+        target: 1.1.1.1:53
+        interval: 60s
+
+    alerting:
+      discord:
+        webhook-url: "$DISCORD_WEBHOOK_URL"
+        title: "Homelab Gatus"
+
+  10-cloudflare-public-routes.yaml: |
+    endpoints:
+      - name: gatus
+        group: 00-edge
+        url: "https://gatus.${DOMAIN}/health"
+        interval: 60s
+        client: &cloudflare_client
+          timeout: 10s
+          dns-resolver: "tcp://1.1.1.1:53"
+        headers: &cloudflare_access_headers
+          CF-Access-Client-Id: "$CF_ACCESS_CLIENT_ID"
+          CF-Access-Client-Secret: "$CF_ACCESS_CLIENT_SECRET"
+        ui: &safe_public_ui
+          hide-url: true
+          hide-hostname: true
+          hide-port: true
+          hide-errors: false
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 168h"
+          - "[RESPONSE_TIME] < 1500"
+        alerts: &discord_alert
+          - type: discord
+            description: "Gatus public route is unhealthy"
+            failure-threshold: 3
+            success-threshold: 2
+            send-on-resolved: true
+
+      - name: cloudflare-domain
+        group: 00-edge
+        url: "https://homepage.${DOMAIN}/"
+        interval: 5m
+        client: *cloudflare_client
+        headers: *cloudflare_access_headers
+        ui: *safe_public_ui
+        conditions:
+          - "[STATUS] < 500"
+          - "[CERTIFICATE_EXPIRATION] > 168h"
+          - "[DOMAIN_EXPIRATION] > 720h"
+          - "[RESPONSE_TIME] < 2000"
+        alerts: *discord_alert
+
+      - name: homepage
+        group: 30-apps
+        url: "https://homepage.${DOMAIN}/"
+        interval: 60s
+        client: *cloudflare_client
+        headers: *cloudflare_access_headers
+        ui: *safe_public_ui
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 168h"
+          - "[RESPONSE_TIME] < 2000"
+          - "[BODY] == pat(*Homepage*)"
+        alerts: *discord_alert
+
+      - name: homebox
+        group: 30-apps
+        url: "https://homebox.${DOMAIN}/"
+        interval: 60s
+        client: *cloudflare_client
+        headers: *cloudflare_access_headers
+        ui: *safe_public_ui
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 168h"
+          - "[RESPONSE_TIME] < 2500"
+          - "[BODY] == pat(*Homebox*)"
+        alerts: *discord_alert
+
+      - name: vaultwarden
+        group: 30-apps
+        url: "https://stargate.${DOMAIN}/alive"
+        interval: 60s
+        client: *cloudflare_client
+        headers: *cloudflare_access_headers
+        ui: *safe_public_ui
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 168h"
+          - "[RESPONSE_TIME] < 2000"
+          - "[BODY] == pat(*OK*)"
+        alerts: *discord_alert
+
+      - name: forgejo
+        group: 30-apps
+        url: "https://forgejo.${DOMAIN}/"
+        interval: 60s
+        client: *cloudflare_client
+        headers: *cloudflare_access_headers
+        ui: *safe_public_ui
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 168h"
+          - "[RESPONSE_TIME] < 2500"
+          - "[BODY] == pat(*Forgejo*)"
+        alerts: *discord_alert
+
+      - name: linkding
+        group: 30-apps
+        url: "https://bookmarks.${DOMAIN}/"
+        interval: 60s
+        client: *cloudflare_client
+        headers: *cloudflare_access_headers
+        ui: *safe_public_ui
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 168h"
+          - "[RESPONSE_TIME] < 2500"
+          - "[BODY] == pat(*Linkding*)"
+        alerts: *discord_alert
+
+      - name: n8n
+        group: 30-apps
+        url: "https://n8n.${DOMAIN}/healthz"
+        interval: 60s
+        client: *cloudflare_client
+        headers: *cloudflare_access_headers
+        ui: *safe_public_ui
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 168h"
+          - "[RESPONSE_TIME] < 2500"
+        alerts: *discord_alert
+
+      - name: termix
+        group: 30-apps
+        url: "https://demo-termix.${DOMAIN}/"
+        interval: 60s
+        client: *cloudflare_client
+        headers: *cloudflare_access_headers
+        ui: *safe_public_ui
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 168h"
+          - "[RESPONSE_TIME] < 2500"
+          - "[BODY] == pat(*Termix*)"
+        alerts: *discord_alert
+
+  20-platform.yaml: |
+    endpoints:
+      - name: grafana-api-health
+        group: 10-platform
+        url: "https://grafana.${DOMAIN}/api/health"
+        interval: 60s
+        client: &cloudflare_client
+          timeout: 10s
+          dns-resolver: "tcp://1.1.1.1:53"
+        headers: &cloudflare_access_headers
+          CF-Access-Client-Id: "$CF_ACCESS_CLIENT_ID"
+          CF-Access-Client-Secret: "$CF_ACCESS_CLIENT_SECRET"
+        ui: &safe_public_ui
+          hide-url: true
+          hide-hostname: true
+          hide-port: true
+          hide-errors: false
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 168h"
+          - "[RESPONSE_TIME] < 2000"
+          - "[BODY].database == ok"
+        alerts: &discord_alert
+          - type: discord
+            description: "Platform check failed"
+            failure-threshold: 3
+            success-threshold: 2
+            send-on-resolved: true
+
+      - name: headlamp
+        group: 10-platform
+        url: "https://headlamp.${DOMAIN}/"
+        interval: 60s
+        client: *cloudflare_client
+        headers: *cloudflare_access_headers
+        ui: *safe_public_ui
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 168h"
+          - "[RESPONSE_TIME] < 2500"
+          - "[BODY] == pat(*Headlamp*)"
+        alerts: *discord_alert
+
+      - name: argocd-version
+        group: 10-platform
+        url: "https://demo-argocd.${DOMAIN}/api/version"
+        interval: 60s
+        client: *cloudflare_client
+        headers: *cloudflare_access_headers
+        ui: *safe_public_ui
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 168h"
+          - "[RESPONSE_TIME] < 2500"
+          - "has([BODY].Version) == true"
+        alerts: *discord_alert
+
+      - name: vault-sys-health
+        group: 10-platform
+        url: "https://demo-vault.${DOMAIN}/v1/sys/health"
+        interval: 60s
+        client: *cloudflare_client
+        headers: *cloudflare_access_headers
+        ui: *safe_public_ui
+        conditions:
+          - "[STATUS] == any(200, 429, 472, 473)"
+          - "[CERTIFICATE_EXPIRATION] > 168h"
+          - "[RESPONSE_TIME] < 2000"
+          - "[BODY].initialized == true"
+          - "[BODY].sealed == false"
+        alerts: *discord_alert
+
+      - name: semaphore-ui
+        group: 10-platform
+        url: "https://demo-semaphore.${DOMAIN}/"
+        interval: 60s
+        client: *cloudflare_client
+        headers: *cloudflare_access_headers
+        ui: *safe_public_ui
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 168h"
+          - "[RESPONSE_TIME] < 2500"
+          - "[BODY] == pat(*Semaphore*)"
+        alerts: *discord_alert
+
+  30-ai-storage-admin.yaml: |
+    endpoints:
+      - name: openwebui
+        group: 20-ai
+        url: "https://ai-chat.${DOMAIN}/"
+        interval: 60s
+        client: &cloudflare_client
+          timeout: 10s
+          dns-resolver: "tcp://1.1.1.1:53"
+        headers: &cloudflare_access_headers
+          CF-Access-Client-Id: "$CF_ACCESS_CLIENT_ID"
+          CF-Access-Client-Secret: "$CF_ACCESS_CLIENT_SECRET"
+        ui: &safe_public_ui
+          hide-url: true
+          hide-hostname: true
+          hide-port: true
+          hide-errors: false
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 168h"
+          - "[RESPONSE_TIME] < 3000"
+          - "[BODY] == pat(*Open WebUI*)"
+        alerts: &discord_alert
+          - type: discord
+            description: "AI/storage/admin check failed"
+            failure-threshold: 3
+            success-threshold: 2
+            send-on-resolved: true
+
+      - name: longhorn-ui
+        group: 40-storage
+        url: "https://storage.${DOMAIN}/"
+        interval: 60s
+        client: *cloudflare_client
+        headers: *cloudflare_access_headers
+        ui: *safe_public_ui
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 168h"
+          - "[RESPONSE_TIME] < 3000"
+          - "[BODY] == pat(*Longhorn*)"
+        alerts: *discord_alert
+
+      - name: portainer-status
+        group: 50-admin
+        url: "https://portainer.${DOMAIN}/api/status"
+        interval: 60s
+        client: *cloudflare_client
+        headers:
+          CF-Access-Client-Id: "$CF_ACCESS_CLIENT_ID"
+          CF-Access-Client-Secret: "$CF_ACCESS_CLIENT_SECRET"
+          x-api-key: "$PORTAINER_MONITOR_TOKEN"
+        ui: *safe_public_ui
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 168h"
+          - "[RESPONSE_TIME] < 3000"
+          - "has([BODY].Version) == true"
+        alerts: *discord_alert
+
+  90-synology-nas-placeholders.yaml: |
+    endpoints:
+      # GitLab is currently running on Synology NAS.
+      # Keep disabled until gitlab.${DOMAIN} is confirmed in Cloudflare Tunnel.
+      - name: gitlab-synology
+        group: 60-synology
+        enabled: false
+        url: "https://gitlab.${DOMAIN}/users/sign_in"
+        interval: 2m
+        client:
+          timeout: 10s
+          dns-resolver: "tcp://1.1.1.1:53"
+        headers:
+          CF-Access-Client-Id: "$CF_ACCESS_CLIENT_ID"
+          CF-Access-Client-Secret: "$CF_ACCESS_CLIENT_SECRET"
+          PRIVATE-TOKEN: "$GITLAB_MONITOR_TOKEN"
+        ui:
+          hide-url: true
+          hide-hostname: true
+          hide-port: true
+          hide-errors: false
+        conditions:
+          - "[STATUS] == 200"
+          - "[CERTIFICATE_EXPIRATION] > 168h"
+          - "[RESPONSE_TIME] < 3000"
+          - "[BODY] == pat(*GitLab*)"

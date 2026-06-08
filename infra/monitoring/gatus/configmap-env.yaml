@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gatus
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: gatus
+data:
+  GATUS_CONFIG_PATH: /config
+  GATUS_LOG_LEVEL: INFO
