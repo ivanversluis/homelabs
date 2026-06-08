@@ -4,6 +4,18 @@ variable "cloudflare_account_id" {
   sensitive   = true
 }
 
+variable "cloudflare_zone_id" {
+  description = "Cloudflare DNS zone ID for the domain (used to create the gatus CNAME record)"
+  type        = string
+  sensitive   = true
+}
+
+variable "cloudflare_tunnel_id" {
+  description = "Cloudflare Tunnel UUID (used as CNAME target for gatus.domain)"
+  type        = string
+  sensitive   = true
+}
+
 variable "cloudflare_team_name" {
   description = "Cloudflare Zero Trust team name"
   type        = string

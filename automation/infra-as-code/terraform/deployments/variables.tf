@@ -64,6 +64,12 @@ variable "vault_prometheus_metrics_token" {
   sensitive   = true
 }
 
+variable "cloudflare_zone_id" {
+  description = "Cloudflare DNS zone ID for the domain (used by the gatus module to create the CNAME record)"
+  type        = string
+  sensitive   = true
+}
+
 variable "gatus_discord_webhook_url" {
   description = "Optional Discord webhook URL for Gatus notifications. Leave empty to disable Discord until ready."
   type        = string

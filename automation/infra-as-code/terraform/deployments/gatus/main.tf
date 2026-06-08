@@ -9,6 +9,19 @@ terraform {
   }
 }
 
+# ── DNS CNAME for gatus.domain ───────────────────────────────────────────────
+
+resource "cloudflare_dns_record" "gatus_cname" {
+  zone_id = var.cloudflare_zone_id
+  name    = "gatus"
+  type    = "CNAME"
+  content = "${var.cloudflare_tunnel_id}.cfargotunnel.com"
+  proxied = true
+  ttl     = 1
+}
+
+# ── Cloudflare Access service token (optional) ───────────────────────────────
+
 resource "cloudflare_zero_trust_access_service_token" "gatus" {
   count = var.create_cloudflare_access_service_token ? 1 : 0
 
@@ -31,13 +44,13 @@ resource "cloudflare_zero_trust_access_policy" "allow_gatus_service_token" {
   }]
 }
 
+# ── Vault secret and ESO policy ──────────────────────────────────────────────
+
 resource "vault_generic_secret" "gatus" {
   path = "secret/infra/gatus"
 
   data_json = jsonencode({
     DISCORD_WEBHOOK_URL     = var.gatus_discord_webhook_url
-    CF_ACCESS_CLIENT_ID     = var.create_cloudflare_access_service_token ? cloudflare_zero_trust_access_service_token.gatus[0].client_id : ""
-    CF_ACCESS_CLIENT_SECRET = var.create_cloudflare_access_service_token ? cloudflare_zero_trust_access_service_token.gatus[0].client_secret : ""
     PORTAINER_MONITOR_TOKEN = var.gatus_portainer_monitor_token
     GITLAB_MONITOR_TOKEN    = var.gatus_gitlab_monitor_token
   })
