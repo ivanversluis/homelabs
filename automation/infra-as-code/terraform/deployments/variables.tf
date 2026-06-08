@@ -63,3 +63,24 @@ variable "vault_prometheus_metrics_token" {
   type        = string
   sensitive   = true
 }
+
+variable "gatus_discord_webhook_url" {
+  description = "Optional Discord webhook URL for Gatus notifications. Leave empty to disable Discord until ready."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "gatus_portainer_monitor_token" {
+  description = "Portainer API key for Gatus monitoring checks (x-api-key header)."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "gatus_gitlab_monitor_token" {
+  description = "GitLab personal access token for Gatus monitoring checks (PRIVATE-TOKEN header)."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
