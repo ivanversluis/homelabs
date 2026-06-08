@@ -5,6 +5,5 @@ resources:
   - gatus-configmap-env.yaml
   - gatus-configmap-config.yaml
   - gatus-externalsecret.yaml
-  - gatus-mikrotik-externalsecret.yaml
   - gatus-networkpolicy.yaml
   - gatus-helmrelease.yaml
