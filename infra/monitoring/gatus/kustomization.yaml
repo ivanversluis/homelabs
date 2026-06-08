@@ -1,9 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - helmrepository.yaml
-  - configmap-env.yaml
-  - configmap-config.yaml
-  - externalsecret.yaml
-  - networkpolicy.yaml
-  - helmrelease.yaml
+  - gatus-helmrepository.yaml
+  - gatus-configmap-env.yaml
+  - gatus-configmap-config.yaml
+  - gatus-externalsecret.yaml
+  - gatus-networkpolicy.yaml
+  - gatus-helmrelease.yaml

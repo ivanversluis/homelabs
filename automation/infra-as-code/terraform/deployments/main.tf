@@ -162,6 +162,8 @@ module "gatus" {
   source = "./gatus"
 
   cloudflare_account_id         = local.cf.account_id
+  cloudflare_zone_id            = var.cloudflare_zone_id
+  cloudflare_tunnel_id          = var.cloudflare_tunnel_id
   cloudflare_team_name          = local.cf.team_name
   gatus_discord_webhook_url     = var.gatus_discord_webhook_url
   gatus_portainer_monitor_token = var.gatus_portainer_monitor_token
