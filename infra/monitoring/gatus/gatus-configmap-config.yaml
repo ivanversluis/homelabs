@@ -330,13 +330,15 @@ data:
   40-network.yaml: |
     endpoints:
       # WireGuard tunnel status via Kong → RouterOS REST API
-      # Request flow: Gatus → Kong (/mikrotik) → RouterOS (/rest/interface/wireguard/peer?name=...)
-      # Kong handles key-auth (apikey header) and injects Basic Auth toward RouterOS.
-      # A tunnel is "up" when the response includes a "last-handshake" field.
-      # RouterOS omits that field entirely when a peer has never connected or is disabled.
+      # All 3 endpoints query the same /interface/wireguard/peer list.
+      # RouterOS returns JSON fields in alphabetical order within each peer object;
+      # "interface" immediately precedes "last-handshake" alphabetically.
+      # So pat(*"interface":"<name>","last-handshake"*) matches only when that
+      # specific peer is connected — if disabled or not yet handshaked, the
+      # last-handshake field is absent and the consecutive substring cannot match.
       - name: WG1 (route64-org-ams)
         group: 70-network
-        url: "http://kong-kong-proxy.kong.svc.cluster.local/mikrotik/interface/wireguard/peer?name=route64-org-ams-tunnel"
+        url: "http://kong-kong-proxy.kong.svc.cluster.local/mikrotik/interface/wireguard/peers"
         interval: 60s
         client: &wg_client
           timeout: 10s
@@ -350,7 +352,7 @@ data:
         conditions:
           - "[STATUS] == 200"
           - "[RESPONSE_TIME] < 3000"
-          - "[BODY] == pat(*last-handshake*)"
+          - '[BODY] == pat(*"interface":"route64-org-ams","last-handshake"*)'
         alerts: &wg_alert
           - type: discord
             description: "WireGuard tunnel down"
@@ -360,7 +362,7 @@ data:
 
       - name: WG2 (18110-wg)
         group: 70-network
-        url: "http://kong-kong-proxy.kong.svc.cluster.local/mikrotik/interface/wireguard/peer?name=18110-wg-tunnel"
+        url: "http://kong-kong-proxy.kong.svc.cluster.local/mikrotik/interface/wireguard/peers"
         interval: 60s
         client: *wg_client
         headers: *wg_headers
@@ -368,12 +370,12 @@ data:
         conditions:
           - "[STATUS] == 200"
           - "[RESPONSE_TIME] < 3000"
-          - "[BODY] == pat(*last-handshake*)"
+          - '[BODY] == pat(*"interface":"18110-wg-tunnel","last-handshake"*)'
         alerts: *wg_alert
 
       - name: WG3 (3221-v3-wg)
         group: 70-network
-        url: "http://kong-kong-proxy.kong.svc.cluster.local/mikrotik/interface/wireguard/peer?name=3221-v3-wg-tunnel"
+        url: "http://kong-kong-proxy.kong.svc.cluster.local/mikrotik/interface/wireguard/peers"
         interval: 60s
         client: *wg_client
         headers: *wg_headers
@@ -381,5 +383,5 @@ data:
         conditions:
           - "[STATUS] == 200"
           - "[RESPONSE_TIME] < 3000"
-          - "[BODY] == pat(*last-handshake*)"
+          - '[BODY] == pat(*"interface":"3221-v3-wg-tunnel","last-handshake"*)'
         alerts: *wg_alert
