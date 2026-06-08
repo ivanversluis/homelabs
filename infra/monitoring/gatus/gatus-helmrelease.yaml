@@ -37,6 +37,9 @@ spec:
 
     externalConfigMap: gatus-config
 
+    deployment:
+      strategy: Recreate
+
     envFrom:
       - secretRef:
           name: gatus-secrets
