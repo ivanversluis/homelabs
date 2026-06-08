@@ -24,7 +24,9 @@ metadata:
     app.kubernetes.io/name: mikrotik-proxy
   annotations:
     konghq.com/strip-path: "true"
-    konghq.com/plugins: "mikrotik-key-auth,mikrotik-request-transformer,mikrotik-rate-limit"
+    # mikrotik-request-transformer is added after Vault setup (see mikrotik-secrets.md-local)
+    # Full plugin chain: "mikrotik-key-auth,mikrotik-request-transformer,mikrotik-rate-limit"
+    konghq.com/plugins: "mikrotik-key-auth,mikrotik-rate-limit"
 spec:
   ingressClassName: kong
   rules:
