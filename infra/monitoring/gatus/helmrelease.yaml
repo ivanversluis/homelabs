@@ -82,7 +82,7 @@ spec:
       path: /metrics
       scrapeTimeout: 30s
       labels:
-        app.kubernetes.io/name: gatus
+        release: kube-prometheus-stack
 
     networkPolicy:
       enabled: false
