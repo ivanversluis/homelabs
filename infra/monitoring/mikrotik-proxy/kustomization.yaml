@@ -5,4 +5,5 @@ resources:
   - mikrotik-service-endpointslice.yaml
   - mikrotik-kong-consumer.yaml
   - mikrotik-kong-plugins.yaml
+  - mikrotik-kong-plugin-request-transformer.yaml
   - mikrotik-ingress.yaml
