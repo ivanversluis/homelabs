@@ -15,6 +15,5 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: kong
 username: gatus
-# credentials populated after ESO syncs mikrotik-proxy-key-auth from Vault:
-# credentials:
-#   - mikrotik-proxy-key-auth
+credentials:
+  - mikrotik-proxy-key-auth
