@@ -1,0 +1,16 @@
+# KongConsumer: gatus
+# Represents the Gatus monitoring pod as a Kong consumer for key-auth.
+# The credential reference points to the Secret materialised by ESO
+# (mikrotik-proxy-key-auth) which carries the konghq.com/credential: key-auth label.
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: gatus
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: mikrotik-proxy
+  annotations:
+    kubernetes.io/ingress.class: kong
+username: gatus
+credentials:
+  - mikrotik-proxy-key-auth

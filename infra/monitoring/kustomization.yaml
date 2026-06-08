@@ -5,3 +5,4 @@ resources:
   - kps/
   - metrics-server/
   - gatus/
+  - mikrotik-proxy/

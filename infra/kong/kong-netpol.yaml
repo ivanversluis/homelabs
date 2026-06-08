@@ -412,3 +412,48 @@ spec:
       ports:
         - protocol: TCP
           port: 6443
+---
+# Kong -> RouterOS REST API (MikroTik WireGuard monitoring)
+# Kong proxy connects directly to the RouterOS LAN IP resolved from the
+# mikrotik-routeros headless Service EndpointSlice (monitoring namespace).
+# The actual IP is stored in Vault; this CIDR covers the MikroTik default
+# LAN subnet (192.168.88.0/24). Update if your router uses a different range.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-routeros
+  namespace: kong
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kong
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 192.168.88.0/24
+      ports:
+        - protocol: TCP
+          port: 443
+---
+# monitoring (Gatus) -> Kong proxy (WireGuard peer checks)
+# Gatus calls http://kong-kong-proxy.kong.svc.cluster.local/mikrotik/...
+# Kong service port 80 → pod port 8000; Calico evaluates post-DNAT.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-ingress
+  namespace: kong
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kong
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8000

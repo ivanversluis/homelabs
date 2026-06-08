@@ -78,3 +78,13 @@ spec:
       ports:
         - protocol: TCP
           port: 443
+
+    # Kong API gateway — in-cluster proxy for RouterOS REST API checks
+    # Service port 80 → pod port 8000; CNI evaluates post-DNAT so pod port is used
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 8000

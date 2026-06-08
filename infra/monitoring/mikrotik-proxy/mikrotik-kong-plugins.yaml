@@ -1,0 +1,49 @@
+# KongPlugin: mikrotik-key-auth
+# Protects the /mikrotik route so only authorised consumers (gatus) can call it.
+# Credentials are passed via the "apikey" header. Kong strips them before
+# forwarding upstream (hide_credentials: true).
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: mikrotik-key-auth
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: mikrotik-proxy
+plugin: key-auth
+config:
+  key_names:
+    - apikey
+  hide_credentials: true
+---
+# KongPlugin: mikrotik-request-transformer
+# Injects the RouterOS Basic Auth header into every upstream request and
+# removes the internal apikey credential so the router never sees it.
+# The full plugin config is loaded from the Secret materialised by ESO
+# (mikrotik-request-transformer-config) to keep credentials out of the repo.
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: mikrotik-request-transformer
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: mikrotik-proxy
+plugin: request-transformer
+configFrom:
+  secretKeyRef:
+    name: mikrotik-request-transformer-config
+    key: config
+---
+# KongPlugin: mikrotik-rate-limit
+# Prevents Gatus from accidentally hammering the RouterOS REST API.
+# RouterOS does not have built-in rate limiting on its API endpoint.
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: mikrotik-rate-limit
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: mikrotik-proxy
+plugin: rate-limiting
+config:
+  minute: 60
+  policy: local
