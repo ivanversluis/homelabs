@@ -326,3 +326,32 @@ data:
           - "[CERTIFICATE_EXPIRATION] > 168h"
           - "[RESPONSE_TIME] < 3000"
           - "[BODY] == pat(*GitLab*)"
+
+  40-network.yaml: |
+    endpoints:
+      # WireGuard peer status via Kong → RouterOS REST API
+      # Request flow: Gatus → Kong (/mikrotik) → RouterOS (/rest/interface/wireguard/peer)
+      # Kong handles key-auth (apikey header) and injects Basic Auth toward RouterOS.
+      - name: wireguard-peers
+        group: 70-network
+        url: "http://kong-kong-proxy.kong.svc.cluster.local/mikrotik/interface/wireguard/peer"
+        interval: 60s
+        client:
+          timeout: 10s
+        headers:
+          apikey: "$MIKROTIK_PROXY_KEY"
+        ui:
+          hide-url: true
+          hide-hostname: true
+          hide-port: true
+          hide-errors: false
+        conditions:
+          - "[STATUS] == 200"
+          - "[RESPONSE_TIME] < 3000"
+          - "[BODY] == pat(*wireguard*)"
+        alerts:
+          - type: discord
+            description: "WireGuard peer check via RouterOS REST API failed"
+            failure-threshold: 3
+            success-threshold: 2
+            send-on-resolved: true

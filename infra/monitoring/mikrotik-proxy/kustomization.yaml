@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - mikrotik-externalsecret.yaml
+  - mikrotik-service-endpointslice.yaml
+  - mikrotik-kong-consumer.yaml
+  - mikrotik-kong-plugins.yaml
+  - mikrotik-ingress.yaml

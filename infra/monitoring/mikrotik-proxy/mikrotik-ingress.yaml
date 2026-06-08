@@ -1,0 +1,39 @@
+# Ingress: mikrotik-proxy
+# Routes /mikrotik/* requests received on kong-kong-proxy to the RouterOS
+# REST API via the mikrotik-routeros headless Service.
+#
+# Request flow:
+#   Gatus (monitoring ns)
+#     → http://kong-kong-proxy.kong.svc.cluster.local/mikrotik/interface/wireguard/peer
+#     → Kong strips /mikrotik prefix (strip-path: true)
+#     → mikrotik-request-transformer adds Authorization: Basic <base64>
+#     → mikrotik-routeros headless svc (monitoring ns) resolves to RouterOS IP
+#     → RouterOS: HTTPS GET /rest/interface/wireguard/peer
+#       (konghq.com/path=/rest on Service prepends /rest to every upstream path)
+#
+# Plugins applied (order matters: key-auth → request-transformer → rate-limit):
+#   mikrotik-key-auth            — verify apikey header; strip before upstream
+#   mikrotik-request-transformer — inject Basic Auth from ESO-materialized Secret
+#   mikrotik-rate-limit          — protect RouterOS API from excessive polling
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mikrotik-proxy
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: mikrotik-proxy
+  annotations:
+    konghq.com/strip-path: "true"
+    konghq.com/plugins: "mikrotik-key-auth,mikrotik-request-transformer,mikrotik-rate-limit"
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /mikrotik
+            pathType: Prefix
+            backend:
+              service:
+                name: mikrotik-routeros
+                port:
+                  number: 443

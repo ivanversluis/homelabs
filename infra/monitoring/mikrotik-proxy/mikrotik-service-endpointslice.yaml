@@ -1,0 +1,53 @@
+# Headless Service + EndpointSlice for RouterOS REST API
+#
+# ExternalName services cannot target raw IP addresses reliably. Use a
+# selectorless headless Service with an EndpointSlice instead — this is the
+# standard Kubernetes pattern for reaching external hosts by IP.
+#
+# The actual RouterOS IP is stored in Vault at secret/networking/mikrotik
+# (property: api_host) and injected at apply time via Flux postBuild variable
+# substitution. The default ${MIKROTIK_IP:=192.168.88.1} matches the factory
+# default MikroTik LAN gateway; override by setting MIKROTIK_IP in the
+# flux-domain-vars Secret (see infra/flux-substitution/flux-substitution-externalsecret.yaml).
+#
+# Kong annotations:
+#   konghq.com/protocol: https  — Kong uses TLS when connecting upstream
+#   konghq.com/path:     /rest  — prepended to every upstream request path,
+#                                 so /mikrotik/interface/... becomes /rest/interface/...
+#   konghq.com/tls-verify: false — RouterOS ships a self-signed certificate;
+#                                  replace with true + CA Secret in Phase 2
+apiVersion: v1
+kind: Service
+metadata:
+  name: mikrotik-routeros
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: mikrotik-proxy
+  annotations:
+    konghq.com/protocol: "https"
+    konghq.com/path: "/rest"
+    konghq.com/tls-verify: "false"
+spec:
+  clusterIP: None
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+      protocol: TCP
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: mikrotik-routeros-1
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: mikrotik-proxy
+    kubernetes.io/service-name: mikrotik-routeros
+addressType: IPv4
+ports:
+  - name: https
+    protocol: TCP
+    port: 443
+endpoints:
+  - addresses:
+      - "${MIKROTIK_IP:=192.168.88.1}"
