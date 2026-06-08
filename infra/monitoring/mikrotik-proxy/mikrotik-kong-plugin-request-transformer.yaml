@@ -1,0 +1,29 @@
+# KongPlugin: mikrotik-request-transformer
+# Injects the RouterOS Basic Auth header into every upstream request and
+# removes the internal apikey credential so the router never sees it.
+# The full plugin config is loaded from the Secret materialised by ESO
+# (mikrotik-request-transformer-config) to keep credentials out of the repo.
+#
+# IMPORTANT: This file is NOT included in kustomization.yaml until the
+# following prerequisites are met:
+#   1. Vault secret populated: vault kv put secret/networking/mikrotik ...
+#   2. ESO sync confirmed: kubectl get externalsecret mikrotik-api-creds -n monitoring
+#   3. Secret exists: kubectl get secret mikrotik-request-transformer-config -n monitoring
+#
+# After prerequisites are met:
+#   a) Add "- mikrotik-kong-plugin-request-transformer.yaml" to kustomization.yaml
+#   b) Update the Ingress annotation to include mikrotik-request-transformer:
+#      konghq.com/plugins: "mikrotik-key-auth,mikrotik-request-transformer,mikrotik-rate-limit"
+#   c) Enable KongConsumer credentials (see mikrotik-kong-consumer.yaml)
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: mikrotik-request-transformer
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: mikrotik-proxy
+plugin: request-transformer
+configFrom:
+  secretKeyRef:
+    name: mikrotik-request-transformer-config
+    key: config
