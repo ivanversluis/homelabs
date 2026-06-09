@@ -34,7 +34,7 @@ spec:
               type: RuntimeDefault
           containers:
             - name: k8s-monitor
-              image: ghcr.io/openclaw/openclaw:2026.6.1
+              image: ghcr.io/openclaw/openclaw:2026.6.5
               imagePullPolicy: IfNotPresent
               command:
                 - node
