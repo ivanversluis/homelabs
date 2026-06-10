@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: goodwe-prometheus-exporter-config
+  namespace: home-exporters
+data:
+  POLL_INTERVAL: "10"
+  METRICS_PORT: "9100"
+  GOODWE_PORT: "8899"
+  GOODWE_TIMEOUT: "5"
+  GOODWE_RETRIES: "3"
+  GOODWE_INVERTER_NAME: "goodwe-gw4200d-ns"
