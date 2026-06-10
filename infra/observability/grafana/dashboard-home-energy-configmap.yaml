@@ -15,6 +15,252 @@ data:
       "tags": ["home", "energy", "goodwe", "solar"],
       "timezone": "browser",
       "schemaVersion": 39,
+      "version": 2,
+      "refresh": "10s",
+      "time": {"from": "now-6h", "to": "now"},
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "PV Power",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "goodwe_power_watts", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "watt", "color": {"mode": "thresholds"},
+            "thresholds": {"steps": [{"color": "green", "value": null}]}}}
+        },
+        {
+          "id": 2,
+          "type": "stat",
+          "title": "Today's Generation",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "goodwe_daily_generation_kwh", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 4, "x": 4, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "kwatth", "color": {"mode": "thresholds"},
+            "thresholds": {"steps": [{"color": "green", "value": null}]}}}
+        },
+        {
+          "id": 3,
+          "type": "stat",
+          "title": "Total Generation",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "goodwe_total_generation_kwh", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 4, "x": 8, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "kwatth"}}
+        },
+        {
+          "id": 4,
+          "type": "stat",
+          "title": "Inverter Temp",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "goodwe_temperature_celsius", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 4, "x": 12, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "celsius"}}
+        },
+        {
+          "id": 5,
+          "type": "stat",
+          "title": "AC Power",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "goodwe_ac_power_watts", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 4, "x": 16, "y": 0},
+          "fieldConfig": {"defaults": {"unit": "watt"}}
+        },
+        {
+          "id": 6,
+          "type": "stat",
+          "title": "Exporter Up",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "goodwe_up", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 4, "x": 20, "y": 0},
+          "fieldConfig": {
+            "defaults": {"unit": "none",
+              "mappings": [
+                {"type": "value", "options": {"0": {"text": "DOWN", "color": "red", "index": 0}}},
+                {"type": "value", "options": {"1": {"text": "UP", "color": "green", "index": 1}}}
+              ],
+              "thresholds": {"steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]},
+              "color": {"mode": "thresholds"}
+            }
+          }
+        },
+        {
+          "id": 7,
+          "type": "timeseries",
+          "title": "PV Power (Total + per String)",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "goodwe_power_watts", "legendFormat": "Total PV", "refId": "A"},
+            {"expr": "goodwe_dc_power_watts{string=\"1\"}", "legendFormat": "String 1", "refId": "B"},
+            {"expr": "goodwe_dc_power_watts{string=\"2\"}", "legendFormat": "String 2", "refId": "C"}
+          ],
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 4},
+          "fieldConfig": {"defaults": {"unit": "watt"}}
+        },
+        {
+          "id": 8,
+          "type": "timeseries",
+          "title": "Today's Generation (kWh)",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "goodwe_daily_generation_kwh", "legendFormat": "Today", "refId": "A"}
+          ],
+          "gridPos": {"h": 6, "w": 12, "x": 0, "y": 12},
+          "fieldConfig": {"defaults": {"unit": "kwatth"}}
+        },
+        {
+          "id": 9,
+          "type": "timeseries",
+          "title": "Total Generation (kWh)",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "goodwe_total_generation_kwh", "legendFormat": "All Time", "refId": "A"}
+          ],
+          "gridPos": {"h": 6, "w": 12, "x": 12, "y": 12},
+          "fieldConfig": {"defaults": {"unit": "kwatth"}}
+        },
+        {
+          "id": 10,
+          "type": "timeseries",
+          "title": "AC Voltage",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "goodwe_ac_voltage_volts", "legendFormat": "{{inverter}}", "refId": "A"}
+          ],
+          "gridPos": {"h": 8, "w": 8, "x": 0, "y": 18},
+          "fieldConfig": {"defaults": {"unit": "volt"}}
+        },
+        {
+          "id": 11,
+          "type": "timeseries",
+          "title": "AC Current",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "goodwe_ac_current_amps", "legendFormat": "{{inverter}}", "refId": "A"}
+          ],
+          "gridPos": {"h": 8, "w": 8, "x": 8, "y": 18},
+          "fieldConfig": {"defaults": {"unit": "amp"}}
+        },
+        {
+          "id": 12,
+          "type": "timeseries",
+          "title": "AC Frequency",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "goodwe_ac_frequency_hz", "legendFormat": "{{inverter}}", "refId": "A"}
+          ],
+          "gridPos": {"h": 8, "w": 8, "x": 16, "y": 18},
+          "fieldConfig": {"defaults": {"unit": "hertz", "min": 49, "max": 51}}
+        },
+        {
+          "id": 13,
+          "type": "timeseries",
+          "title": "DC String Voltage",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "goodwe_dc_voltage_volts", "legendFormat": "String {{string}}", "refId": "A"}
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 26},
+          "fieldConfig": {"defaults": {"unit": "volt"}}
+        },
+        {
+          "id": 14,
+          "type": "timeseries",
+          "title": "DC String Current",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "goodwe_dc_current_amps", "legendFormat": "String {{string}}", "refId": "A"}
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 26},
+          "fieldConfig": {"defaults": {"unit": "amp"}}
+        },
+        {
+          "id": 15,
+          "type": "timeseries",
+          "title": "Inverter Temperature",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "goodwe_temperature_celsius", "legendFormat": "{{inverter}}", "refId": "A"}
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 34},
+          "fieldConfig": {"defaults": {"unit": "celsius"}}
+        },
+        {
+          "id": 16,
+          "type": "timeseries",
+          "title": "RSSI",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "goodwe_rssi_dbm", "legendFormat": "{{inverter}}", "refId": "A"}
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 34},
+          "fieldConfig": {"defaults": {"unit": "short"}}
+        },
+        {
+          "id": 17,
+          "type": "stat",
+          "title": "Work Mode",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "goodwe_work_mode", "legendFormat": "{{mode_label}}", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 42},
+          "fieldConfig": {"defaults": {"unit": "none"}}
+        },
+        {
+          "id": 18,
+          "type": "stat",
+          "title": "Power Factor",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "goodwe_power_factor", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 42},
+          "fieldConfig": {"defaults": {"unit": "none"}}
+        },
+        {
+          "id": 19,
+          "type": "stat",
+          "title": "Total Runtime Hours",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "goodwe_total_hours", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 42},
+          "fieldConfig": {"defaults": {"unit": "h"}}
+        },
+        {
+          "id": 20,
+          "type": "stat",
+          "title": "Scrape Errors",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "goodwe_scrape_errors_total", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 18, "y": 42},
+          "fieldConfig": {"defaults": {"unit": "short", "color": {"mode": "thresholds"},
+            "thresholds": {"steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]},
+            "color": {"mode": "thresholds"}}}
+        },
+        {
+          "id": 21,
+          "type": "stat",
+          "title": "Last Scrape",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "goodwe_last_scrape_timestamp * 1000", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 12, "x": 0, "y": 46},
+          "fieldConfig": {"defaults": {"unit": "dateTimeAsIso"}}
+        },
+        {
+          "id": 22,
+          "type": "stat",
+          "title": "Last Successful Scrape",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "goodwe_last_scrape_success_timestamp * 1000", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 12, "x": 12, "y": 46},
+          "fieldConfig": {"defaults": {"unit": "dateTimeAsIso"}}
+        }
+      ]
+    }
+
+    {
+      "title": "Home Energy",
+      "uid": "home-energy",
+      "tags": ["home", "energy", "goodwe", "solar"],
+      "timezone": "browser",
+      "schemaVersion": 39,
       "version": 1,
       "refresh": "10s",
       "time": {"from": "now-6h", "to": "now"},
