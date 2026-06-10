@@ -159,6 +159,14 @@ spec:
               mountPath: /etc/grafana/provisioning/dashboards/pihole-client.json
               subPath: pihole-client.json
               readOnly: true
+            - name: dashboard-home-climate
+              mountPath: /etc/grafana/provisioning/dashboards/home-climate.json
+              subPath: home-climate.json
+              readOnly: true
+            - name: dashboard-home-energy
+              mountPath: /etc/grafana/provisioning/dashboards/home-energy.json
+              subPath: home-energy.json
+              readOnly: true
             - name: data
               mountPath: /var/lib/grafana
           resources:
@@ -240,6 +248,12 @@ spec:
         - name: dashboard-pihole-client
           configMap:
             name: grafana-dashboard-pihole-client
+        - name: dashboard-home-climate
+          configMap:
+            name: grafana-dashboard-home-climate
+        - name: dashboard-home-energy
+          configMap:
+            name: grafana-dashboard-home-energy
         - name: data
           persistentVolumeClaim:
             claimName: grafana-data
