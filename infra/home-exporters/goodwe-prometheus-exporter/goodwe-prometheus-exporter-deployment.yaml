@@ -30,7 +30,7 @@ spec:
       containers:
         - name: exporter
           image: ghcr.io/ivanversluis/iot-goodwe-prometheus-exporter:main
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - name: metrics
               containerPort: 9100
