@@ -7,3 +7,4 @@ resources:
   - termix-pvc.yaml
   - termix-deployment.yaml
   - termix-service.yaml
+  - termix-ingress.yaml

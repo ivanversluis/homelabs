@@ -47,7 +47,10 @@ spec:
 
     persistence:
       enabled: true
-      storageClassName: longhorn
+      # longhorn-worker has reclaimPolicy: Retain — PV survives if the namespace is
+      # pruned and recreated by Flux. Without Retain, a Delete-policy PV is destroyed
+      # when the PVC is removed, losing all Gatus history data.
+      storageClassName: longhorn-worker
       size: 2Gi
       mountPath: /data
       accessModes:
