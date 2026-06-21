@@ -4,6 +4,9 @@ kind: Kustomization
 resources:
   # Longhorn v1.11.0 deployment manifests
   - https://raw.githubusercontent.com/longhorn/longhorn/v1.11.0/deploy/longhorn.yaml
+  # longhorn-worker StorageClass: default, reclaimPolicy: Retain
+  # Ensures PVs survive PVC/namespace deletion (GitOps-safe).
+  - config/longhorn-worker-sc.yaml
 
 patchesStrategicMerge:
   - patches/default-setting.yaml

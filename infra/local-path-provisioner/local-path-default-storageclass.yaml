@@ -1,0 +1,14 @@
+---
+# Pre-existing local-path StorageClass installed by the rancher local-path-provisioner.
+# Managed here so Flux enforces is-default-class: "false" — longhorn-worker is the
+# cluster default. Without this, local-path retains the default annotation it gets
+# from the provisioner installer and can cause ambiguous default SC warnings.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-path
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+provisioner: rancher.io/local-path
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer

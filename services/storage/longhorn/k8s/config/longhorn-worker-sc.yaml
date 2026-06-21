@@ -2,6 +2,11 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: longhorn-worker
+  annotations:
+    # longhorn-worker is the cluster default StorageClass.
+    # reclaimPolicy: Retain means PVs survive PVC/namespace deletion — safe for GitOps
+    # where Flux prune or ArgoCD sync may delete and recreate namespaces.
+    storageclass.kubernetes.io/is-default-class: "true"
 provisioner: driver.longhorn.io
 allowVolumeExpansion: true
 reclaimPolicy: Retain

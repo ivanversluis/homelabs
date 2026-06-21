@@ -10,7 +10,9 @@ data:
     metadata:
       name: longhorn
       annotations:
-        storageclass.kubernetes.io/is-default-class: "true"
+        # longhorn-worker is the default class (reclaimPolicy: Retain).
+        # longhorn is kept for compatibility but is NOT the default.
+        storageclass.kubernetes.io/is-default-class: "false"
     provisioner: driver.longhorn.io
     allowVolumeExpansion: true
     reclaimPolicy: "Delete"

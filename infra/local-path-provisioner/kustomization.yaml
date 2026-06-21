@@ -7,3 +7,6 @@ resources:
   - local-path-configmap.yaml
   - local-path-deployment.yaml
   - local-path-storageclass.yaml
+  # Manage the pre-existing local-path SC to enforce is-default-class: "false"
+  # (longhorn-worker is the cluster default).
+  - local-path-default-storageclass.yaml
