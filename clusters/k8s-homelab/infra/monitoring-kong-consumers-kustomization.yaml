@@ -1,0 +1,25 @@
+---
+# Flux Kustomization for monitoring KongConsumers.
+# Separate from the main monitoring kustomization to solve a bootstrap ordering problem:
+#   - KongConsumer "gatus" references Secret "mikrotik-proxy-key-auth"
+#   - That Secret is created by ExternalSecret (monitoring kustomization)
+#   - Kong's admission webhook rejects the KongConsumer at dry-run if the Secret is absent
+#   - On a fresh namespace this would block the entire monitoring kustomization
+#
+# By depending on "monitoring" (which has a healthCheck ensuring the ExternalSecret is
+# Ready before reporting itself as Ready), this kustomization runs only after the Secret
+# exists, so Kong's admission webhook succeeds.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: monitoring-kong-consumers
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./infra/monitoring/kong-consumers
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  dependsOn:
+    - name: monitoring

@@ -20,6 +20,8 @@ resources:
   - home-exporters-kustomization.yaml
   # monitoring (kps, metrics-server, gatus, mikrotik-proxy) — postBuild needed for ${DOMAIN}, ${MIKROTIK_IP}
   - monitoring-kustomization.yaml
+  # monitoring-kong-consumers depends on monitoring (healthCheck ensures mikrotik Secret exists first)
+  - monitoring-kong-consumers-kustomization.yaml
   # ArgoCD — postBuild needed for ${DOMAIN} in HelmRelease OIDC config
   - argocd-kustomization.yaml
   # SemaphoreUI — postBuild needed for ${DOMAIN} in HelmRelease OIDC config

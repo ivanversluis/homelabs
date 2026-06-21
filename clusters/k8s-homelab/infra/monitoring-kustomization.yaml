@@ -4,6 +4,11 @@
 #   - infra/monitoring/gatus/gatus-configmap-config.yaml   → ${DOMAIN}
 #   - infra/monitoring/mikrotik-proxy/mikrotik-service-endpointslice.yaml → ${MIKROTIK_IP}
 # Depends on: kong (Gatus ingress uses Kong IngressClass + wildcard cert).
+#
+# healthChecks: wait for the mikrotik-proxy-key-auth ExternalSecret to be Ready (i.e. the
+# Secret has been created by ESO from Vault) before this Kustomization reports Ready.
+# This allows monitoring-kong-consumers (which depends on this Kustomization) to safely
+# apply the KongConsumer that references that Secret.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
@@ -22,3 +27,8 @@ spec:
     substituteFrom:
       - kind: Secret
         name: flux-domain-vars
+  healthChecks:
+    - apiVersion: external-secrets.io/v1
+      kind: ExternalSecret
+      name: mikrotik-proxy-key-auth
+      namespace: monitoring
