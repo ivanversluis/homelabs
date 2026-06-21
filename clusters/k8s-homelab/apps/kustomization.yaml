@@ -10,3 +10,6 @@ resources:
   - vaultwarden-kustomization.yaml
   # VM workloads — depends on kubevirt + cdi Flux Kustomizations
   - vms-kustomization.yaml
+  # linkding and termix — postBuild needed for ${DOMAIN} in OIDC config
+  - linkding-kustomization.yaml
+  - termix-kustomization.yaml

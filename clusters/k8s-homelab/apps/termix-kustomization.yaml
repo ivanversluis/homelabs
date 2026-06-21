@@ -1,0 +1,23 @@
+---
+# Flux Kustomization for Termix (terminal).
+# Separate from the main apps path because termix-deployment.yaml uses ${DOMAIN}
+# for OIDC issuer endpoints and the demo-termix.${DOMAIN} public URL.
+# Depends on: kong (ingress + OIDC callback routes through Kong).
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: termix
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./apps/termix
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  dependsOn:
+    - name: kong
+  postBuild:
+    substituteFrom:
+      - kind: Secret
+        name: flux-domain-vars

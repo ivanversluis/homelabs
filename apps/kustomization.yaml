@@ -1,7 +1,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - linkding/
-  - termix/
   - n8n/
-  - vaultwarden/
+  # linkding, termix, vaultwarden are managed by dedicated Flux Kustomizations
+  # (clusters/k8s-homelab/apps/*-kustomization.yaml) with postBuild.substituteFrom
+  # because their deployments/ingresses use ${DOMAIN} for OIDC and URL config.
+  # homepage, homebox, forgejo are also managed exclusively by dedicated Kustomizations.
