@@ -36,7 +36,7 @@ spec:
     persistence:
       enabled: true
       size: 250Mi
-      storageClass: longhorn
+      storageClass: longhorn-worker
       accessModes:
         - ReadWriteOnce
 

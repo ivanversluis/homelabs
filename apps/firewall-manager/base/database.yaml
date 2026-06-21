@@ -44,6 +44,11 @@ spec:
             secretKeyRef:
               name: fm-secrets
               key: DB_PASSWORD
+        - name: PGDATA
+          # Longhorn formats volumes with ext4 which creates a lost+found directory
+          # at the mount root. PostgreSQL's initdb refuses to initialize in a
+          # non-empty directory. PGDATA points to a subdirectory to avoid this.
+          value: /var/lib/postgresql/data/pgdata
         volumeMounts:
         - name: db-data
           mountPath: /var/lib/postgresql/data
