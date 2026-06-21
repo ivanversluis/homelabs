@@ -16,3 +16,11 @@ resources:
   # KubeVirt virtualization stack (operators bootstrapped via scripts/deploy-kubevirt-local.sh)
   - kubevirt-kustomization.yaml
   - cdi-kustomization.yaml
+  # home-exporters (daikin + goodwe) — postBuild needed for ${GOODWE_INVERTER_CIDR}
+  - home-exporters-kustomization.yaml
+  # monitoring (kps, metrics-server, gatus, mikrotik-proxy) — postBuild needed for ${DOMAIN}, ${MIKROTIK_IP}
+  - monitoring-kustomization.yaml
+  # ArgoCD — postBuild needed for ${DOMAIN} in HelmRelease OIDC config
+  - argocd-kustomization.yaml
+  # SemaphoreUI — postBuild needed for ${DOMAIN} in HelmRelease OIDC config
+  - semaphoreui-kustomization.yaml

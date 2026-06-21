@@ -5,12 +5,16 @@ resources:
   - external-secrets/
   - vault/
   - vault-config/
-  - argocd/
   - argocd-image-updater/
-  - semaphoreui/
-  - home-exporters/daikin-prometheus-exporter/
-  - home-exporters/goodwe-prometheus-exporter/
-  - monitoring/
+  # argocd and semaphoreui are managed by dedicated Flux Kustomizations
+  # (clusters/k8s-homelab/infra/argocd-kustomization.yaml and
+  # clusters/k8s-homelab/infra/semaphoreui-kustomization.yaml) with postBuild.substituteFrom
+  # because their HelmRelease values use ${DOMAIN} for OIDC issuer URLs.
+  # home-exporters and monitoring are managed by dedicated Flux Kustomizations
+  # (clusters/k8s-homelab/infra/home-exporters-kustomization.yaml and
+  # clusters/k8s-homelab/infra/monitoring-kustomization.yaml) with postBuild.substituteFrom
+  # because goodwe NetworkPolicy uses ${GOODWE_INVERTER_CIDR}, monitoring/gatus uses ${DOMAIN},
+  # and monitoring/mikrotik-proxy uses ${MIKROTIK_IP}.
   # observability is managed exclusively by the dedicated Flux Kustomization
   # (clusters/k8s-homelab/infra/observability-kustomization.yaml) with
   # postBuild.substituteFrom so ${DOMAIN} is properly substituted.

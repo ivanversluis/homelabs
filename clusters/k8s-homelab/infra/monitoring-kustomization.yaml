@@ -1,0 +1,24 @@
+---
+# Flux Kustomization for the monitoring stack (kps, metrics-server, gatus, mikrotik-proxy).
+# Separate from the main infra path because several manifests require postBuild substitution:
+#   - infra/monitoring/gatus/gatus-configmap-config.yaml   → ${DOMAIN}
+#   - infra/monitoring/mikrotik-proxy/mikrotik-service-endpointslice.yaml → ${MIKROTIK_IP}
+# Depends on: kong (Gatus ingress uses Kong IngressClass + wildcard cert).
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: monitoring
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./infra/monitoring
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  dependsOn:
+    - name: kong
+  postBuild:
+    substituteFrom:
+      - kind: Secret
+        name: flux-domain-vars

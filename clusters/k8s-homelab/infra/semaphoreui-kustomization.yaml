@@ -1,0 +1,23 @@
+---
+# Flux Kustomization for SemaphoreUI.
+# Separate from the main infra path because semaphoreui-helmrelease.yaml uses ${DOMAIN}
+# in the OIDC provider_url and redirect_url values.
+# Depends on: kong (SemaphoreUI ingress + OIDC callback routes through Kong).
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: semaphoreui
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./infra/semaphoreui
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  dependsOn:
+    - name: kong
+  postBuild:
+    substituteFrom:
+      - kind: Secret
+        name: flux-domain-vars
