@@ -269,7 +269,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: longhorn-worker
+  storageClassName: longhorn
   resources:
     requests:
       storage: 2Gi
