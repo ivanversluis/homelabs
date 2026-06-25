@@ -25,7 +25,7 @@ spec:
 
     image:
       repository: portainer/portainer-ee
-      tag: "2.42.0-alpine"
+      tag: "2.43.0-alpine"
 
     service:
       type: ClusterIP
