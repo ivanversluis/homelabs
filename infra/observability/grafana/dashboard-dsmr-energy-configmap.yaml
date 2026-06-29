@@ -15,7 +15,7 @@ data:
       "tags": ["home", "energy", "dsmr", "p1", "solar", "goodwe"],
       "timezone": "browser",
       "schemaVersion": 39,
-      "version": 1,
+      "version": 2,
       "refresh": "10s",
       "time": {"from": "now-6h", "to": "now"},
       "panels": [
@@ -246,27 +246,33 @@ data:
         {
           "id": 15,
           "type": "timeseries",
-          "title": "Phase Voltage & Current",
+          "title": "Phase Voltage (L1)",
           "datasource": {"uid": "prometheus"},
           "targets": [
-            {"expr": "dsmr_phase_voltage_l1_volts", "legendFormat": "L1 Voltage (V)", "refId": "A"},
-            {"expr": "dsmr_phase_current_l1_amps", "legendFormat": "L1 Current (A)", "refId": "B"}
+            {"expr": "dsmr_phase_voltage_l1_volts", "legendFormat": "L1 Voltage", "refId": "A"}
           ],
-          "gridPos": {"h": 7, "w": 12, "x": 12, "y": 13},
+          "gridPos": {"h": 7, "w": 6, "x": 12, "y": 13},
           "fieldConfig": {
             "defaults": {
-              "custom": {"lineWidth": 2, "spanNulls": true, "axisPlacement": "auto"}
-            },
-            "overrides": [
-              {
-                "matcher": {"id": "byRegexp", "options": ".*Voltage.*"},
-                "properties": [{"id": "unit", "value": "volt"}, {"id": "custom.axisPlacement", "value": "left"}]
-              },
-              {
-                "matcher": {"id": "byRegexp", "options": ".*Current.*"},
-                "properties": [{"id": "unit", "value": "amp"}, {"id": "custom.axisPlacement", "value": "right"}]
-              }
-            ]
+              "unit": "volt",
+              "custom": {"lineWidth": 2, "spanNulls": true, "drawStyle": "line"}
+            }
+          }
+        },
+        {
+          "id": 34,
+          "type": "timeseries",
+          "title": "Phase Current (L1)",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "dsmr_phase_current_l1_amps", "legendFormat": "L1 Current", "refId": "A"}
+          ],
+          "gridPos": {"h": 7, "w": 6, "x": 18, "y": 13},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "amp",
+              "custom": {"lineWidth": 2, "spanNulls": true, "drawStyle": "line"}
+            }
           }
         },
         {
