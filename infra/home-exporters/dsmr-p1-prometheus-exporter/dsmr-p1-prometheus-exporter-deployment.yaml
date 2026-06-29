@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dsmr-p1-prometheus-exporter
+  namespace: home-exporters
+  labels:
+    app: dsmr-p1-prometheus-exporter
+    app.kubernetes.io/name: dsmr-p1-prometheus-exporter
+    app.kubernetes.io/part-of: homelabs
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: dsmr-p1-prometheus-exporter
+  template:
+    metadata:
+      labels:
+        app: dsmr-p1-prometheus-exporter
+        app.kubernetes.io/name: dsmr-p1-prometheus-exporter
+    spec:
+      enableServiceLinks: false
+      # Must run on k8s-master01 where the USB P1 cable is connected
+      nodeName: k8s-master01
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: exporter
+          image: ghcr.io/ivanversluis/iot-dsmr-p1-prometheus-exporter:latest
+          imagePullPolicy: Always
+          ports:
+            - name: metrics
+              containerPort: 9100
+          envFrom:
+            - configMapRef:
+                name: dsmr-p1-prometheus-exporter-config
+          securityContext:
+            privileged: true
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 150m
+              memory: 128Mi
+          volumeMounts:
+            - name: usb-device
+              mountPath: /dev/ttyUSB0
+      volumes:
+        - name: usb-device
+          hostPath:
+            path: /dev/ttyUSB0
+            type: CharDevice

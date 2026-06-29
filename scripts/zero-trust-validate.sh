@@ -388,7 +388,7 @@ test_ns() {
       ;;
 
     home-exporters)
-      print_section "home-exporters — home climate exporter"
+      print_section "home-exporters — home climate & energy exporters"
       test_dns "$ns"
       test_cross_ns_deny "$ns"
       test_internet "$ns" 443 tcp allow
@@ -396,6 +396,9 @@ test_ns() {
       test_conn "$ns" "Prometheus scrape ingress TCP/9100 from observability" "allow" \
         --labels app.kubernetes.io/name=daikin-prometheus-exporter \
         nc -z -w "$TIMEOUT_ALLOW" daikin-prometheus-exporter.home-exporters.svc.cluster.local 9100
+      test_conn "$ns" "Prometheus scrape ingress TCP/9100 DSMR from observability" "allow" \
+        --labels app.kubernetes.io/name=dsmr-p1-prometheus-exporter \
+        nc -z -w "$TIMEOUT_ALLOW" dsmr-p1-prometheus-exporter.home-exporters.svc.cluster.local 9100
       flush_results
       ;;
 

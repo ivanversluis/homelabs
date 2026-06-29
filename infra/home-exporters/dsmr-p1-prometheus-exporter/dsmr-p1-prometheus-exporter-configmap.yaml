@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dsmr-p1-prometheus-exporter-config
+  namespace: home-exporters
+data:
+  DSMR_SERIAL_DEVICE: "/dev/ttyUSB0"
+  DSMR_BAUDRATE: "115200"
+  DSMR_BYTESIZE: "8"
+  DSMR_PARITY: "N"
+  DSMR_STOPBITS: "1"
+  METRICS_PORT: "9100"
+  LOG_LEVEL: "INFO"
+  DSMR_LOG_METER_IDS: "false"

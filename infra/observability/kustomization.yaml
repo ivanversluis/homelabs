@@ -41,6 +41,7 @@ resources:
   - grafana/dashboard-unbound-configmap.yaml
   - grafana/dashboard-home-climate-configmap.yaml
   - grafana/dashboard-home-energy-configmap.yaml
+  - grafana/dashboard-dsmr-energy-configmap.yaml
   - grafana/deployment.yaml
   - grafana/service.yaml
   # Vault integration

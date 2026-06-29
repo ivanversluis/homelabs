@@ -1,0 +1,577 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-dsmr-energy
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: dashboard
+    grafana_dashboard: "true"
+data:
+  dsmr-energy.json: |
+    {
+      "title": "DSMR Smart Meter & Solar",
+      "uid": "dsmr-energy",
+      "tags": ["home", "energy", "dsmr", "p1", "solar", "goodwe"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "10s",
+      "time": {"from": "now-6h", "to": "now"},
+      "panels": [
+        {
+          "id": 100,
+          "type": "row",
+          "title": "⚡ Electricity Overview",
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+          "collapsed": false
+        },
+        {
+          "id": 1,
+          "type": "gauge",
+          "title": "Current Import Power",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "dsmr_electricity_power_import_kw * 1000", "legendFormat": "Import", "refId": "A"}],
+          "gridPos": {"h": 5, "w": 4, "x": 0, "y": 1},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "watt",
+              "min": 0,
+              "max": 5000,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 1500},
+                  {"color": "red", "value": 3000}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 2,
+          "type": "gauge",
+          "title": "Current Export Power",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "dsmr_electricity_power_export_kw * 1000", "legendFormat": "Export", "refId": "A"}],
+          "gridPos": {"h": 5, "w": 4, "x": 4, "y": 1},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "watt",
+              "min": 0,
+              "max": 5000,
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "blue", "value": null},
+                  {"color": "green", "value": 500},
+                  {"color": "dark-green", "value": 2000}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 3,
+          "type": "stat",
+          "title": "Active Tariff",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "dsmr_electricity_active_tariff", "refId": "A"}],
+          "gridPos": {"h": 3, "w": 2, "x": 8, "y": 1},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 2}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 4,
+          "type": "stat",
+          "title": "Import Tariff 1 (Low)",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "dsmr_electricity_import_total_kwh_tariff_1", "refId": "A"}],
+          "gridPos": {"h": 3, "w": 3, "x": 10, "y": 1},
+          "fieldConfig": {"defaults": {"unit": "kwatth", "decimals": 1, "color": {"fixedColor": "green", "mode": "fixed"}}}
+        },
+        {
+          "id": 5,
+          "type": "stat",
+          "title": "Import Tariff 2 (Normal)",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "dsmr_electricity_import_total_kwh_tariff_2", "refId": "A"}],
+          "gridPos": {"h": 3, "w": 3, "x": 13, "y": 1},
+          "fieldConfig": {"defaults": {"unit": "kwatth", "decimals": 1, "color": {"fixedColor": "yellow", "mode": "fixed"}}}
+        },
+        {
+          "id": 6,
+          "type": "stat",
+          "title": "Export Tariff 1",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "dsmr_electricity_export_total_kwh_tariff_1", "refId": "A"}],
+          "gridPos": {"h": 3, "w": 3, "x": 16, "y": 1},
+          "fieldConfig": {"defaults": {"unit": "kwatth", "decimals": 1, "color": {"fixedColor": "blue", "mode": "fixed"}}}
+        },
+        {
+          "id": 7,
+          "type": "stat",
+          "title": "Export Tariff 2",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "dsmr_electricity_export_total_kwh_tariff_2", "refId": "A"}],
+          "gridPos": {"h": 3, "w": 3, "x": 19, "y": 1},
+          "fieldConfig": {"defaults": {"unit": "kwatth", "decimals": 1, "color": {"fixedColor": "purple", "mode": "fixed"}}}
+        },
+        {
+          "id": 8,
+          "type": "stat",
+          "title": "DSMR Up",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "dsmr_up", "refId": "A"}],
+          "gridPos": {"h": 2, "w": 2, "x": 22, "y": 1},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "mappings": [
+                {"type": "value", "options": {"0": {"text": "DOWN", "color": "red", "index": 0}}},
+                {"type": "value", "options": {"1": {"text": "UP", "color": "green", "index": 1}}}
+              ],
+              "thresholds": {"steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]},
+              "color": {"mode": "thresholds"}
+            }
+          }
+        },
+        {
+          "id": 9,
+          "type": "stat",
+          "title": "Short Power Failures",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "dsmr_power_failures_short_total", "refId": "A"}],
+          "gridPos": {"h": 2, "w": 2, "x": 8, "y": 4},
+          "fieldConfig": {"defaults": {"unit": "none", "color": {"fixedColor": "purple", "mode": "fixed"}}}
+        },
+        {
+          "id": 10,
+          "type": "stat",
+          "title": "Long Power Failures",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "dsmr_power_failures_long_total", "refId": "A"}],
+          "gridPos": {"h": 2, "w": 2, "x": 10, "y": 4},
+          "fieldConfig": {"defaults": {"unit": "none", "color": {"fixedColor": "purple", "mode": "fixed"}}}
+        },
+        {
+          "id": 11,
+          "type": "stat",
+          "title": "Voltage Sags L1",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "dsmr_voltage_sags_l1_total", "refId": "A"}],
+          "gridPos": {"h": 2, "w": 2, "x": 12, "y": 4},
+          "fieldConfig": {"defaults": {"unit": "none", "color": {"fixedColor": "orange", "mode": "fixed"}}}
+        },
+        {
+          "id": 12,
+          "type": "stat",
+          "title": "Voltage Swells L1",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "dsmr_voltage_swells_l1_total", "refId": "A"}],
+          "gridPos": {"h": 2, "w": 2, "x": 14, "y": 4},
+          "fieldConfig": {"defaults": {"unit": "none", "color": {"fixedColor": "orange", "mode": "fixed"}}}
+        },
+        {
+          "id": 13,
+          "type": "timeseries",
+          "title": "Electricity Import vs Export (last hour)",
+          "description": "Real-time power consumption vs solar return to grid",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "dsmr_electricity_power_import_kw * 1000", "legendFormat": "Import (consumption)", "refId": "A"},
+            {"expr": "dsmr_electricity_power_export_kw * -1000", "legendFormat": "Export (solar return)", "refId": "B"}
+          ],
+          "gridPos": {"h": 7, "w": 24, "x": 0, "y": 6},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "watt",
+              "custom": {
+                "fillOpacity": 20,
+                "lineWidth": 2,
+                "spanNulls": true,
+                "drawStyle": "line",
+                "lineInterpolation": "smooth"
+              },
+              "color": {"mode": "palette-classic"}
+            },
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "Export (solar return)"},
+                "properties": [
+                  {"id": "color", "value": {"fixedColor": "green", "mode": "fixed"}},
+                  {"id": "custom.fillOpacity", "value": 30}
+                ]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Import (consumption)"},
+                "properties": [
+                  {"id": "color", "value": {"fixedColor": "orange", "mode": "fixed"}},
+                  {"id": "custom.fillOpacity", "value": 30}
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": 14,
+          "type": "timeseries",
+          "title": "Per-Phase Import Power",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "dsmr_phase_power_import_l1_kw * 1000", "legendFormat": "L1 Import", "refId": "A"}
+          ],
+          "gridPos": {"h": 7, "w": 12, "x": 0, "y": 13},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "watt",
+              "custom": {"fillOpacity": 15, "lineWidth": 1, "spanNulls": true, "stacking": {"mode": "normal", "group": "A"}, "drawStyle": "bars"},
+              "color": {"mode": "palette-classic"}
+            }
+          }
+        },
+        {
+          "id": 15,
+          "type": "timeseries",
+          "title": "Phase Voltage & Current",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "dsmr_phase_voltage_l1_volts", "legendFormat": "L1 Voltage (V)", "refId": "A"},
+            {"expr": "dsmr_phase_current_l1_amps", "legendFormat": "L1 Current (A)", "refId": "B"}
+          ],
+          "gridPos": {"h": 7, "w": 12, "x": 12, "y": 13},
+          "fieldConfig": {
+            "defaults": {
+              "custom": {"lineWidth": 2, "spanNulls": true, "axisPlacement": "auto"}
+            },
+            "overrides": [
+              {
+                "matcher": {"id": "byRegexp", "options": ".*Voltage.*"},
+                "properties": [{"id": "unit", "value": "volt"}, {"id": "custom.axisPlacement", "value": "left"}]
+              },
+              {
+                "matcher": {"id": "byRegexp", "options": ".*Current.*"},
+                "properties": [{"id": "unit", "value": "amp"}, {"id": "custom.axisPlacement", "value": "right"}]
+              }
+            ]
+          }
+        },
+        {
+          "id": 200,
+          "type": "row",
+          "title": "🔥 Gas",
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 20},
+          "collapsed": false
+        },
+        {
+          "id": 16,
+          "type": "stat",
+          "title": "Gas Total",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "dsmr_gas_total_m3", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 21},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "m3",
+              "decimals": 3,
+              "color": {"fixedColor": "light-purple", "mode": "fixed"}
+            }
+          }
+        },
+        {
+          "id": 17,
+          "type": "timeseries",
+          "title": "Gas Consumption Over Time",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "dsmr_gas_total_m3", "legendFormat": "Gas Total (m³)", "refId": "A"}
+          ],
+          "gridPos": {"h": 6, "w": 18, "x": 6, "y": 21},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "m3",
+              "custom": {"fillOpacity": 10, "lineWidth": 2, "drawStyle": "line"},
+              "color": {"fixedColor": "light-purple", "mode": "fixed"}
+            }
+          }
+        },
+        {
+          "id": 18,
+          "type": "timeseries",
+          "title": "Hourly Gas Usage (delta)",
+          "description": "Estimated hourly gas consumption based on meter increase",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "increase(dsmr_gas_total_m3[1h])", "legendFormat": "Gas/hour", "refId": "A"}
+          ],
+          "gridPos": {"h": 6, "w": 24, "x": 0, "y": 27},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "m3",
+              "custom": {"fillOpacity": 30, "lineWidth": 1, "drawStyle": "bars"},
+              "color": {"fixedColor": "purple", "mode": "fixed"}
+            }
+          }
+        },
+        {
+          "id": 300,
+          "type": "row",
+          "title": "☀️ Solar Production (GoodWe)",
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 33},
+          "collapsed": false
+        },
+        {
+          "id": 19,
+          "type": "stat",
+          "title": "PV Power Now",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "goodwe_power_watts", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 4, "x": 0, "y": 34},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "watt",
+              "color": {"mode": "thresholds"},
+              "thresholds": {"steps": [{"color": "dark-yellow", "value": null}, {"color": "green", "value": 500}, {"color": "dark-green", "value": 2000}]}
+            }
+          }
+        },
+        {
+          "id": 20,
+          "type": "stat",
+          "title": "Today's Generation",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "goodwe_daily_generation_kwh", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 4, "x": 4, "y": 34},
+          "fieldConfig": {"defaults": {"unit": "kwatth", "decimals": 2, "color": {"fixedColor": "green", "mode": "fixed"}}}
+        },
+        {
+          "id": 21,
+          "type": "stat",
+          "title": "Total Generation",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "goodwe_total_generation_kwh", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 4, "x": 8, "y": 34},
+          "fieldConfig": {"defaults": {"unit": "kwatth", "decimals": 1, "color": {"fixedColor": "dark-green", "mode": "fixed"}}}
+        },
+        {
+          "id": 22,
+          "type": "stat",
+          "title": "Inverter Temp",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "goodwe_temperature_celsius", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 4, "x": 12, "y": 34},
+          "fieldConfig": {"defaults": {"unit": "celsius"}}
+        },
+        {
+          "id": 23,
+          "type": "stat",
+          "title": "GoodWe Up",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "goodwe_up", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 4, "x": 16, "y": 34},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "mappings": [
+                {"type": "value", "options": {"0": {"text": "DOWN", "color": "red", "index": 0}}},
+                {"type": "value", "options": {"1": {"text": "UP", "color": "green", "index": 1}}}
+              ],
+              "thresholds": {"steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]},
+              "color": {"mode": "thresholds"}
+            }
+          }
+        },
+        {
+          "id": 24,
+          "type": "timeseries",
+          "title": "Solar Production vs Grid Export",
+          "description": "Solar panel output compared to energy returned to the grid",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "goodwe_power_watts", "legendFormat": "PV Power (solar panels)", "refId": "A"},
+            {"expr": "dsmr_electricity_power_export_kw * 1000", "legendFormat": "Grid Export (return)", "refId": "B"},
+            {"expr": "goodwe_power_watts - (dsmr_electricity_power_export_kw * 1000)", "legendFormat": "Self-consumed", "refId": "C"}
+          ],
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 38},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "watt",
+              "custom": {"fillOpacity": 15, "lineWidth": 2, "spanNulls": true, "drawStyle": "line", "lineInterpolation": "smooth"},
+              "color": {"mode": "palette-classic"}
+            },
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "PV Power (solar panels)"},
+                "properties": [{"id": "color", "value": {"fixedColor": "yellow", "mode": "fixed"}}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Grid Export (return)"},
+                "properties": [{"id": "color", "value": {"fixedColor": "green", "mode": "fixed"}}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Self-consumed"},
+                "properties": [{"id": "color", "value": {"fixedColor": "blue", "mode": "fixed"}}, {"id": "custom.fillOpacity", "value": 30}]
+              }
+            ]
+          }
+        },
+        {
+          "id": 25,
+          "type": "timeseries",
+          "title": "PV Power per String",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "goodwe_dc_power_watts{string=\"1\"}", "legendFormat": "String 1", "refId": "A"},
+            {"expr": "goodwe_dc_power_watts{string=\"2\"}", "legendFormat": "String 2", "refId": "B"}
+          ],
+          "gridPos": {"h": 7, "w": 12, "x": 0, "y": 46},
+          "fieldConfig": {"defaults": {"unit": "watt", "custom": {"fillOpacity": 10, "lineWidth": 2}}}
+        },
+        {
+          "id": 26,
+          "type": "timeseries",
+          "title": "Today's Solar Generation",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "goodwe_daily_generation_kwh", "legendFormat": "Today (kWh)", "refId": "A"}
+          ],
+          "gridPos": {"h": 7, "w": 12, "x": 12, "y": 46},
+          "fieldConfig": {"defaults": {"unit": "kwatth", "custom": {"fillOpacity": 20}, "color": {"fixedColor": "green", "mode": "fixed"}}}
+        },
+        {
+          "id": 400,
+          "type": "row",
+          "title": "📊 Net Energy Balance",
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 53},
+          "collapsed": false
+        },
+        {
+          "id": 27,
+          "type": "timeseries",
+          "title": "Net Grid Power (Import - Export)",
+          "description": "Positive = consuming from grid, Negative = feeding into grid",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "(dsmr_electricity_power_import_kw - dsmr_electricity_power_export_kw) * 1000", "legendFormat": "Net Grid Power", "refId": "A"}
+          ],
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 54},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "watt",
+              "custom": {
+                "fillOpacity": 25,
+                "lineWidth": 2,
+                "spanNulls": true,
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "thresholdsStyle": {"mode": "area"}
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "transparent", "value": 0},
+                  {"color": "orange", "value": 0}
+                ]
+              },
+              "color": {"mode": "thresholds"}
+            }
+          }
+        },
+        {
+          "id": 28,
+          "type": "timeseries",
+          "title": "Daily Energy Import vs Export (kWh)",
+          "description": "Rolling 24h energy import vs export totals",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "increase(dsmr_electricity_import_total_kwh_tariff_1[24h]) + increase(dsmr_electricity_import_total_kwh_tariff_2[24h])", "legendFormat": "24h Import", "refId": "A"},
+            {"expr": "increase(dsmr_electricity_export_total_kwh_tariff_1[24h]) + increase(dsmr_electricity_export_total_kwh_tariff_2[24h])", "legendFormat": "24h Export", "refId": "B"}
+          ],
+          "gridPos": {"h": 7, "w": 12, "x": 0, "y": 62},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "kwatth",
+              "decimals": 2,
+              "custom": {"fillOpacity": 20, "lineWidth": 2}
+            }
+          }
+        },
+        {
+          "id": 29,
+          "type": "timeseries",
+          "title": "Solar Self-Consumption Ratio",
+          "description": "Percentage of solar power consumed locally vs exported",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "clamp_min((goodwe_power_watts - dsmr_electricity_power_export_kw * 1000) / goodwe_power_watts * 100, 0)", "legendFormat": "Self-consumption %", "refId": "A"}
+          ],
+          "gridPos": {"h": 7, "w": 12, "x": 12, "y": 62},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "custom": {"fillOpacity": 15, "lineWidth": 2},
+              "color": {"fixedColor": "blue", "mode": "fixed"}
+            }
+          }
+        },
+        {
+          "id": 500,
+          "type": "row",
+          "title": "🔧 Exporter Health",
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 69},
+          "collapsed": false
+        },
+        {
+          "id": 30,
+          "type": "stat",
+          "title": "DSMR Parse Errors",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "dsmr_telegram_parse_errors_total", "refId": "A"}],
+          "gridPos": {"h": 3, "w": 6, "x": 0, "y": 70},
+          "fieldConfig": {"defaults": {"unit": "short", "thresholds": {"steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}, "color": {"mode": "thresholds"}}}
+        },
+        {
+          "id": 31,
+          "type": "stat",
+          "title": "DSMR Last Telegram",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "dsmr_last_telegram_timestamp * 1000", "refId": "A"}],
+          "gridPos": {"h": 3, "w": 6, "x": 6, "y": 70},
+          "fieldConfig": {"defaults": {"unit": "dateTimeAsIso"}}
+        },
+        {
+          "id": 32,
+          "type": "stat",
+          "title": "GoodWe Scrape Errors",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "goodwe_scrape_errors_total", "refId": "A"}],
+          "gridPos": {"h": 3, "w": 6, "x": 12, "y": 70},
+          "fieldConfig": {"defaults": {"unit": "short", "thresholds": {"steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}, "color": {"mode": "thresholds"}}}
+        },
+        {
+          "id": 33,
+          "type": "stat",
+          "title": "GoodWe Last Scrape",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "goodwe_last_scrape_timestamp * 1000", "refId": "A"}],
+          "gridPos": {"h": 3, "w": 6, "x": 18, "y": 70},
+          "fieldConfig": {"defaults": {"unit": "dateTimeAsIso"}}
+        }
+      ]
+    }
