@@ -1,0 +1,295 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-prometheus-storage
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: dashboard
+    grafana_dashboard: "true"
+data:
+  prometheus-storage.json: |
+    {
+      "title": "Prometheus Storage & Scrapers",
+      "uid": "prometheus-storage",
+      "tags": ["prometheus", "storage", "scrapers"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "1m",
+      "time": {"from": "now-7d", "to": "now"},
+      "annotations": {"list": []},
+      "templating": {"list": []},
+      "panels": [
+        {
+          "type": "row",
+          "title": "Storage Overview",
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+          "collapsed": false,
+          "id": 100
+        },
+        {
+          "type": "stat",
+          "title": "TSDB Total Size",
+          "description": "Total size of all TSDB blocks on disk",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "prometheus_tsdb_storage_blocks_bytes", "refId": "A", "legendFormat": "blocks"}],
+          "gridPos": {"h": 4, "w": 4, "x": 0, "y": 1},
+          "fieldConfig": {"defaults": {"unit": "bytes", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 21474836480}, {"color": "red", "value": 42949672960}]}}},
+          "id": 1
+        },
+        {
+          "type": "stat",
+          "title": "WAL Size",
+          "description": "Size of Write-Ahead Log",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "prometheus_tsdb_wal_storage_size_bytes", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 4, "x": 4, "y": 1},
+          "fieldConfig": {"defaults": {"unit": "bytes", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1073741824}, {"color": "red", "value": 5368709120}]}}},
+          "id": 2
+        },
+        {
+          "type": "stat",
+          "title": "Total + WAL",
+          "description": "Combined TSDB blocks + WAL size",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "prometheus_tsdb_storage_blocks_bytes + prometheus_tsdb_wal_storage_size_bytes", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 4, "x": 8, "y": 1},
+          "fieldConfig": {"defaults": {"unit": "bytes", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 32212254720}, {"color": "red", "value": 48318382080}]}}},
+          "id": 3
+        },
+        {
+          "type": "gauge",
+          "title": "Storage Used (% of 50 GiB)",
+          "description": "Percentage of retention size limit used",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "(prometheus_tsdb_storage_blocks_bytes + prometheus_tsdb_wal_storage_size_bytes) / (50 * 1024 * 1024 * 1024) * 100", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 4, "x": 12, "y": 1},
+          "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 70}, {"color": "red", "value": 90}]}}},
+          "id": 4
+        },
+        {
+          "type": "stat",
+          "title": "Active Series",
+          "description": "Total number of active time series in head",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "prometheus_tsdb_head_series", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 4, "x": 16, "y": 1},
+          "fieldConfig": {"defaults": {"unit": "short", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 500000}, {"color": "red", "value": 1000000}]}}},
+          "id": 5
+        },
+        {
+          "type": "stat",
+          "title": "Retention",
+          "description": "Configured retention time",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "prometheus_tsdb_retention_limit_seconds / 86400", "refId": "A", "legendFormat": "days"}],
+          "gridPos": {"h": 4, "w": 4, "x": 20, "y": 1},
+          "fieldConfig": {"defaults": {"unit": "d", "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}}},
+          "id": 6
+        },
+        {
+          "type": "timeseries",
+          "title": "TSDB Storage Over Time",
+          "description": "Block storage and WAL size trends",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "prometheus_tsdb_storage_blocks_bytes", "refId": "A", "legendFormat": "Blocks"},
+            {"expr": "prometheus_tsdb_wal_storage_size_bytes", "refId": "B", "legendFormat": "WAL"},
+            {"expr": "prometheus_tsdb_storage_blocks_bytes + prometheus_tsdb_wal_storage_size_bytes", "refId": "C", "legendFormat": "Total"}
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 5},
+          "fieldConfig": {"defaults": {"unit": "bytes", "custom": {"fillOpacity": 10, "lineWidth": 2, "showPoints": "never"}}},
+          "options": {"tooltip": {"mode": "multi"}},
+          "id": 7
+        },
+        {
+          "type": "timeseries",
+          "title": "Head Chunks & Series",
+          "description": "Active series and chunks in Prometheus head block",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "prometheus_tsdb_head_series", "refId": "A", "legendFormat": "Series"},
+            {"expr": "prometheus_tsdb_head_chunks", "refId": "B", "legendFormat": "Chunks"}
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 5},
+          "fieldConfig": {"defaults": {"unit": "short", "custom": {"fillOpacity": 10, "lineWidth": 2, "showPoints": "never"}}},
+          "options": {"tooltip": {"mode": "multi"}},
+          "id": 8
+        },
+        {
+          "type": "row",
+          "title": "Scraper Breakdown (Per Job)",
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 13},
+          "collapsed": false,
+          "id": 101
+        },
+        {
+          "type": "bargauge",
+          "title": "Samples Scraped Per Job (last scrape)",
+          "description": "Number of samples each job returned on its last scrape",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "sum by (job) (scrape_samples_scraped)", "refId": "A", "legendFormat": "{{job}}", "instant": true}],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14},
+          "fieldConfig": {"defaults": {"unit": "short", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 500}, {"color": "red", "value": 2000}]}}},
+          "options": {"orientation": "horizontal", "displayMode": "gradient", "showUnfilled": true, "reduceOptions": {"calcs": ["lastNotNull"]}},
+          "id": 9
+        },
+        {
+          "type": "bargauge",
+          "title": "Active Series Per Job",
+          "description": "Estimated active series count per scrape job",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "sum by (job) (scrape_samples_scraped)", "refId": "A", "legendFormat": "{{job}}", "instant": true}],
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14},
+          "fieldConfig": {"defaults": {"unit": "short", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 500}, {"color": "red", "value": 2000}]}}},
+          "options": {"orientation": "horizontal", "displayMode": "gradient", "showUnfilled": true, "reduceOptions": {"calcs": ["lastNotNull"]}},
+          "id": 10
+        },
+        {
+          "type": "timeseries",
+          "title": "Samples Scraped Over Time (by job)",
+          "description": "How many samples each job is producing per scrape, over time",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "sum by (job) (scrape_samples_scraped)", "refId": "A", "legendFormat": "{{job}}"}],
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 22},
+          "fieldConfig": {"defaults": {"unit": "short", "custom": {"fillOpacity": 10, "lineWidth": 1, "showPoints": "never", "stacking": {"mode": "none"}}}},
+          "options": {"tooltip": {"mode": "multi", "sort": "desc"}},
+          "id": 11
+        },
+        {
+          "type": "timeseries",
+          "title": "Scrape Duration (by job)",
+          "description": "How long each scrape takes per job — spikes indicate slow exporters",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "sum by (job) (scrape_duration_seconds)", "refId": "A", "legendFormat": "{{job}}"}],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 30},
+          "fieldConfig": {"defaults": {"unit": "s", "custom": {"fillOpacity": 10, "lineWidth": 1, "showPoints": "never"}}},
+          "options": {"tooltip": {"mode": "multi", "sort": "desc"}},
+          "id": 12
+        },
+        {
+          "type": "timeseries",
+          "title": "New Series Added (by job)",
+          "description": "New series added per scrape — spikes indicate label churn",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "sum by (job) (scrape_series_added)", "refId": "A", "legendFormat": "{{job}}"}],
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 30},
+          "fieldConfig": {"defaults": {"unit": "short", "custom": {"fillOpacity": 10, "lineWidth": 1, "showPoints": "never"}}},
+          "options": {"tooltip": {"mode": "multi", "sort": "desc"}},
+          "id": 13
+        },
+        {
+          "type": "row",
+          "title": "Storage Cost Per Job (Estimated)",
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 38},
+          "collapsed": false,
+          "id": 102
+        },
+        {
+          "type": "table",
+          "title": "Storage Impact Summary",
+          "description": "Estimated daily sample ingestion per job. Higher = more storage consumed. Formula: samples_per_scrape × scrapes_per_day",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {
+              "expr": "sum by (job) (scrape_samples_scraped)",
+              "refId": "A",
+              "legendFormat": "{{job}}",
+              "instant": true,
+              "format": "table"
+            },
+            {
+              "expr": "sum by (job) (scrape_duration_seconds)",
+              "refId": "B",
+              "legendFormat": "{{job}}",
+              "instant": true,
+              "format": "table"
+            },
+            {
+              "expr": "count by (job) (up)",
+              "refId": "C",
+              "legendFormat": "{{job}}",
+              "instant": true,
+              "format": "table"
+            },
+            {
+              "expr": "sum by (job) (rate(prometheus_target_scrapes_sample_out_of_order_total[5m]))",
+              "refId": "D",
+              "legendFormat": "{{job}}",
+              "instant": true,
+              "format": "table"
+            }
+          ],
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 39},
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": [
+              {"matcher": {"id": "byName", "options": "job"}, "properties": [{"id": "custom.width", "value": 280}]},
+              {"matcher": {"id": "byName", "options": "Value #A"}, "properties": [{"id": "displayName", "value": "Samples / Scrape"}, {"id": "unit", "value": "short"}]},
+              {"matcher": {"id": "byName", "options": "Value #B"}, "properties": [{"id": "displayName", "value": "Scrape Duration"}, {"id": "unit", "value": "s"}]},
+              {"matcher": {"id": "byName", "options": "Value #C"}, "properties": [{"id": "displayName", "value": "Targets"}, {"id": "unit", "value": "short"}]},
+              {"matcher": {"id": "byName", "options": "Value #D"}, "properties": [{"id": "displayName", "value": "Out of Order/s"}, {"id": "unit", "value": "short"}]},
+              {"matcher": {"id": "byName", "options": "Time"}, "properties": [{"id": "custom.hidden", "value": true}]}
+            ]
+          },
+          "options": {"showHeader": true, "sortBy": [{"displayName": "Samples / Scrape", "desc": true}]},
+          "transformations": [
+            {"id": "merge", "options": {}},
+            {"id": "organize", "options": {"excludeByName": {"Time": true, "__name__": true, "instance": true}, "indexByName": {"job": 0, "Value #A": 1, "Value #B": 2, "Value #C": 3, "Value #D": 4}}}
+          ],
+          "id": 14
+        },
+        {
+          "type": "piechart",
+          "title": "Sample Share by Job",
+          "description": "Which jobs are producing the most samples (proportional)",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "sum by (job) (scrape_samples_scraped)", "refId": "A", "legendFormat": "{{job}}", "instant": true}],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 49},
+          "fieldConfig": {"defaults": {"unit": "short"}},
+          "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "tooltip": {"mode": "multi"}, "legend": {"displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "percent"]}},
+          "id": 15
+        },
+        {
+          "type": "timeseries",
+          "title": "Samples Ingested Rate (total)",
+          "description": "Overall rate of samples being ingested into TSDB",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "rate(prometheus_tsdb_head_samples_appended_total[5m])", "refId": "A", "legendFormat": "samples/sec"}
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 49},
+          "fieldConfig": {"defaults": {"unit": "short", "custom": {"fillOpacity": 20, "lineWidth": 2, "showPoints": "never", "gradientMode": "scheme"}, "color": {"mode": "continuous-GrYlRd"}}},
+          "options": {"tooltip": {"mode": "single"}},
+          "id": 16
+        },
+        {
+          "type": "row",
+          "title": "Target Health",
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 57},
+          "collapsed": false,
+          "id": 103
+        },
+        {
+          "type": "table",
+          "title": "Scrape Target Status",
+          "description": "Current health of all scrape targets",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "up", "refId": "A", "instant": true, "format": "table"}],
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 58},
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": [
+              {"matcher": {"id": "byName", "options": "job"}, "properties": [{"id": "custom.width", "value": 280}]},
+              {"matcher": {"id": "byName", "options": "instance"}, "properties": [{"id": "custom.width", "value": 400}]},
+              {"matcher": {"id": "byName", "options": "Value"}, "properties": [{"id": "displayName", "value": "Status"}, {"id": "mappings", "value": [{"type": "value", "options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}}]}, {"id": "custom.cellOptions", "value": {"type": "color-text"}}]},
+              {"matcher": {"id": "byName", "options": "Time"}, "properties": [{"id": "custom.hidden", "value": true}]},
+              {"matcher": {"id": "byName", "options": "__name__"}, "properties": [{"id": "custom.hidden", "value": true}]}
+            ]
+          },
+          "options": {"showHeader": true, "sortBy": [{"displayName": "job", "desc": false}]},
+          "id": 17
+        }
+      ]
+    }
