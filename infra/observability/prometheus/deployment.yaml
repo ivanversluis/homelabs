@@ -32,8 +32,8 @@ spec:
           args:
             - '--config.file=/etc/prometheus/prometheus.yml'
             - '--storage.tsdb.path=/prometheus'
-            - '--storage.tsdb.retention.time=15d'
-            - '--storage.tsdb.retention.size=5GB'
+            - '--storage.tsdb.retention.time=365d'
+            - '--storage.tsdb.retention.size=50GB'
             - '--web.console.libraries=/usr/share/prometheus/console_libraries'
             - '--web.console.templates=/usr/share/prometheus/consoles'
             - '--web.enable-lifecycle'
@@ -58,10 +58,10 @@ spec:
           resources:
             requests:
               cpu: 100m
-              memory: 256Mi
+              memory: 512Mi
             limits:
               cpu: 500m
-              memory: 1Gi
+              memory: 2Gi
           livenessProbe:
             httpGet:
               path: /-/healthy
@@ -104,4 +104,4 @@ spec:
   storageClassName: longhorn
   resources:
     requests:
-      storage: 10Gi
+      storage: 60Gi
