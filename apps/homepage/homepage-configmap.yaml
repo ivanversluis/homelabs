@@ -33,13 +33,13 @@ data:
             description: Workflow Automation
             icon: n8n.png
         - Semaphore:
-            href: "https://demo-semaphore.${DOMAIN}"
+            href: "https://demo-semaphoreui.${DOMAIN}"
             description: Ansible / Terraform UI
             icon: semaphore-ui.png
 
     - Infrastructure:
         - Headlamp:
-            href: "https://demo-headlamp.${DOMAIN}"
+            href: "https://headlamp.${DOMAIN}"
             description: Kubernetes Dashboard
             icon: kubernetes.png
         - Authentik:
@@ -51,7 +51,7 @@ data:
             description: Secrets Manager
             icon: hashicorp-vault.png
         - Grafana:
-            href: "https://demo-grafana.${DOMAIN}"
+            href: "https://grafana.${DOMAIN}"
             description: Observability
             icon: grafana.png
         - Portainer:
