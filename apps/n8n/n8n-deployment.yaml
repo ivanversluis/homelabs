@@ -41,7 +41,7 @@ spec:
       #         mountPath: /home/node/.n8n
       containers:
         - name: n8n
-          image: n8nio/n8n:2.30.1
+          image: n8nio/n8n:2.30.3
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5678
