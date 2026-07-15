@@ -114,3 +114,25 @@ spec:
       ports:
         - protocol: TCP
           port: 22
+
+#6 Allow SSH from Termix environment
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ssh-from-termix
+  namespace: vms
+spec:
+  podSelector:
+    matchLabels:
+      app: debian-bookworm
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: termix
+      ports:
+        - protocol: TCP
+          port: 22
