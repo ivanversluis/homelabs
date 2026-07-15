@@ -5,3 +5,4 @@ resources:
   - vms-netpol.yaml
   - vms-externalsecret.yaml
   - debian-bookworm-vm.yaml
+  - debian-bookworm-ssh-service.yaml
