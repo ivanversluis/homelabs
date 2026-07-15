@@ -1,0 +1,21 @@
+# vms/debian-bookworm-ssh-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: debian-bookworm-ssh
+  namespace: vms
+  labels:
+    app: debian-bookworm
+  annotations:
+    # Optional: omit this and MetalLB chooses an available IP.
+    # metallb.io/loadBalancerIPs: "172.16.20.216"
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    app: debian-bookworm
+  ports:
+    - name: ssh
+      protocol: TCP
+      port: 22
+      targetPort: 22
