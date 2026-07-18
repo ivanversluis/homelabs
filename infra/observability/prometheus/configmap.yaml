@@ -169,8 +169,7 @@ data:
         metrics_path: '/v1/sys/metrics'
         params:
           format: ['prometheus']
-        authorization:
-          credentials_file: /etc/prometheus/secrets/vault-prometheus-token/token
+        bearer_token_file: /etc/prometheus/secrets/vault-prometheus-token/token
         static_configs:
           - targets: ['vault.vault.svc.cluster.local:8200']
             labels:

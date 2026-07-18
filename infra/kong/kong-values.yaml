@@ -4,7 +4,7 @@
 #   --version 2.46.0 \
 #   -f infra/kong/kong-values.yaml
 #
-# NOTE: KONG_LB_IP is substituted by the deploy script via envsubst.
+# NOTE: KONG_EXTERNAL_LB_IP is substituted by the deploy script via envsubst.
 #       Run: envsubst < infra/kong/kong-values.yaml | helm install kong kong/kong ...
 
 # ─────────────────────────────────────────────
@@ -14,7 +14,7 @@ proxy:
   enabled: true
   type: LoadBalancer
   annotations:
-    metallb.universe.tf/loadBalancerIPs: "${KONG_LB_IP}"
+    metallb.universe.tf/loadBalancerIPs: "${KONG_EXTERNAL_LB_IP}"
   http:
     enabled: true
     servicePort: 80

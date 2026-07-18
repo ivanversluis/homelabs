@@ -31,10 +31,14 @@ spec:
     proxy:
       enabled: true
       type: LoadBalancer
-      # IP is injected by Flux from the flux-domain-vars Secret (KONG_LB_IP).
-      loadBalancerIP: ${KONG_LB_IP}
+      # IP is injected by Flux from the flux-domain-vars Secret (KONG_EXTERNAL_LB_IP).
+      # NOTE: do NOT use KONG_LB_IP here — that var is Kong's ClusterIP, used only
+      # by the CoreDNS split-brain hosts{} block. Requesting a ClusterIP as a
+      # MetalLB LoadBalancer IP is outside the homelab-pool range and leaves the
+      # Service stuck in <pending> forever.
+      loadBalancerIP: ${KONG_EXTERNAL_LB_IP}
       annotations:
-        metallb.universe.tf/loadBalancerIPs: "${KONG_LB_IP}"
+        metallb.universe.tf/loadBalancerIPs: "${KONG_EXTERNAL_LB_IP}"
       http:
         enabled: true
         servicePort: 80
