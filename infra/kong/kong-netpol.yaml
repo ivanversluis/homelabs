@@ -124,9 +124,10 @@ spec:
           port: 8443
 ---
 # LAN clients (MetalLB VIP traffic) -> Kong proxy
-# kube-proxy DNAT rewrites the VIP to the pod IP before NetworkPolicy is evaluated,
-# so the source appears as a node IP in the LAN subnet. Allow from 0.0.0.0/0 on
-# proxy ports is intentional — Calico still blocks everything else.
+# externalTrafficPolicy: Local means kube-proxy does NOT SNAT — the real client
+# source IP is preserved all the way to the pod (that's the whole point of
+# Local policy). So this must allow the actual LAN client CIDRs, not just the
+# 172.16.0.0/12 range MetalLB/node IPs live in.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -141,6 +142,8 @@ spec:
     - from:
         - ipBlock:
             cidr: 172.16.0.0/12   # LAN + MetalLB node IPs
+        - ipBlock:
+            cidr: 192.168.0.0/16   # other home LAN client subnets
       ports:
         - protocol: TCP
           port: 8000
