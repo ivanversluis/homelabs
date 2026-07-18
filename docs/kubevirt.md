@@ -124,6 +124,23 @@ virtctl start  debian-bookworm -n vms   # start
 virtctl restart debian-bookworm -n vms  # graceful restart
 ```
 
+**When is a restart required?** KubeVirt does not live-reconcile changes to
+`spec.template.spec.domain.devices.interfaces` (e.g. adding/removing masquerade `ports:`) or other
+hardware-shaped fields (disks, CPU/memory topology) into an already-running VMI — the pod must be
+recreated. After editing those fields:
+
+```bash
+# Apply the manifest change, then let Flux reconcile (or kubectl apply -f directly), then:
+virtctl restart debian-bookworm -n vms
+
+# Watch the new virt-launcher pod come up on k8s-worker03
+kubectl get pods -n vms -w
+```
+
+No need to delete the DataVolume/PVC for this — the disk and cloud-init state are preserved;
+only `virtctl restart` (or `stop` + `start`) is needed. Deleting the VM/DataVolume (see
+"Reset VM" below) is only required when you want to force cloud-init to run again from scratch.
+
 ### Pause / Unpause (freeze VM without losing state)
 
 ```bash
@@ -184,6 +201,34 @@ kubevirt Flux Kustomization
   └── cdi Flux Kustomization (dependsOn: kubevirt)
         └── vms Flux Kustomization (dependsOn: kubevirt, cdi)
 ```
+
+---
+
+## Networking — Masquerade Port Forwarding
+
+The VM's pod interface uses KubeVirt's `masquerade` binding (`spec.domain.devices.interfaces[].masquerade: {}`),
+which NATs traffic between the pod network and the guest — similar to Docker's `-p` port publishing.
+
+**Critical gotcha**: masquerade binding only forwards ports that are explicitly declared in the
+interface's `ports:` list. Any port *not* listed there is silently dropped by the pod's own NAT
+rules before it ever reaches the guest — even though the Kubernetes Service, MetalLB VIP
+announcement, and network policies are all correctly configured. This produces a confusing symptom:
+ARP resolves, the LoadBalancer IP is reachable at the network layer, but TCP connections
+time out with no RST, because the pod itself never forwards the SYN into the VM.
+
+```yaml
+interfaces:
+  - name: default
+    masquerade: {}
+    ports:
+      - name: ssh
+        port: 22
+        protocol: TCP
+```
+
+Any new port that needs to be reachable from outside the pod (additional Services, etc.) must be
+added here. **This is a template change — it requires a VM restart to take effect** (see below);
+editing the YAML alone does not affect an already-running VMI/pod.
 
 ---
 
@@ -251,6 +296,18 @@ virtctl console debian-bookworm -n vms
 journalctl -u cloud-init
 cloud-init status --long
 ```
+
+### LoadBalancer VIP/Service reachable but connection times out (e.g. SSH)
+
+If `kubectl get endpoints` shows a healthy endpoint, MetalLB shows the VIP as announced
+(`kubectl get servicel2statuses.metallb.io -n vms`), and there are no NetworkPolicy or
+speaker/kube-proxy errors, but TCP connections to the VIP still time out with no RST:
+
+- Check that the port is explicitly listed under the masquerade interface's `ports:` (see
+  "Networking — Masquerade Port Forwarding" above). A missing entry causes the pod to silently
+  drop inbound traffic for that port even though everything upstream looks correctly configured.
+- After adding/fixing the `ports:` list, remember this requires `virtctl restart` — it will not
+  take effect just by re-applying the manifest.
 
 ### Reset VM (delete disk + re-import)
 
