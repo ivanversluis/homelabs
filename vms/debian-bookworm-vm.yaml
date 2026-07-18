@@ -71,6 +71,14 @@ spec:
           interfaces:
             - name: default
               masquerade: {}
+              ports:
+                # KubeVirt masquerade binding only forwards ports listed here
+                # into the guest; without this, SSH (and everything else) is
+                # silently dropped by the pod's NAT rules even though the
+                # Service/MetalLB VIP delivery is working correctly.
+                - name: ssh
+                  port: 22
+                  protocol: TCP
           # Enable the QEMU guest agent channel for lifecycle hooks
           rng: {}
       networks:
