@@ -36,9 +36,12 @@ spec:
       # by the CoreDNS split-brain hosts{} block. Requesting a ClusterIP as a
       # MetalLB LoadBalancer IP is outside the homelab-pool range and leaves the
       # Service stuck in <pending> forever.
+      # NOTE: only set loadBalancerIP — do NOT also add the
+      # metallb.universe.tf/loadBalancerIPs annotation. MetalLB rejects services
+      # that set both ("service can not have both metallb.io/loadBalancerIPs and
+      # svc.Spec.LoadBalancerIP"), which silently kept this Service in
+      # AllocationFailed for 65+ days before this was caught.
       loadBalancerIP: ${KONG_EXTERNAL_LB_IP}
-      annotations:
-        metallb.universe.tf/loadBalancerIPs: "${KONG_EXTERNAL_LB_IP}"
       http:
         enabled: true
         servicePort: 80

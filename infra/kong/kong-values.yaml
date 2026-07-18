@@ -13,8 +13,10 @@
 proxy:
   enabled: true
   type: LoadBalancer
-  annotations:
-    metallb.universe.tf/loadBalancerIPs: "${KONG_EXTERNAL_LB_IP}"
+  # NOTE: only set loadBalancerIP — do NOT also add the
+  # metallb.universe.tf/loadBalancerIPs annotation. MetalLB rejects services
+  # that set both at the same time.
+  loadBalancerIP: "${KONG_EXTERNAL_LB_IP}"
   http:
     enabled: true
     servicePort: 80
