@@ -75,6 +75,14 @@ spec:
                 secretKeyRef:
                   name: vaultwarden-secret
                   key: client-secret
+            # ── Website icons ────────────────────────────────────────────────
+            # Zero-Trust NetworkPolicy denies all internet egress for this
+            # namespace by design (data stays in-cluster). Without this,
+            # every vault item domain triggers a favicon fetch that times out
+            # against the NetworkPolicy (~10s each), making the web vault
+            # appear to hang indefinitely after large imports.
+            - name: DISABLE_ICON_DOWNLOAD
+              value: "true"
             # ── Logging ─────────────────────────────────────────────────────
             - name: LOG_LEVEL
               value: "warn"
