@@ -28,7 +28,7 @@ spec:
 
     image:
       repository: semaphoreui/semaphore
-      tag: "v2.19.7"
+      tag: "v2.19.8"
 
     service:
       type: ClusterIP
