@@ -37,7 +37,7 @@ spec:
               mountPath: /app/config
       containers:
         - name: homepage
-          image: ghcr.io/gethomepage/homepage:v1.13
+          image: ghcr.io/gethomepage/homepage:v2.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
