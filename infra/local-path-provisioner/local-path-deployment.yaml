@@ -28,7 +28,7 @@ spec:
         kubernetes.io/hostname: k8s-worker03
       containers:
         - name: local-path-provisioner
-          image: rancher/local-path-provisioner:v0.0.36
+          image: rancher/local-path-provisioner:v0.0.37
           imagePullPolicy: IfNotPresent
           command:
             - local-path-provisioner
