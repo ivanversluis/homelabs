@@ -24,6 +24,13 @@ spec:
       retries: 5
   values:
     installCRDs: true
+    # Use public recursive DNS for ACME DNS-01 propagation checks.
+    # CoreDNS's forward plugin leaks stale/incomplete NS delegation info
+    # (e.g. returns TLD nameservers instead of the real zone's authoritative
+    # nameservers), which makes cert-manager query the wrong servers for the
+    # challenge TXT record and DNS-01 propagation checks never succeed.
+    dns01RecursiveNameservers: "1.1.1.1:53,8.8.8.8:53"
+    dns01RecursiveNameserversOnly: true
     # Prometheus metrics
     prometheus:
       enabled: true

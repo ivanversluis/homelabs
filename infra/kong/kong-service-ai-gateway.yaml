@@ -35,8 +35,6 @@ metadata:
     # that doesn't match its configured model.name (gpt-4o-mini).
     konghq.com/plugins: "normalize-model-name,ai-proxy-azure,ai-prompt-guard,rate-limit-global"
     konghq.com/strip-path: "false"
-    # Kong will serve this over HTTPS using the wildcard cert
-    kubernetes.io/tls-acme: "true"
 spec:
   ingressClassName: kong
   tls:
