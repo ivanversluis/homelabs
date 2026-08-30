@@ -1,0 +1,17 @@
+---
+# Flux Kustomization for Longhorn (storage layer).
+# Split out of the flat services/ aggregator (applied by the root flux-system
+# Kustomization, which has force: true) — Longhorn underlies every PVC in the
+# cluster, so it must never be subject to a forced delete+recreate.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: longhorn
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./services/storage/longhorn/k8s
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

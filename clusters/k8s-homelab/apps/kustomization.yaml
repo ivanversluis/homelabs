@@ -8,6 +8,8 @@ resources:
   - homebox-kustomization.yaml
   - forgejo-kustomization.yaml
   - vaultwarden-kustomization.yaml
+  # n8n — split out to isolate its PVCs from the force: true root Kustomization.
+  - n8n-kustomization.yaml
   # VM workloads — depends on kubevirt + cdi Flux Kustomizations
   - vms-kustomization.yaml
   # linkding and termix — postBuild needed for ${DOMAIN} in OIDC config

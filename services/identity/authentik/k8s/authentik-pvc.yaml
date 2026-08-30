@@ -6,6 +6,8 @@ spec:
   accessModes:
     - ReadWriteOnce
   storageClassName: longhorn
+  # Pinned to the real data volume so a force-applied recreate of this PVC can't silently rebind to a fresh empty PV.
+  volumeName: pvc-b32f1521-38aa-42dd-b934-c7cc47096c48
   resources:
     requests:
       storage: 500Mi

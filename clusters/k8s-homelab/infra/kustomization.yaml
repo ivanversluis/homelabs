@@ -26,3 +26,5 @@ resources:
   - argocd-kustomization.yaml
   # SemaphoreUI — postBuild needed for ${DOMAIN} in HelmRelease OIDC config
   - semaphoreui-kustomization.yaml
+  # openclaw — split out to isolate its PVC from the force: true root Kustomization.
+  - openclaw-kustomization.yaml

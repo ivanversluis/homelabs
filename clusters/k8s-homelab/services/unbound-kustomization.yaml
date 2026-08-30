@@ -1,0 +1,17 @@
+---
+# Flux Kustomization for Unbound DNS resolver.
+# Split out of the flat services/ aggregator (applied by the root flux-system
+# Kustomization, which has force: true) for consistency with the other
+# services and to avoid unnecessary forced re-applies of this deployment.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: unbound
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./services/dns/unbound/k8s
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

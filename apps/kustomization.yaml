@@ -1,7 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-resources:
-  - n8n/
+resources: []
+  # n8n is managed exclusively by a dedicated Flux Kustomization
+  # (clusters/k8s-homelab/apps/n8n-kustomization.yaml) with force: false, so its
+  # PVCs (n8n-pvc, n8n-postgres-pvc) can't be silently recreated by the root Kustomization.
   # linkding, termix, vaultwarden are managed by dedicated Flux Kustomizations
   # (clusters/k8s-homelab/apps/*-kustomization.yaml) with postBuild.substituteFrom
   # because their deployments/ingresses use ${DOMAIN} for OIDC and URL config.

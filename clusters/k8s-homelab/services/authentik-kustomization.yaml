@@ -1,0 +1,17 @@
+---
+# Flux Kustomization for Authentik (identity provider).
+# Split out of the flat services/ aggregator (applied by the root flux-system
+# Kustomization, which has force: true) so a forced re-apply can no longer
+# delete+recreate authentik-db-pvc / authentik-media-pvc and silently wipe data.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: authentik
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./services/identity/authentik/k8s
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

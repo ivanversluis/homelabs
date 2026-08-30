@@ -1,8 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-resources:
-  - identity/authentik/k8s
-  - storage/longhorn/k8s
-  - tunnel/cloudflare/k8s
-  - dns/unbound/k8s
-  - dns/pihole/k8s
+resources: []
+# identity/authentik/k8s, storage/longhorn/k8s, tunnel/cloudflare/k8s, dns/unbound/k8s,
+# dns/pihole/k8s are now managed exclusively by dedicated Flux Kustomizations
+# (clusters/k8s-homelab/services/*-kustomization.yaml) with force: false, so the
+# force: true root flux-system Kustomization can no longer delete+recreate their PVCs.

@@ -20,8 +20,10 @@ resources:
   # postBuild.substituteFrom so ${DOMAIN} is properly substituted.
   - nodes/
   - portainer/
-  - openclaw/
   - network-policies/
+  # openclaw is managed exclusively by a dedicated Flux Kustomization
+  # (clusters/k8s-homelab/infra/openclaw-kustomization.yaml) with force: false, so its
+  # PVC (openclaw-data) can't be silently recreated by the force: true root Kustomization.
   # flux-substitution creates the flux-domain-vars Secret in flux-system;
   # cert-manager, kong, and ai have their own Flux Kustomization CRDs
   # (clusters/k8s-homelab/infra/*-kustomization.yaml) with substituteFrom.
