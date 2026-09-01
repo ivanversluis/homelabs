@@ -1,0 +1,133 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-shelly
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: dashboard
+    grafana_dashboard: "true"
+data:
+  shelly-devices.json: |
+    {
+      "title": "Shelly Devices",
+      "uid": "shelly-devices",
+      "tags": ["home", "climate", "shelly"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "time": {"from": "now-6h", "to": "now"},
+      "panels": [
+        {
+          "type": "table",
+          "title": "Devices",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "shelly_device_info", "format": "table", "instant": true, "refId": "A"}],
+          "gridPos": {"h": 6, "w": 24, "x": 0, "y": 0},
+          "transformations": [
+            {"id": "organize", "options": {"excludeByName": {"Time": true, "Value": true, "__name__": true}}}
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "Devices Total",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "shelly_devices_total", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 6},
+          "fieldConfig": {"defaults": {"unit": "short"}}
+        },
+        {
+          "type": "stat",
+          "title": "Devices Online",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "sum(shelly_device_online)", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 6},
+          "fieldConfig": {"defaults": {"unit": "short"}}
+        },
+        {
+          "type": "stat",
+          "title": "Exporter Up",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "shelly_up", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 12, "y": 6},
+          "fieldConfig": {"defaults": {"unit": "short"}}
+        },
+        {
+          "type": "stat",
+          "title": "Scrape Errors (24h)",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "increase(shelly_scrape_errors_total[1d])", "refId": "A"}],
+          "gridPos": {"h": 4, "w": 6, "x": 18, "y": 6},
+          "fieldConfig": {"defaults": {"unit": "short"}}
+        },
+        {
+          "type": "timeseries",
+          "title": "Temperature",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "shelly_temperature_celsius", "legendFormat": "{{device_id}}/{{channel}}", "refId": "A"}
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 10},
+          "fieldConfig": {"defaults": {"unit": "celsius"}}
+        },
+        {
+          "type": "timeseries",
+          "title": "Humidity",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "shelly_humidity_percent", "legendFormat": "{{device_id}}/{{channel}}", "refId": "A"}
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 10},
+          "fieldConfig": {"defaults": {"unit": "percent"}}
+        },
+        {
+          "type": "timeseries",
+          "title": "Battery",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "shelly_battery_percent", "legendFormat": "{{device_id}}", "refId": "A"}
+          ],
+          "gridPos": {"h": 8, "w": 8, "x": 0, "y": 18},
+          "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}}
+        },
+        {
+          "type": "timeseries",
+          "title": "Wi-Fi Signal",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "shelly_wifi_rssi_dbm", "legendFormat": "{{device_id}}", "refId": "A"}
+          ],
+          "gridPos": {"h": 8, "w": 8, "x": 8, "y": 18},
+          "fieldConfig": {"defaults": {"unit": "dBm"}}
+        },
+        {
+          "type": "stat",
+          "title": "Last Success",
+          "datasource": {"uid": "prometheus"},
+          "targets": [{"expr": "shelly_last_scrape_success_timestamp", "refId": "A"}],
+          "gridPos": {"h": 8, "w": 8, "x": 16, "y": 18},
+          "fieldConfig": {"defaults": {"unit": "dateTimeAsIso"}}
+        },
+        {
+          "type": "timeseries",
+          "title": "Relay Power",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "shelly_relay_power_watts", "legendFormat": "{{device_id}}/{{channel}}", "refId": "A"}
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 26},
+          "fieldConfig": {"defaults": {"unit": "watt"}}
+        },
+        {
+          "type": "timeseries",
+          "title": "Relay Output",
+          "datasource": {"uid": "prometheus"},
+          "targets": [
+            {"expr": "shelly_relay_output", "legendFormat": "{{device_id}}/{{channel}}", "refId": "A"}
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 26},
+          "fieldConfig": {"defaults": {"unit": "short", "min": 0, "max": 1}}
+        }
+      ]
+    }

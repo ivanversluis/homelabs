@@ -4,3 +4,4 @@ resources:
   - daikin-prometheus-exporter/
   - dsmr-p1-prometheus-exporter/
   - goodwe-prometheus-exporter/
+  - shelly-prometheus-exporter/

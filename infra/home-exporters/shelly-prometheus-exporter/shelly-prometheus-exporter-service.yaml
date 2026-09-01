@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: shelly-prometheus-exporter
+  namespace: home-exporters
+  labels:
+    app: shelly-prometheus-exporter
+    app.kubernetes.io/name: shelly-prometheus-exporter
+spec:
+  type: ClusterIP
+  selector:
+    app: shelly-prometheus-exporter
+    app.kubernetes.io/name: shelly-prometheus-exporter
+  ports:
+    - name: metrics
+      port: 9100
+      targetPort: metrics

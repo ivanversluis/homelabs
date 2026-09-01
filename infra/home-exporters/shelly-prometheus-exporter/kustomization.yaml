@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - shelly-prometheus-exporter-configmap.yaml
+  - shelly-prometheus-exporter-externalsecret.yaml
+  - shelly-prometheus-exporter-deployment.yaml
+  - shelly-prometheus-exporter-service.yaml
+  - shelly-prometheus-exporter-networkpolicy.yaml

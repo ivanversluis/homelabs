@@ -171,6 +171,10 @@ spec:
               mountPath: /etc/grafana/provisioning/dashboards/dsmr-energy.json
               subPath: dsmr-energy.json
               readOnly: true
+            - name: dashboard-shelly
+              mountPath: /etc/grafana/provisioning/dashboards/shelly-devices.json
+              subPath: shelly-devices.json
+              readOnly: true
             - name: dashboard-prometheus-storage
               mountPath: /etc/grafana/provisioning/dashboards/prometheus-storage.json
               subPath: prometheus-storage.json
@@ -265,6 +269,9 @@ spec:
         - name: dashboard-dsmr-energy
           configMap:
             name: grafana-dashboard-dsmr-energy
+        - name: dashboard-shelly
+          configMap:
+            name: grafana-dashboard-shelly
         - name: dashboard-prometheus-storage
           configMap:
             name: grafana-dashboard-prometheus-storage

@@ -163,6 +163,16 @@ data:
         scrape_interval: 10s
         scrape_timeout: 5s
 
+      # Shelly Cloud exporter (home-exporters namespace)
+      - job_name: 'shelly-prometheus-exporter'
+        static_configs:
+          - targets: ['shelly-prometheus-exporter.home-exporters.svc.cluster.local:9100']
+            labels:
+              service: 'shelly-prometheus-exporter'
+              app: 'home-climate'
+        scrape_interval: 30s
+        scrape_timeout: 10s
+
       # HashiCorp Vault metrics (in-cluster service)
       - job_name: 'vault'
         scheme: http

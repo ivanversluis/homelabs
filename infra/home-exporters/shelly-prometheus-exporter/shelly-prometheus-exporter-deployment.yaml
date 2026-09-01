@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shelly-prometheus-exporter
+  namespace: home-exporters
+  labels:
+    app: shelly-prometheus-exporter
+    app.kubernetes.io/name: shelly-prometheus-exporter
+    app.kubernetes.io/part-of: homelabs
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: shelly-prometheus-exporter
+  template:
+    metadata:
+      labels:
+        app: shelly-prometheus-exporter
+        app.kubernetes.io/name: shelly-prometheus-exporter
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: exporter
+          image: ghcr.io/ivanversluis/iot-shelly-prometheus-exporter:main
+          imagePullPolicy: Always
+          ports:
+            - name: metrics
+              containerPort: 9100
+          envFrom:
+            - configMapRef:
+                name: shelly-prometheus-exporter-config
+            - secretRef:
+                name: shelly-prometheus-exporter-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 150m
+              memory: 128Mi
