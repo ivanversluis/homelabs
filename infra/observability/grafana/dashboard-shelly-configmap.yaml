@@ -105,7 +105,7 @@ data:
           "type": "stat",
           "title": "Last Success",
           "datasource": {"uid": "prometheus"},
-          "targets": [{"expr": "shelly_last_scrape_success_timestamp", "refId": "A"}],
+          "targets": [{"expr": "shelly_last_scrape_success_timestamp * 1000", "refId": "A"}],
           "gridPos": {"h": 8, "w": 8, "x": 16, "y": 18},
           "fieldConfig": {"defaults": {"unit": "dateTimeAsIso"}}
         },

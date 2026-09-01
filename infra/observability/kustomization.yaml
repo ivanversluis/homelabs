@@ -7,8 +7,6 @@ resources:
   - namespace.yaml
   - observability-netpol.yaml
   # Prometheus
-  - prometheus/configmap.yaml
-  - prometheus/alerts-configmap.yaml
   - prometheus/rbac.yaml
   - prometheus/deployment.yaml
   - prometheus/service.yaml
@@ -65,3 +63,17 @@ configMapGenerator:
   - name: loki-config
     files:
       - loki.yaml=loki/loki.yaml
+  - name: prometheus-config
+    files:
+      - prometheus.yml=prometheus/prometheus.yml
+    options:
+      labels:
+        app.kubernetes.io/name: prometheus
+        app.kubernetes.io/component: metrics
+  - name: prometheus-alerts
+    files:
+      - prometheus-alerts.yml=prometheus/prometheus-alerts.yml
+    options:
+      labels:
+        app.kubernetes.io/name: prometheus
+        app.kubernetes.io/component: alerts
