@@ -8,7 +8,7 @@ spec:
   chart:
     spec:
       chart: portainer
-      version: "239.6.0"
+      version: "239.7.0"
       sourceRef:
         kind: HelmRepository
         name: portainer
@@ -25,7 +25,7 @@ spec:
 
     image:
       repository: portainer/portainer-ee
-      tag: "2.44.0-alpine"
+      tag: "2.45.0-alpine"
 
     service:
       type: ClusterIP
