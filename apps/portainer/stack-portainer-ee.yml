@@ -1,6 +1,6 @@
 services:
   portainer:
-      image: portainer/portainer-ee:2.44.0-alpine
+      image: portainer/portainer-ee:2.45.0-alpine
       container_name: portainer
       hostname: portainer
       restart: always
