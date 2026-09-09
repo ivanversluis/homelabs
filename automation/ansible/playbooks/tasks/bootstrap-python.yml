@@ -10,12 +10,16 @@
 # requiring glibc >= 2.44 while the node only had glibc 2.43, breaking every
 # Python-dependent Ansible module including fact gathering.
 #
-# Falls back to a self-contained, fully-static CPython (python-build-standalone,
-# musl "+static-full" variant) deployed to {{ standalone_python_install_dir }}.
-# This build has zero runtime dependency on the node's glibc (verified: `file`
-# reports "statically linked", `ldd` reports "not a dynamic executable"), so
-# deploying it never touches pacman or system package state and carries none
-# of the partial-upgrade ABI risk that a system package install would.
+# Falls back to a self-contained CPython (python-build-standalone, glibc
+# "install_only_stripped" variant) deployed to {{ standalone_python_install_dir }}.
+# This build only requires glibc >= 2.17 (far below the node's actual glibc),
+# so deploying it never touches pacman or system package state and carries
+# none of the partial-upgrade ABI risk that a system package install would.
+# NOTE: a prior musl "+static-full" variant was tried first but rejected —
+# fully static builds cannot dynamically load ANY compiled Python extension
+# module (e.g. spwd, needed by ansible.builtin.user's password_lock), per
+# upstream python-build-standalone docs. The glibc build supports extension
+# loading normally while still being fully self-contained/private-path.
 #
 # This task NEVER runs pacman -Sy/-Syu and never installs/upgrades any system
 # package — out of scope for Wave -1 (see wave-minus1-control-tower.prompt.md).
@@ -28,7 +32,7 @@
 - name: Probe whether a functional system Python 3 interpreter exists
   ansible.builtin.raw: >-
     command -v python3 >/dev/null 2>&1 &&
-    python3 -c 'import sys, ssl, hashlib, zlib' >/dev/null 2>&1 &&
+    python3 -c 'import sys, ssl, hashlib, zlib, spwd, grp, pwd, ctypes, ctypes.util as u; ctypes.cdll.LoadLibrary(u.find_library("c"))' >/dev/null 2>&1 &&
     echo SYSTEM_PYTHON_OK || echo SYSTEM_PYTHON_BROKEN
   register: control_tower_system_python_probe
   changed_when: false
@@ -45,7 +49,7 @@
 - name: Probe whether a previously deployed standalone Python is already present and functional
   ansible.builtin.raw: >-
     test -x {{ standalone_python_bin }} &&
-    {{ standalone_python_bin }} -c 'import sys, ssl, hashlib, zlib' >/dev/null 2>&1 &&
+    {{ standalone_python_bin }} -c 'import sys, ssl, hashlib, zlib, spwd, grp, pwd, ctypes, ctypes.util as u; ctypes.cdll.LoadLibrary(u.find_library("c"))' >/dev/null 2>&1 &&
     echo STANDALONE_PYTHON_OK || echo STANDALONE_PYTHON_MISSING
   register: control_tower_standalone_python_probe
   changed_when: false
@@ -96,15 +100,14 @@
       ansible.builtin.raw: >-
         rm -rf /tmp/homelab-python-extract &&
         mkdir -p /tmp/homelab-python-extract &&
-        tar --zstd -xf /tmp/{{ standalone_python_asset }} -C /tmp/homelab-python-extract
+        tar -xzf /tmp/{{ standalone_python_asset }} -C /tmp/homelab-python-extract
 
-    - name: Install only the runtime bits (binary + stdlib, no build artifacts/tests) to the pinned path
+    - name: Install only the runtime bits (binary + stdlib) to the pinned path
       ansible.builtin.raw: >-
         rm -rf {{ standalone_python_install_dir }} &&
         mkdir -p {{ standalone_python_install_dir }}/bin {{ standalone_python_install_dir }}/lib &&
-        cp -a /tmp/homelab-python-extract/python/install/bin/. {{ standalone_python_install_dir }}/bin/ &&
-        cp -a /tmp/homelab-python-extract/python/install/lib/python3.12 {{ standalone_python_install_dir }}/lib/python3.12 &&
-        rm -rf {{ standalone_python_install_dir }}/lib/python3.12/test
+        cp -a /tmp/homelab-python-extract/python/bin/. {{ standalone_python_install_dir }}/bin/ &&
+        cp -a /tmp/homelab-python-extract/python/lib/python3.12 {{ standalone_python_install_dir }}/lib/python3.12
 
     - name: Clean up scratch download/extract artifacts
       ansible.builtin.raw: >-
@@ -112,7 +115,7 @@
 
     - name: Confirm the deployed standalone Python is functional
       ansible.builtin.raw: >-
-        {{ standalone_python_bin }} -c "import sys, ssl, hashlib, zlib; print('STANDALONE_PYTHON_VERIFIED')"
+        {{ standalone_python_bin }} -c "import sys, ssl, hashlib, zlib, spwd, grp, pwd, ctypes, ctypes.util as u; ctypes.cdll.LoadLibrary(u.find_library('c')); print('STANDALONE_PYTHON_VERIFIED')"
       register: control_tower_standalone_python_verify
       failed_when: "'STANDALONE_PYTHON_VERIFIED' not in control_tower_standalone_python_verify.stdout"
 
