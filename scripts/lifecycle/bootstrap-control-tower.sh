@@ -73,8 +73,9 @@ run_playbook() {
 # ─── stages ─────────────────────────────────────────────────────────────────────
 stage_preflight() {
   info "Running read-only control-tower preflight checks..."
-  run_playbook 00-control-tower-preflight.yml
-  run_playbook 01-control-tower-smoke-test.yml
+  info "(admin/wheel route: you will be prompted once for the sudo/become password)"
+  run_playbook 00-control-tower-preflight.yml -K
+  run_playbook 01-control-tower-smoke-test.yml -K
   ok "Preflight complete"
 }
 

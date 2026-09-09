@@ -5,6 +5,8 @@
 - name: Wave -1c create ansible automation account + install Vault CA trust
   hosts: k8s_homelab
   gather_facts: true
+  serial: 1
+  any_errors_fatal: true
   vars:
     control_tower_bootstrap: true
   roles:
