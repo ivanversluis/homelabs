@@ -1,0 +1,133 @@
+---
+- name: Create the dedicated ansible automation group
+  ansible.builtin.group:
+    name: "{{ automation_account_name }}"
+    system: true
+    state: present
+
+- name: Create the dedicated ansible automation account (locked password, no wheel)
+  ansible.builtin.user:
+    name: "{{ automation_account_name }}"
+    group: "{{ automation_account_name }}"
+    home: "{{ automation_account_home }}"
+    shell: "{{ automation_account_shell }}"
+    password_lock: true
+    create_home: true
+    system: true
+    groups: []
+    append: false
+
+- name: Stage the sudoers drop-in to a temp file for validation before install
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/.90-ansible.tmp
+    content: "{{ automation_account_name }} ALL=(ALL) NOPASSWD: ALL\n"
+    mode: "0440"
+    validate: visudo -cf %s
+
+- name: Atomically install the validated sudoers drop-in
+  ansible.builtin.command: mv /etc/sudoers.d/.90-ansible.tmp {{ sudoers_file }}
+  changed_when: true
+
+- name: Ensure the Vault SSH client CA public key was supplied at runtime
+  ansible.builtin.assert:
+    that:
+      - vault_ssh_ca_public_key | length > 0
+    fail_msg: >-
+      vault_ssh_ca_public_key must be supplied at runtime (fetched fresh from Vault, e.g. via
+      roles/vault_ssh_certificate). It is never committed to git.
+
+- name: Ensure the auth_principals directory exists
+  ansible.builtin.file:
+    path: "{{ auth_principals_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure the sshd change-backup directory exists
+  ansible.builtin.file:
+    path: "{{ sshd_backup_dir }}"
+    state: directory
+    owner: root
+    mode: "0700"
+
+- name: Apply node SSH trust/config changes with automatic rollback on failure
+  block:
+    - name: Stat the files that are about to change, for backup purposes
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ trusted_user_ca_keys_path }}"
+        - "{{ auth_principals_file }}"
+        - "{{ sshd_config_d_path }}"
+      register: sshd_change_stats
+
+    - name: Back up any of those files that currently exist
+      ansible.builtin.copy:
+        src: "{{ item.item }}"
+        dest: "{{ sshd_backup_dir }}/{{ item.item | basename }}.{{ ansible_date_time.iso8601_basic_short }}.bak"
+        remote_src: true
+        mode: preserve
+      loop: "{{ sshd_change_stats.results }}"
+      when: item.stat.exists
+
+    - name: Install the Vault SSH client CA trust anchor
+      ansible.builtin.copy:
+        dest: "{{ trusted_user_ca_keys_path }}"
+        content: "{{ vault_ssh_ca_public_key }}\n"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Restrict certificate principal to the ansible account only
+      ansible.builtin.copy:
+        dest: "{{ auth_principals_file }}"
+        content: "{{ automation_account_name }}\n"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Render the control-tower sshd drop-in
+      ansible.builtin.template:
+        src: 60-homelab-automation.conf.j2
+        dest: "{{ sshd_config_d_path }}"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Validate the full effective sshd configuration
+      ansible.builtin.command: sshd -t
+      changed_when: false
+
+    - name: Reload sshd (never restart) to apply the change
+      ansible.builtin.systemd:
+        name: sshd
+        state: reloaded
+
+    - name: Prove a brand-new independent SSH session still authenticates
+      ansible.builtin.command: /bin/true
+      vars:
+        ansible_ssh_extra_args: "-o ControlPath=none -o BatchMode=yes"
+      changed_when: false
+
+  rescue:
+    - name: Restore any backed-up files after a failed validation
+      ansible.builtin.copy:
+        src: "{{ sshd_backup_dir }}/{{ item.item | basename }}.{{ ansible_date_time.iso8601_basic_short }}.bak"
+        dest: "{{ item.item }}"
+        remote_src: true
+        mode: preserve
+      loop: "{{ sshd_change_stats.results }}"
+      when: item.stat.exists
+
+    - name: Reload sshd with the restored configuration
+      ansible.builtin.systemd:
+        name: sshd
+        state: reloaded
+
+    - name: Fail loudly — previous SSH configuration was restored automatically
+      ansible.builtin.fail:
+        msg: >-
+          Control-tower SSH trust/config change failed validation or the independent-session
+          proof on {{ inventory_hostname }}. Previous files were restored and sshd reloaded.
+          Investigate before retrying; do not re-run blindly.

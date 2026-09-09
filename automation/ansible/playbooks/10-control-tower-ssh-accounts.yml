@@ -1,0 +1,11 @@
+---
+# One-time-per-node bootstrap over the admin/wheel SSH route: creates the ansible automation
+# account and installs the Vault SSH CA trust anchor. `vault_ssh_ca_public_key` must be passed
+# via --extra-vars (scripts/lifecycle/bootstrap-control-tower.sh fetches it read-only from Vault).
+- name: Wave -1c create ansible automation account + install Vault CA trust
+  hosts: k8s_homelab
+  gather_facts: true
+  vars:
+    control_tower_bootstrap: true
+  roles:
+    - ssh_automation_account

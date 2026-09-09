@@ -1,0 +1,61 @@
+---
+# Node-level positive checks for Wave -1c/-1d. Cluster-level checks (Vault, Semaphore->Vault
+# auth, NetworkPolicy connectivity, negative security tests) live in
+# scripts/lifecycle/validate-control-tower.sh instead — they need kubectl/curl, not just SSH.
+- name: Ping check (requires Python on target)
+  ansible.builtin.ping:
+
+- name: Raw connectivity check (no Python dependency)
+  ansible.builtin.raw: echo control-tower-raw-ok
+  changed_when: false
+
+- name: Confirm the dedicated automation account exists
+  ansible.builtin.command: id "{{ validation_automation_user }}"
+  register: automation_id
+  changed_when: false
+
+- name: Confirm the automation account password is locked
+  ansible.builtin.command: passwd -S "{{ validation_automation_user }}"
+  register: automation_passwd_status
+  changed_when: false
+  failed_when: "'L' not in automation_passwd_status.stdout.split()[1]"
+
+- name: Confirm passwordless sudo works for the automation account
+  ansible.builtin.command: sudo -n -u "{{ validation_automation_user }}" true
+  changed_when: false
+
+- name: Confirm sshd configuration is syntactically valid
+  ansible.builtin.command: sshd -t
+  changed_when: false
+
+- name: Read sshd service state (check mode — no changes made)
+  ansible.builtin.systemd:
+    name: sshd
+  register: sshd_status
+  check_mode: true
+
+- name: Assert sshd is active and enabled
+  ansible.builtin.assert:
+    that:
+      - sshd_status.status.ActiveState == 'active'
+      - sshd_status.status.UnitFileState in ['enabled', 'enabled-runtime', 'static']
+    fail_msg: "sshd is not active/enabled on {{ inventory_hostname }}"
+
+- name: Confirm the break-glass admin account still exists
+  ansible.builtin.command: id "{{ validation_admin_user }}"
+  changed_when: false
+
+- name: Gather effective sshd configuration
+  ansible.builtin.command: sshd -T
+  register: sshd_effective
+  changed_when: false
+
+- name: Assert root SSH login remains disabled
+  ansible.builtin.assert:
+    that:
+      - "'permitrootlogin no' in sshd_effective.stdout_lines | map('lower') | list"
+    fail_msg: "PermitRootLogin has drifted from 'no' on {{ inventory_hostname }}"
+
+- name: Show validation summary
+  ansible.builtin.debug:
+    msg: "Node-level control-tower validation passed on {{ inventory_hostname }}"

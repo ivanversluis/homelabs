@@ -1,0 +1,40 @@
+---
+# Never store passwords, private keys, or Vault tokens here or anywhere in this repo.
+# All secrets are supplied at runtime via --extra-vars, environment variables, or fetched
+# live from Vault — never persisted in inventory/group_vars.
+
+# Set to true only for the one-time admin break-glass bootstrap route
+# (scripts/lifecycle/bootstrap-control-tower.sh nodes --bootstrap-admin).
+control_tower_bootstrap: false
+
+ansible_user: "{{ 'admin' if control_tower_bootstrap else 'ansible' }}"
+ansible_become: true
+ansible_become_method: sudo
+
+# Populated per-run by scripts/lifecycle/bootstrap-control-tower.sh with the ephemeral
+# Vault-issued Ed25519 key/certificate pair. Left undefined on the admin bootstrap route,
+# which falls back to the operator's own SSH agent key.
+ansible_ssh_private_key_file: "{{ control_tower_ssh_private_key | default(omit) }}"
+ansible_ssh_extra_args: >-
+  {{ ('-o CertificateFile=' + control_tower_ssh_certificate)
+     if (control_tower_ssh_certificate | default('')) | length > 0 else '' }}
+
+# Dedicated automation identity created by roles/ssh_automation_account.
+automation_account_name: ansible
+automation_account_home: /home/ansible
+automation_account_shell: /bin/bash
+
+# Vault SSH secrets engine mount + signing role used by roles/vault_ssh_certificate
+# and referenced when validating certificates in roles/control_tower_validation.
+vault_ssh_mount_path: ssh-client-signer
+vault_ssh_role_name: homelab-ansible
+vault_ssh_allowed_principal: ansible
+vault_ssh_default_ttl: "30m"
+vault_ssh_max_ttl: "60m"
+
+# Node SSH trust files installed by roles/ssh_automation_account.
+trusted_user_ca_keys_path: /etc/ssh/trusted-user-ca-keys.pem
+auth_principals_dir: /etc/ssh/auth_principals
+auth_principals_file: "{{ auth_principals_dir }}/ansible"
+sshd_config_d_path: /etc/ssh/sshd_config.d/60-homelab-automation.conf
+sshd_backup_dir: /root/ssh-control-tower-backups

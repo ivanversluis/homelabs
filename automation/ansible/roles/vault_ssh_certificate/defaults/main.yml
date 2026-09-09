@@ -1,0 +1,13 @@
+---
+vault_namespace: vault
+vault_ssh_mount_path: ssh-client-signer
+vault_ssh_role_name: homelab-ansible
+vault_ssh_allowed_principal: ansible
+vault_ssh_default_ttl: "30m"
+vault_ssh_max_ttl: "60m"
+
+vault_semaphore_policy_name: homelab-ansible-sign
+vault_semaphore_k8s_role: semaphore-ansible
+vault_semaphore_service_account: semaphore-ansible
+vault_semaphore_namespace: semaphoreui
+vault_semaphore_role_ttl: "15m"

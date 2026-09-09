@@ -1,0 +1,9 @@
+---
+# Read-only. Run before every Wave -1c step, over the existing admin/wheel SSH route.
+- name: Wave -1c control-tower preflight (read-only)
+  hosts: k8s_homelab
+  gather_facts: true
+  vars:
+    control_tower_bootstrap: true
+  roles:
+    - control_tower_preflight

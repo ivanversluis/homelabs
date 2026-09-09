@@ -1,0 +1,11 @@
+# Managed by Ansible role ssh_automation_account — do not edit by hand.
+# Restricts certificate-authenticated SSH to the dedicated {{ automation_account_name }}
+# automation account only. Global PermitRootLogin/PasswordAuthentication baselines from
+# sshd_config are left untouched by this drop-in.
+TrustedUserCAKeys {{ trusted_user_ca_keys_path }}
+AuthorizedPrincipalsFile {{ auth_principals_file }}
+
+Match User {{ automation_account_name }}
+    PasswordAuthentication no
+    PubkeyAuthentication yes
+    AuthenticationMethods publickey

@@ -51,6 +51,24 @@ spec:
         - protocol: TCP
           port: 8200
 ---
+# SemaphoreUI -> Vault API (Kubernetes-auth + SSH certificate issuance for the control tower)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-semaphoreui-ingress
+  namespace: vault
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: semaphoreui
+      ports:
+        - protocol: TCP
+          port: 8200
+---
 # Prometheus -> Vault metrics
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

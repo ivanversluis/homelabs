@@ -1,0 +1,15 @@
+---
+# Minimal connectivity smoke test over the admin/wheel SSH route — proves Ansible can reach
+# every node at all before attempting any state change.
+- name: Wave -1c control-tower connectivity smoke test
+  hosts: k8s_homelab
+  gather_facts: false
+  vars:
+    control_tower_bootstrap: true
+  tasks:
+    - name: Ping (requires Python on target)
+      ansible.builtin.ping:
+
+    - name: Raw connectivity (no Python dependency)
+      ansible.builtin.raw: echo control-tower-smoke-ok
+      changed_when: false

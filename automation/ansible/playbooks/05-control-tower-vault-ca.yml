@@ -1,0 +1,9 @@
+---
+# Configures Vault as the SSH client CA (mount, signing role, policy, Kubernetes-auth role).
+# Runs entirely against the Vault API via `kubectl exec` — no node connection needed.
+- name: Wave -1c Vault SSH CA + signing role + Semaphore Kubernetes-auth binding
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - vault_ssh_certificate

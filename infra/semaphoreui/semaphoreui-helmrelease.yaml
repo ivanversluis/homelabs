@@ -30,6 +30,13 @@ spec:
       repository: semaphoreui/semaphore
       tag: "v2.19.8"
 
+    # Dedicated identity for Vault Kubernetes-auth (control-tower SSH certificate issuance).
+    # Bound only to a Vault role scoped to namespace semaphoreui — see
+    # automation/ansible/roles/vault_ssh_certificate.
+    serviceAccount:
+      create: true
+      name: semaphore-ansible
+
     service:
       type: ClusterIP
 

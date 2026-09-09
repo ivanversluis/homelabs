@@ -1,0 +1,10 @@
+---
+# Node-level half of Wave -1c/-1d validation, run over the Vault-issued certificate route
+# (control_tower_bootstrap defaults to false — see inventories/homelab/group_vars/all.yml).
+# The cluster-level half (Vault, Semaphore->Vault auth, NetworkPolicy, negative tests) is
+# driven by scripts/lifecycle/validate-control-tower.sh, which calls this playbook too.
+- name: Wave -1c/-1d control-tower full validation
+  hosts: k8s_homelab
+  gather_facts: true
+  roles:
+    - control_tower_validation
