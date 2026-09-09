@@ -6,5 +6,9 @@
   connection: local
   gather_facts: false
   become: false
+  # group_vars/all.yml sets ansible_become:true for the remote nodes; that inventory
+  # variable outranks the `become:false` keyword above, so override it explicitly here.
+  vars:
+    ansible_become: false
   roles:
     - vault_ssh_certificate
