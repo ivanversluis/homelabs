@@ -50,3 +50,4 @@ build/production/.env
 
 # Private docs
 *.md-local.venv/
+*.md-local
