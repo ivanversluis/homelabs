@@ -107,7 +107,12 @@
     - name: Prove a brand-new independent SSH session still authenticates
       ansible.builtin.command: /bin/true
       vars:
-        ansible_ssh_extra_args: "-o ControlPath=none -o BatchMode=yes"
+        # ControlPath=none forces a genuinely new (non-multiplexed) connection instead of
+        # reusing the ControlPersist socket. BatchMode=yes must NOT be used here: this
+        # environment authenticates the admin/wheel SSH route by password only (no SSH
+        # key/agent configured), and BatchMode=yes disables all interactive/password
+        # prompting at the SSH protocol level, causing this validation to always fail.
+        ansible_ssh_extra_args: "-o ControlPath=none"
       changed_when: false
 
   rescue:
