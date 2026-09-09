@@ -72,7 +72,7 @@
 - name: Create/update the homelab-ansible signing role (locked-down extensions, short TTL)
   ansible.builtin.shell: |
     set -o pipefail
-    kubectl exec -n {{ vault_namespace }} {{ vault_pod.stdout }} -- \
+    kubectl exec -i -n {{ vault_namespace }} {{ vault_pod.stdout }} -- \
       env VAULT_TOKEN={{ lookup('env', 'VAULT_TOKEN') }} \
       vault write {{ vault_ssh_mount_path }}/roles/{{ vault_ssh_role_name }} - <<'EOF'
     {
@@ -97,7 +97,7 @@
 - name: Write the Vault policy allowing only signing through the homelab-ansible role
   ansible.builtin.shell: |
     set -o pipefail
-    kubectl exec -n {{ vault_namespace }} {{ vault_pod.stdout }} -- \
+    kubectl exec -i -n {{ vault_namespace }} {{ vault_pod.stdout }} -- \
       env VAULT_TOKEN={{ lookup('env', 'VAULT_TOKEN') }} \
       vault policy write {{ vault_semaphore_policy_name }} - <<'POLICY'
     path "{{ vault_ssh_mount_path }}/sign/{{ vault_ssh_role_name }}" {
