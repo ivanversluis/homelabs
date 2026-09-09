@@ -79,7 +79,7 @@
     allow_user_certificates=true
     default_user={{ vault_ssh_allowed_principal }}
     allowed_users={{ vault_ssh_allowed_principal }}
-    default_extensions=permit-pty=
+    default_extensions='{"permit-pty":""}'
     allowed_extensions=
     allow_user_key_ids=true
     key_id_format={% raw %}{{role_name}}-{{public_key_hash}}{% endraw %}
