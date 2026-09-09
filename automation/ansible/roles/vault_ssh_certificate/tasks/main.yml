@@ -70,21 +70,25 @@
   no_log: true
 
 - name: Create/update the homelab-ansible signing role (locked-down extensions, short TTL)
-  ansible.builtin.command: >-
-    kubectl exec -n {{ vault_namespace }} {{ vault_pod.stdout }} --
-    env VAULT_TOKEN={{ lookup('env', 'VAULT_TOKEN') }}
-    vault write {{ vault_ssh_mount_path }}/roles/{{ vault_ssh_role_name }}
-    key_type=ca
-    algorithm_signer=rsa-sha2-256
-    allow_user_certificates=true
-    default_user={{ vault_ssh_allowed_principal }}
-    allowed_users={{ vault_ssh_allowed_principal }}
-    default_extensions='{"permit-pty":""}'
-    allowed_extensions=
-    allow_user_key_ids=true
-    key_id_format={% raw %}{{role_name}}-{{public_key_hash}}{% endraw %}
-    ttl={{ vault_ssh_default_ttl }}
-    max_ttl={{ vault_ssh_max_ttl }}
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubectl exec -n {{ vault_namespace }} {{ vault_pod.stdout }} -- \
+      env VAULT_TOKEN={{ lookup('env', 'VAULT_TOKEN') }} \
+      vault write {{ vault_ssh_mount_path }}/roles/{{ vault_ssh_role_name }} - <<'EOF'
+    {
+      "key_type": "ca",
+      "algorithm_signer": "rsa-sha2-256",
+      "allow_user_certificates": true,
+      "default_user": "{{ vault_ssh_allowed_principal }}",
+      "allowed_users": "{{ vault_ssh_allowed_principal }}",
+      "default_extensions": {"permit-pty": ""},
+      "allowed_extensions": "",
+      "allow_user_key_ids": true,
+      "key_id_format": "{% raw %}{{role_name}}-{{public_key_hash}}{% endraw %}",
+      "ttl": "{{ vault_ssh_default_ttl }}",
+      "max_ttl": "{{ vault_ssh_max_ttl }}"
+    }
+    EOF
   delegate_to: localhost
   run_once: true
   changed_when: true
