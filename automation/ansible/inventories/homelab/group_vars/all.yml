@@ -38,3 +38,21 @@ auth_principals_dir: /etc/ssh/auth_principals
 auth_principals_file: "{{ auth_principals_dir }}/ansible"
 sshd_config_d_path: /etc/ssh/sshd_config.d/60-homelab-automation.conf
 sshd_backup_dir: /root/ssh-control-tower-backups
+
+# Self-contained, fully-static CPython interpreter deployed by
+# playbooks/tasks/bootstrap-python.yml ONLY when the node's system Python is
+# missing or non-functional (e.g. the glibc-ABI partial-upgrade class of bug
+# discovered during the Wave -1c live activation, 2026). This build has zero
+# runtime dependency on the node's glibc/libc — it is a truly statically
+# linked ELF binary (verified locally: `file` reports "statically linked",
+# `ldd` reports "not a dynamic executable") — so deploying it never touches
+# pacman or system package state and carries no partial-upgrade risk.
+# Source: https://github.com/astral-sh/python-build-standalone releases.
+# Pinned deliberately to a release with STABLE (non-rc) CPython versions.
+standalone_python_release_tag: "20260814"
+standalone_python_version: "3.12.14"
+standalone_python_asset: "cpython-3.12.14+20260814-x86_64-unknown-linux-musl-lto+static-full.tar.zst"
+standalone_python_url: "https://github.com/astral-sh/python-build-standalone/releases/download/{{ standalone_python_release_tag }}/cpython-3.12.14%2B20260814-x86_64-unknown-linux-musl-lto%2Bstatic-full.tar.zst"
+standalone_python_sha256: "b96ef580ea48d46cc73eab38a0edcaf4e478f6229a3768d770fca0fe72602156"
+standalone_python_install_dir: /opt/homelab-ansible/python-standalone
+standalone_python_bin: "{{ standalone_python_install_dir }}/bin/python3.12"

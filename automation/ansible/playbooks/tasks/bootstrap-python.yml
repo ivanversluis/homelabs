@@ -1,15 +1,125 @@
 ---
-# Idempotent Python bootstrap for freshly provisioned Arch nodes with no interpreter yet.
-# Uses only raw (no Python required to run it). Never runs pacman -Syu (no upgrades in Wave -1).
-- name: Check for an existing Python 3 interpreter
-  ansible.builtin.raw: command -v python3
-  register: control_tower_python_probe
+# Idempotent Python bootstrap for Arch nodes.
+#
+# Prefers the node's system Python when it exists AND actually works — a
+# *functional* check, not just an existence check, because a prior partial
+# package-upgrade (stale glibc vs. a newer python build) can leave a python3
+# binary installed that `command -v` alone would not catch as broken. See
+# docs/lifecycle/ (Wave -1c live activation notes) for the incident that
+# motivated this design: `pacman -Sy --needed python` installed a build
+# requiring glibc >= 2.44 while the node only had glibc 2.43, breaking every
+# Python-dependent Ansible module including fact gathering.
+#
+# Falls back to a self-contained, fully-static CPython (python-build-standalone,
+# musl "+static-full" variant) deployed to {{ standalone_python_install_dir }}.
+# This build has zero runtime dependency on the node's glibc (verified: `file`
+# reports "statically linked", `ldd` reports "not a dynamic executable"), so
+# deploying it never touches pacman or system package state and carries none
+# of the partial-upgrade ABI risk that a system package install would.
+#
+# This task NEVER runs pacman -Sy/-Syu and never installs/upgrades any system
+# package — out of scope for Wave -1 (see wave-minus1-control-tower.prompt.md).
+#
+# Rollback: once a future, separate OS-maintenance wave brings the node's
+# system Python back to a working state, this task automatically detects that
+# and removes the standalone deployment — nothing is left behind once the node
+# is "up to par" with upgrades again.
+
+- name: Probe whether a functional system Python 3 interpreter exists
+  ansible.builtin.raw: >-
+    command -v python3 >/dev/null 2>&1 &&
+    python3 -c 'import sys, ssl, hashlib, zlib' >/dev/null 2>&1 &&
+    echo SYSTEM_PYTHON_OK || echo SYSTEM_PYTHON_BROKEN
+  register: control_tower_system_python_probe
   changed_when: false
   failed_when: false
 
-- name: Install python via pacman (single package only, never -Syu)
-  ansible.builtin.raw: pacman -Sy --noconfirm --needed python
-  when: control_tower_python_probe.rc != 0
+- name: Record whether the system Python is usable
+  ansible.builtin.set_fact:
+    control_tower_system_python_ok: "{{ 'SYSTEM_PYTHON_OK' in (control_tower_system_python_probe.stdout | default('')) }}"
 
-- name: Gather facts now that Python is guaranteed present
+- name: Remove any previously deployed standalone Python now that system Python works again
+  ansible.builtin.raw: "rm -rf {{ standalone_python_install_dir }}"
+  when: control_tower_system_python_ok
+
+- name: Probe whether a previously deployed standalone Python is already present and functional
+  ansible.builtin.raw: >-
+    test -x {{ standalone_python_bin }} &&
+    {{ standalone_python_bin }} -c 'import sys, ssl, hashlib, zlib' >/dev/null 2>&1 &&
+    echo STANDALONE_PYTHON_OK || echo STANDALONE_PYTHON_MISSING
+  register: control_tower_standalone_python_probe
+  changed_when: false
+  failed_when: false
+  when: not control_tower_system_python_ok
+
+- name: Record whether the standalone Python is already usable
+  ansible.builtin.set_fact:
+    control_tower_standalone_python_ok: "{{ (not control_tower_system_python_ok) and ('STANDALONE_PYTHON_OK' in (control_tower_standalone_python_probe.stdout | default(''))) }}"
+
+- name: Verify curl/tar/sha256sum are available for standalone Python deployment
+  ansible.builtin.raw: >-
+    command -v curl >/dev/null 2>&1 &&
+    command -v tar >/dev/null 2>&1 &&
+    command -v sha256sum >/dev/null 2>&1 &&
+    echo TOOLS_OK || echo TOOLS_MISSING
+  register: control_tower_tools_probe
+  changed_when: false
+  failed_when: false
+  when: not control_tower_system_python_ok and not control_tower_standalone_python_ok
+
+- name: Fail with an actionable message if curl/tar/sha256sum are missing
+  ansible.builtin.fail:
+    msg: >-
+      Node has no working system Python and is also missing curl/tar/sha256sum,
+      which are required to deploy the standalone interpreter. Installing them
+      here is out of scope for automated Wave -1 bootstrap (it would touch
+      pacman/system package state) — install them manually on this node first.
+  when:
+    - not control_tower_system_python_ok
+    - not control_tower_standalone_python_ok
+    - "'TOOLS_OK' not in (control_tower_tools_probe.stdout | default(''))"
+
+- name: Download, verify, and deploy the self-contained static Python build
+  when:
+    - not control_tower_system_python_ok
+    - not control_tower_standalone_python_ok
+  block:
+    - name: Download the static Python release tarball
+      ansible.builtin.raw: >-
+        curl -fsSL -o /tmp/{{ standalone_python_asset }} '{{ standalone_python_url }}'
+
+    - name: Verify the downloaded tarball's sha256 checksum
+      ansible.builtin.raw: >-
+        echo '{{ standalone_python_sha256 }}  /tmp/{{ standalone_python_asset }}' | sha256sum -c -
+
+    - name: Extract the tarball to a scratch directory
+      ansible.builtin.raw: >-
+        rm -rf /tmp/homelab-python-extract &&
+        mkdir -p /tmp/homelab-python-extract &&
+        tar --zstd -xf /tmp/{{ standalone_python_asset }} -C /tmp/homelab-python-extract
+
+    - name: Install only the runtime bits (binary + stdlib, no build artifacts/tests) to the pinned path
+      ansible.builtin.raw: >-
+        rm -rf {{ standalone_python_install_dir }} &&
+        mkdir -p {{ standalone_python_install_dir }}/bin {{ standalone_python_install_dir }}/lib &&
+        cp -a /tmp/homelab-python-extract/python/install/bin/. {{ standalone_python_install_dir }}/bin/ &&
+        cp -a /tmp/homelab-python-extract/python/install/lib/python3.12 {{ standalone_python_install_dir }}/lib/python3.12 &&
+        rm -rf {{ standalone_python_install_dir }}/lib/python3.12/test
+
+    - name: Clean up scratch download/extract artifacts
+      ansible.builtin.raw: >-
+        rm -rf /tmp/{{ standalone_python_asset }} /tmp/homelab-python-extract
+
+    - name: Confirm the deployed standalone Python is functional
+      ansible.builtin.raw: >-
+        {{ standalone_python_bin }} -c "import sys, ssl, hashlib, zlib; print('STANDALONE_PYTHON_VERIFIED')"
+      register: control_tower_standalone_python_verify
+      failed_when: "'STANDALONE_PYTHON_VERIFIED' not in control_tower_standalone_python_verify.stdout"
+
+- name: Point Ansible at the standalone interpreter for the rest of this play
+  ansible.builtin.set_fact:
+    ansible_python_interpreter: "{{ standalone_python_bin }}"
+  when: not control_tower_system_python_ok
+
+- name: Gather facts now that a working Python interpreter is guaranteed
   ansible.builtin.setup:
