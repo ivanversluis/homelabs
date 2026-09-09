@@ -60,8 +60,13 @@ section() {
 in_cluster_test() {
   local desc="$1" expect="$2" cmd="$3" timeout exit_code=0
   if [[ "$expect" == "allow" ]]; then timeout=$TIMEOUT_ALLOW; else timeout=$TIMEOUT_DENY; fi
+  # Label the pod app.kubernetes.io/name=semaphore to match the real Semaphore deployment's
+  # pod label (the NetworkPolicies key their podSelector off this label, not the
+  # ServiceAccount, so a test pod without it would never be subject to those policies at all
+  # -- silently testing nothing).
   kubectl run "ct-test-$$" -n "$SEMAPHORE_NAMESPACE" --rm -i --restart=Never \
     --image="$IMAGE" --timeout="${timeout}0s" \
+    --labels="app.kubernetes.io/name=semaphore" \
     --overrides="{\"spec\":{\"serviceAccountName\":\"semaphore-ansible\",\"terminationGracePeriodSeconds\":1}}" \
     --command -- sh -c "timeout $timeout $cmd" &>/dev/null || exit_code=$?
   kubectl delete pod "ct-test-$$" -n "$SEMAPHORE_NAMESPACE" --ignore-not-found --grace-period=0 --force &>/dev/null || true
