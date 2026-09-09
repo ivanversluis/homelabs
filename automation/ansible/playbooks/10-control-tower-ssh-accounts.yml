@@ -4,10 +4,13 @@
 # via --extra-vars (scripts/lifecycle/bootstrap-control-tower.sh fetches it read-only from Vault).
 - name: Wave -1c create ansible automation account + install Vault CA trust
   hosts: k8s_homelab
-  gather_facts: true
+  gather_facts: false
   serial: 1
   any_errors_fatal: true
   vars:
     control_tower_bootstrap: true
+  pre_tasks:
+    - name: Ensure Python 3 is present before running any other task
+      ansible.builtin.import_tasks: tasks/bootstrap-python.yml
   roles:
     - ssh_automation_account

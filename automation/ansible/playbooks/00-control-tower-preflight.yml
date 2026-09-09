@@ -2,8 +2,11 @@
 # Read-only. Run before every Wave -1c step, over the existing admin/wheel SSH route.
 - name: Wave -1c control-tower preflight (read-only)
   hosts: k8s_homelab
-  gather_facts: true
+  gather_facts: false
   vars:
     control_tower_bootstrap: true
+  pre_tasks:
+    - name: Ensure Python 3 is present before running any other task
+      ansible.builtin.import_tasks: tasks/bootstrap-python.yml
   roles:
     - control_tower_preflight

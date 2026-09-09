@@ -1,0 +1,15 @@
+---
+# Idempotent Python bootstrap for freshly provisioned Arch nodes with no interpreter yet.
+# Uses only raw (no Python required to run it). Never runs pacman -Syu (no upgrades in Wave -1).
+- name: Check for an existing Python 3 interpreter
+  ansible.builtin.raw: command -v python3
+  register: control_tower_python_probe
+  changed_when: false
+  failed_when: false
+
+- name: Install python via pacman (single package only, never -Syu)
+  ansible.builtin.raw: pacman -Sy --noconfirm --needed python
+  when: control_tower_python_probe.rc != 0
+
+- name: Gather facts now that Python is guaranteed present
+  ansible.builtin.setup:

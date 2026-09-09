@@ -6,6 +6,9 @@
   gather_facts: false
   vars:
     control_tower_bootstrap: true
+  pre_tasks:
+    - name: Ensure Python 3 is present before running any other task
+      ansible.builtin.import_tasks: tasks/bootstrap-python.yml
   tasks:
     - name: Ping (requires Python on target)
       ansible.builtin.ping:
