@@ -57,14 +57,16 @@ run_step() {
 }
 
 # ─── ephemeral SSH credential lifecycle ───────────────────────────────────────
-# create_ephemeral_ssh_workdir — makes a private tmpdir and registers cleanup on EXIT.
-# Callers must never write the resulting key/cert/token outside this directory.
+# create_ephemeral_ssh_workdir — makes a private tmpdir. Does NOT register its own cleanup
+# trap: it's meant to be called via command substitution (`workdir=$(create_ephemeral_ssh_workdir)`),
+# which runs in a subshell -- a trap registered there would fire (and delete the dir) the
+# instant that subshell exits, before the caller ever gets to use the path. Callers MUST
+# register their own `trap "rm -rf '$workdir'" EXIT` after capturing the returned path, and
+# must never write the resulting key/cert/token outside this directory.
 create_ephemeral_ssh_workdir() {
   local workdir
   workdir=$(mktemp -d "${TMPDIR:-/tmp}/control-tower.XXXXXX")
   chmod 700 "$workdir"
-  # shellcheck disable=SC2064 # intentional early expansion of $workdir
-  trap "rm -rf '$workdir'" EXIT
   echo "$workdir"
 }
 

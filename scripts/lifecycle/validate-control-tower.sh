@@ -175,6 +175,8 @@ if $QUICK; then
   record SKIP "Negative SSH tests (--quick)"
 else
   NEGATIVE_WORKDIR=$(create_ephemeral_ssh_workdir)
+  # shellcheck disable=SC2064 # intentional early expansion of $NEGATIVE_WORKDIR
+  trap "rm -rf '$NEGATIVE_WORKDIR'" EXIT
   ssh-keygen -q -t ed25519 -N '' -f "$NEGATIVE_WORKDIR/unsigned_key" </dev/null
 
   for entry in "${CONTROL_TOWER_NODES[@]}"; do
