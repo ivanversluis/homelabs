@@ -73,9 +73,9 @@ run_playbook() {
 # ─── stages ─────────────────────────────────────────────────────────────────────
 stage_preflight() {
   info "Running read-only control-tower preflight checks..."
-  info "(admin/wheel route: you will be prompted once for the sudo/become password)"
-  run_playbook 00-control-tower-preflight.yml -K
-  run_playbook 01-control-tower-smoke-test.yml -K
+  info "(admin/wheel route: you will be prompted for the SSH login password, then the sudo/become password)"
+  run_playbook 00-control-tower-preflight.yml -k -K
+  run_playbook 01-control-tower-smoke-test.yml -k -K
   ok "Preflight complete"
 }
 
@@ -100,8 +100,8 @@ stage_nodes() {
     env VAULT_TOKEN="$VAULT_TOKEN" vault read -field=public_key "$VAULT_SSH_MOUNT/config/ca")
   [[ -n "$ca_pub" ]] || fail "Could not read the Vault SSH CA public key. Has 'vault-ca' been run yet?"
 
-  info "Applying node changes one at a time (never sshpass; interactive admin sudo as needed)..."
-  run_playbook 10-control-tower-ssh-accounts.yml -e "vault_ssh_ca_public_key=${ca_pub}" -K
+  info "Applying node changes one at a time (never sshpass; interactive admin SSH/sudo as needed)..."
+  run_playbook 10-control-tower-ssh-accounts.yml -e "vault_ssh_ca_public_key=${ca_pub}" -k -K
   ok "Node SSH trust + ansible account bootstrap complete"
 }
 
