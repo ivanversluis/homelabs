@@ -42,6 +42,15 @@ for arg in "$@"; do
   esac
 done
 
+log "Starting Semaphore control-tower runner"
+log "Playbook: $CONTROL_TOWER_PLAYBOOK"
+log "Target limit: ${CONTROL_TOWER_LIMIT:-all nodes}"
+if [[ -n "${CONTROL_TOWER_KNOWN_HOSTS:-}" ]]; then
+  log "CONTROL_TOWER_KNOWN_HOSTS is present (${#CONTROL_TOWER_KNOWN_HOSTS} bytes; value not printed)"
+else
+  log "CONTROL_TOWER_KNOWN_HOSTS is not present in the task environment"
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 ANSIBLE_DIR="$REPO_ROOT/automation/ansible"
@@ -59,6 +68,7 @@ require_cmd python3
 require_cmd ssh
 require_cmd ssh-keygen
 require_cmd mktemp
+require_cmd grep
 
 [[ -r "$SA_TOKEN_FILE" ]] || fail "ServiceAccount token is not readable at $SA_TOKEN_FILE; verify Semaphore runs as serviceAccount semaphore-ansible"
 
@@ -94,17 +104,51 @@ elif [[ -r "${HOME:-/tmp}/.ssh/known_hosts" ]]; then
   chmod 600 "$KNOWN_HOSTS_FILE"
   log "Using existing trusted ${HOME:-/tmp}/.ssh/known_hosts"
 else
-  fail "no trusted known_hosts is available; supply CONTROL_TOWER_KNOWN_HOSTS or provision persistent ~/.ssh/known_hosts. Host-key checking will not be bypassed"
+  fail "no trusted known_hosts is available; attach the Control Tower SSH Trust Variable Group or provision persistent ~/.ssh/known_hosts. Host-key checking will not be bypassed"
 fi
 
-for entry in "${NODES[@]}"; do
+# Validate host keys only for hosts the Ansible invocation can actually target. This lets a
+# canary run carry just the canary host key while an all-node run still fails closed unless
+# every node is trusted. Unknown/complex Ansible limit expressions conservatively require all.
+TARGET_NODES=()
+case "${CONTROL_TOWER_LIMIT:-}" in
+  k8s-master01)
+    TARGET_NODES=("k8s-master01:172.16.20.200")
+    ;;
+  k8s-worker01)
+    TARGET_NODES=("k8s-worker01:172.16.20.201")
+    ;;
+  k8s-worker02)
+    TARGET_NODES=("k8s-worker02:172.16.20.202")
+    ;;
+  k8s-worker03)
+    TARGET_NODES=("k8s-worker03:172.16.20.203")
+    ;;
+  workers)
+    TARGET_NODES=(
+      "k8s-worker01:172.16.20.201"
+      "k8s-worker02:172.16.20.202"
+      "k8s-worker03:172.16.20.203"
+    )
+    ;;
+  ""|all|k8s_homelab)
+    TARGET_NODES=("${NODES[@]}")
+    ;;
+  *)
+    log "Limit expression '$CONTROL_TOWER_LIMIT' is not a simple known host/group; requiring trust for all nodes"
+    TARGET_NODES=("${NODES[@]}")
+    ;;
+esac
+
+for entry in "${TARGET_NODES[@]}"; do
   host="${entry%%:*}"
   ip="${entry##*:}"
   if ! ssh-keygen -F "$ip" -f "$KNOWN_HOSTS_FILE" >/dev/null 2>&1; then
     fail "trusted known_hosts has no entry for $host ($ip); inventory connects by IP"
   fi
+  log "Trusted host key present for $host ($ip)"
 done
-log "Host-key preflight passed for all four nodes"
+log "Host-key preflight passed for ${#TARGET_NODES[@]} target node(s)"
 
 HEALTH_JSON="$(curl -fsS --max-time 8 "$VAULT_ADDR/v1/sys/health?standbyok=true&perfstandbyok=true")" \
   || fail "Vault health endpoint is not reachable from Semaphore"
