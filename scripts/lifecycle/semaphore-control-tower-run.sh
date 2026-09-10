@@ -32,28 +32,28 @@ log() { printf '[control-tower] %s\n' "$*"; }
 fail() { printf '[control-tower] ERROR: %s\n' "$*" >&2; exit 1; }
 require_cmd() { command -v "$1" >/dev/null 2>&1 || fail "required command '$1' is not available in the Semaphore execution environment"; }
 
-# Semaphore shell survey variables are passed as key=value arguments. Environment variables
-# with the same names are also supported, making this usable both in Semaphore and manually.
+# Print before parsing any Semaphore-provided arguments so preparation failures are visible.
+log "Starting Semaphore control-tower runner"
+
+# Semaphore shell survey variables are passed as key=value arguments. Only the two values used
+# by this wrapper are consumed. Other task arguments are deliberately ignored with a warning so
+# a Semaphore metadata/survey addition cannot make the runner exit before diagnostics appear.
 for arg in "$@"; do
   case "$arg" in
     playbook=*) CONTROL_TOWER_PLAYBOOK="${arg#playbook=}" ;;
     limit=*) CONTROL_TOWER_LIMIT="${arg#limit=}" ;;
-    *) fail "unsupported argument '$arg' (supported: playbook=<path>, limit=<pattern>)" ;;
+    *=*) log "Ignoring unrelated Semaphore argument: ${arg%%=*}" ;;
+    *) log "Ignoring unrelated Semaphore argument without '='" ;;
   esac
 done
 
-log "Starting Semaphore control-tower runner"
 log "Playbook: $CONTROL_TOWER_PLAYBOOK"
 log "Target limit: ${CONTROL_TOWER_LIMIT:-all nodes}"
-if [[ -n "${CONTROL_TOWER_KNOWN_HOSTS:-}" ]]; then
-  log "CONTROL_TOWER_KNOWN_HOSTS is present (${#CONTROL_TOWER_KNOWN_HOSTS} bytes; value not printed)"
-else
-  log "CONTROL_TOWER_KNOWN_HOSTS is not present in the task environment"
-fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 ANSIBLE_DIR="$REPO_ROOT/automation/ansible"
+REPO_KNOWN_HOSTS="$ANSIBLE_DIR/inventories/homelab/known_hosts"
 
 case "$CONTROL_TOWER_PLAYBOOK" in
   playbooks/*.yml|playbooks/*.yaml) ;;
@@ -92,24 +92,24 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# Host identity must already be trusted. Prefer a Variable Group value so it survives pod
-# restarts. CONTROL_TOWER_KNOWN_HOSTS is public host-key material, not a secret.
+# Public node host keys are pinned in Git after verification through an independent trusted path.
+# A Variable Group override remains supported, but is no longer required for normal execution.
 KNOWN_HOSTS_FILE="$WORKDIR/known_hosts"
 if [[ -n "${CONTROL_TOWER_KNOWN_HOSTS:-}" ]]; then
   printf '%s\n' "$CONTROL_TOWER_KNOWN_HOSTS" > "$KNOWN_HOSTS_FILE"
-  chmod 600 "$KNOWN_HOSTS_FILE"
-  log "Using known_hosts supplied by CONTROL_TOWER_KNOWN_HOSTS"
+  log "Using CONTROL_TOWER_KNOWN_HOSTS override from Semaphore"
+elif [[ -r "$REPO_KNOWN_HOSTS" ]]; then
+  cp "$REPO_KNOWN_HOSTS" "$KNOWN_HOSTS_FILE"
+  log "Using repo-pinned host trust: automation/ansible/inventories/homelab/known_hosts"
 elif [[ -r "${HOME:-/tmp}/.ssh/known_hosts" ]]; then
   cp "${HOME:-/tmp}/.ssh/known_hosts" "$KNOWN_HOSTS_FILE"
-  chmod 600 "$KNOWN_HOSTS_FILE"
   log "Using existing trusted ${HOME:-/tmp}/.ssh/known_hosts"
 else
-  fail "no trusted known_hosts is available; attach the Control Tower SSH Trust Variable Group or provision persistent ~/.ssh/known_hosts. Host-key checking will not be bypassed"
+  fail "no trusted known_hosts is available. Host-key checking will not be bypassed"
 fi
+chmod 600 "$KNOWN_HOSTS_FILE"
 
-# Validate host keys only for hosts the Ansible invocation can actually target. This lets a
-# canary run carry just the canary host key while an all-node run still fails closed unless
-# every node is trusted. Unknown/complex Ansible limit expressions conservatively require all.
+# Validate host keys only for hosts the Ansible invocation can actually target.
 TARGET_NODES=()
 case "${CONTROL_TOWER_LIMIT:-}" in
   k8s-master01)
@@ -144,7 +144,7 @@ for entry in "${TARGET_NODES[@]}"; do
   host="${entry%%:*}"
   ip="${entry##*:}"
   if ! ssh-keygen -F "$ip" -f "$KNOWN_HOSTS_FILE" >/dev/null 2>&1; then
-    fail "trusted known_hosts has no entry for $host ($ip); inventory connects by IP"
+    fail "trusted known_hosts has no entry for $host ($ip); add and independently verify that node's public SSH host key in $REPO_KNOWN_HOSTS"
   fi
   log "Trusted host key present for $host ($ip)"
 done
