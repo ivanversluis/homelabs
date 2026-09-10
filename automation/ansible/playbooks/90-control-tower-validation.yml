@@ -1,10 +1,18 @@
 ---
-# Node-level half of Wave -1c/-1d validation, run over the Vault-issued certificate route
-# (control_tower_bootstrap defaults to false — see inventories/homelab/group_vars/all.yml).
-# The cluster-level half (Vault, Semaphore->Vault auth, NetworkPolicy, negative tests) is
-# driven by scripts/lifecycle/validate-control-tower.sh, which calls this playbook too.
+# Node-level half of Wave -1c/-1d validation, normally run over the Vault-issued
+# certificate route. The cluster-level half (Vault, Semaphore->Vault auth,
+# NetworkPolicy connectivity, negative tests) is driven by
+# scripts/lifecycle/validate-control-tower.sh.
+#
+# Do not gather facts until a working Python interpreter has been selected. Arch
+# nodes may intentionally rely on the pinned standalone interpreter until the
+# coordinated OS-maintenance wave restores a healthy /usr/bin/python3.
 - name: Wave -1c/-1d control-tower full validation
   hosts: k8s_homelab
-  gather_facts: true
+  gather_facts: false
+  serial: 1
+  pre_tasks:
+    - name: Ensure a functional Python 3 interpreter is selected
+      ansible.builtin.import_tasks: tasks/bootstrap-python.yml
   roles:
     - control_tower_validation
