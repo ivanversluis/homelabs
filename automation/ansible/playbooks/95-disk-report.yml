@@ -1,0 +1,80 @@
+---
+# Read-only end-to-end validation for:
+# Semaphore -> Kubernetes ServiceAccount -> Vault -> ephemeral SSH certificate -> ansible -> sudo.
+# Raw commands are intentional so this report does not depend on remote Python discovery.
+- name: Wave -1d read-only node disk report
+  hosts: k8s_homelab
+  gather_facts: false
+  serial: 1
+
+  tasks:
+    - name: Prove the SSH certificate logged in as the dedicated ansible account
+      ansible.builtin.raw: |
+        test "$(id -un)" = "ansible"
+        id
+      become: false
+      vars:
+        ansible_become: false
+      register: ssh_identity
+      changed_when: false
+
+    - name: Prove the ansible account can elevate non-interactively to root
+      ansible.builtin.raw: |
+        test "$(id -un)" = "root"
+        echo "sudo route: ansible -> root OK"
+      become: true
+      vars:
+        ansible_become: true
+      register: sudo_identity
+      changed_when: false
+
+    - name: Collect filesystem, block-device and important path usage
+      ansible.builtin.raw: |
+        set -eu
+        echo "===== {{ inventory_hostname }} ====="
+        printf '\n-- Filesystem capacity (df -hT) --\n'
+        df -hT -x tmpfs -x devtmpfs
+        printf '\n-- Filesystem inodes (df -ih) --\n'
+        df -ih -x tmpfs -x devtmpfs
+        printf '\n-- Block devices (lsblk) --\n'
+        lsblk -o NAME,SIZE,TYPE,FSTYPE,FSAVAIL,FSUSE%,MOUNTPOINTS
+        printf '\n-- Important homelab paths (du -sh) --\n'
+        for path in \
+          /var/lib/containerd \
+          /var/lib/kubelet \
+          /var/lib/etcd \
+          /var/lib/longhorn \
+          /var/lib/k8s-storage \
+          /opt/homelab-ansible; do
+          if [ -e "$path" ]; then
+            du -sh "$path" 2>/dev/null || true
+          fi
+        done
+        printf '\n-- Python state --\n'
+        if command -v python3 >/dev/null 2>&1; then
+          printf 'system python3: '
+          python3 --version 2>&1 || true
+        else
+          echo 'system python3: not installed'
+        fi
+        if [ -x /opt/homelab-ansible/python-standalone/bin/python3.12 ]; then
+          printf 'control-tower standalone python: '
+          /opt/homelab-ansible/python-standalone/bin/python3.12 --version 2>&1 || true
+        else
+          echo 'control-tower standalone python: not installed'
+        fi
+      become: true
+      vars:
+        ansible_become: true
+      register: disk_report
+      changed_when: false
+
+    - name: Print SSH and sudo validation
+      ansible.builtin.debug:
+        msg:
+          - "SSH identity: {{ ssh_identity.stdout | trim }}"
+          - "{{ sudo_identity.stdout | trim }}"
+
+    - name: Print disk report
+      ansible.builtin.debug:
+        msg: "{{ disk_report.stdout_lines }}"
