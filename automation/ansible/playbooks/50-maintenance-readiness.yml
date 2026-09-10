@@ -28,10 +28,14 @@
     - maintenance_readiness
 
 - name: Wave 0.5 maintenance-readiness report (aggregation and verdict)
-  hosts: localhost
+  # hosts is k8s_homelab (not localhost) + run_once so this play still runs when Semaphore
+  # passes --limit k8s_homelab: --limit filters implicit localhost out of every play, which
+  # would otherwise skip aggregation entirely ("no hosts matched").
+  hosts: k8s_homelab
   connection: local
   gather_facts: false
   become: false
+  run_once: true
   vars:
     maintenance_readiness_run_id: "{{ lookup('pipe', 'date -u +%Y%m%dT%H%M%SZ') }}"
   tasks:

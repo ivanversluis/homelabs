@@ -150,15 +150,15 @@
     - item.status.phase == 'Running'
     - (item.status.containerStatuses | default([]) | selectattr('ready', 'equalto', false) | list | length) > 0
 
-- name: Record high restart-count / crash-loop / image-pull findings
+- name: Record currently crash-looping / image-pull-failing container findings
   ansible.builtin.set_fact:
     maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
-      'id': 'K8S-POD-RESTARTS-' + item.0.metadata.namespace + '-' + item.0.metadata.name + '-' + item.1.name,
+      'id': 'K8S-POD-CRASHLOOP-' + item.0.metadata.namespace + '-' + item.0.metadata.name + '-' + item.1.name,
       'component': 'kubernetes',
       'severity': 'blocker',
-      'observed': 'Container ' + item.1.name + ' in pod ' + item.0.metadata.namespace + '/' + item.0.metadata.name + ' has restartCount=' + (item.1.restartCount | string) + (' waiting=' + item.1.state.waiting.reason if (item.1.state.waiting is defined and item.1.state.waiting.reason is defined) else ''),
+      'observed': 'Container ' + item.1.name + ' in pod ' + item.0.metadata.namespace + '/' + item.0.metadata.name + ' is currently ' + item.1.state.waiting.reason,
       'evidence': item.1,
-      'impact': 'Crash-looping or image-pull-failing containers indicate an existing application problem independent of any future maintenance action',
+      'impact': 'A container actively crash-looping or failing image pulls right now indicates an existing application problem independent of any future maintenance action',
       'remediation': 'Investigate ' + item.0.metadata.namespace + '/' + item.0.metadata.name + ' (container ' + item.1.name + ') before starting maintenance',
       'blocks_next_wave': true,
     }] }}"
@@ -166,9 +166,29 @@
   loop_control:
     label: "{{ item.0.metadata.namespace }}/{{ item.0.metadata.name }}/{{ item.1.name }}"
   when: >-
-    item.1.restartCount | default(0) > maintenance_readiness_max_pod_restarts
-    or (item.1.state.waiting is defined and item.1.state.waiting.reason is defined
-        and item.1.state.waiting.reason in ['CrashLoopBackOff', 'ImagePullBackOff', 'ErrImagePull'])
+    item.1.state.waiting is defined and item.1.state.waiting.reason is defined
+    and item.1.state.waiting.reason in ['CrashLoopBackOff', 'ImagePullBackOff', 'ErrImagePull']
+
+- name: Record elevated historical restart-count findings (currently stable, non-blocking)
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'K8S-POD-RESTARTS-' + item.0.metadata.namespace + '-' + item.0.metadata.name + '-' + item.1.name,
+      'component': 'kubernetes',
+      'severity': 'exception',
+      'observed': 'Container ' + item.1.name + ' in pod ' + item.0.metadata.namespace + '/' + item.0.metadata.name + ' has an elevated cumulative restartCount=' + (item.1.restartCount | string) + ' but is currently running and ready',
+      'evidence': item.1,
+      'impact': 'restartCount is cumulative and never resets on its own; this reflects past instability (often a prior maintenance/activation event), not a currently active problem, so it does not block this wave',
+      'remediation': 'Review lastState.terminated for ' + item.0.metadata.namespace + '/' + item.0.metadata.name + ' (container ' + item.1.name + ') to confirm the restarts are historical, not ongoing',
+      'blocks_next_wave': false,
+    }] }}"
+  loop: "{{ k8s_pods | subelements('status.containerStatuses', skip_missing=True) }}"
+  loop_control:
+    label: "{{ item.0.metadata.namespace }}/{{ item.0.metadata.name }}/{{ item.1.name }}"
+  when: >-
+    (item.1.restartCount | default(0)) > maintenance_readiness_max_pod_restarts
+    and item.1.ready | default(false)
+    and not (item.1.state.waiting is defined and item.1.state.waiting.reason is defined
+             and item.1.state.waiting.reason in ['CrashLoopBackOff', 'ImagePullBackOff', 'ErrImagePull'])
 
 - name: Record PodDisruptionBudget report and drain-blocking findings
   ansible.builtin.set_fact:

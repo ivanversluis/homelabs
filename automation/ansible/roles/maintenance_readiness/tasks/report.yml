@@ -1,8 +1,8 @@
 ---
-# Wave 0.5 aggregation + verdict. Runs once on localhost (the Ansible controller / Semaphore
-# execution pod) after the per-node play has collected findings into each host's
-# hostvars.maintenance_readiness_findings. Produces the explicit READY / READY WITH ACCEPTED
-# EXCEPTIONS / BLOCKED verdict required before Wave 1 may start.
+# Wave 0.5 aggregation + verdict. Runs once (run_once, connection: local, hosts: k8s_homelab
+# so it is never skipped by a --limit k8s_homelab run) after the per-node play has collected
+# findings into each host's hostvars.maintenance_readiness_findings. Produces the explicit
+# READY / READY WITH ACCEPTED EXCEPTIONS / BLOCKED verdict required before Wave 1 may start.
 
 - name: Aggregate findings from every inspected node
   ansible.builtin.set_fact:
