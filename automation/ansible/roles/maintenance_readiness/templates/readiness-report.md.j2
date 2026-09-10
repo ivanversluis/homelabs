@@ -1,0 +1,67 @@
+# Wave 0.5 maintenance-readiness report
+
+- Run ID: {{ maintenance_readiness_run_id }}
+- Generated: {{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}
+- Nodes inspected: {{ groups['k8s_homelab'] | join(', ') }}
+
+## Verdict: {{ maintenance_readiness_verdict }}
+
+- Blockers: {{ maintenance_readiness_blockers | length }} (unaccepted: {{ maintenance_readiness_unaccepted_blockers | length }})
+- Accepted exceptions configured: {{ maintenance_readiness_accepted_exceptions | length }}
+- Exception-severity findings: {{ maintenance_readiness_exceptions | length }}
+- Informational findings: {{ maintenance_readiness_info | length }}
+
+{% if maintenance_readiness_verdict == 'BLOCKED' %}
+**This cluster is NOT safe to enter maintenance.** Resolve the unaccepted blockers below, or
+consciously add their IDs to `maintenance_readiness_accepted_exceptions` after operator
+review, before Wave 1 may start.
+{% elif maintenance_readiness_verdict == 'READY WITH ACCEPTED EXCEPTIONS' %}
+This cluster may proceed to Wave 1, with the accepted exceptions below understood and
+tracked. None of them are assessed as blocking further maintenance.
+{% else %}
+This cluster is healthy enough to proceed to Wave 1 (Longhorn).
+{% endif %}
+
+## Blockers ({{ maintenance_readiness_blockers | length }})
+
+{% if maintenance_readiness_blockers | length == 0 %}
+None.
+{% else %}
+{% for f in maintenance_readiness_blockers %}
+### {{ f.id }} — {{ f.component }} {{ '(ACCEPTED)' if f.id in maintenance_readiness_accepted_exceptions else '' }}
+
+- Observed condition: {{ f.observed }}
+- Evidence: `{{ f.evidence }}`
+- Maintenance impact: {{ f.impact }}
+- Remediation required: {{ f.remediation }}
+- Blocks next wave: {{ f.blocks_next_wave }}
+
+{% endfor %}
+{% endif %}
+
+## Exceptions ({{ maintenance_readiness_exceptions | length }})
+
+{% if maintenance_readiness_exceptions | length == 0 %}
+None.
+{% else %}
+{% for f in maintenance_readiness_exceptions %}
+### {{ f.id }} — {{ f.component }}
+
+- Observed condition: {{ f.observed }}
+- Evidence: `{{ f.evidence }}`
+- Maintenance impact: {{ f.impact }}
+- Remediation required: {{ f.remediation }}
+- Blocks next wave: {{ f.blocks_next_wave }}
+
+{% endfor %}
+{% endif %}
+
+## Informational findings ({{ maintenance_readiness_info | length }})
+
+{% for f in maintenance_readiness_info %}
+### {{ f.id }} — {{ f.component }}
+
+- Observed: {{ f.observed }}
+- Evidence: `{{ f.evidence }}`
+
+{% endfor %}

@@ -1,0 +1,35 @@
+---
+# Wave 0.5 maintenance-readiness preflight — read-only, must never modify cluster or node state.
+
+# Kubeconfig used for cluster-level checks, read via sudo on the control-plane node only
+# (reuses the existing ansible->sudo trust path; no separate ServiceAccount/RBAC needed).
+maintenance_readiness_kubeconfig: /etc/kubernetes/admin.conf
+
+# Finding IDs an operator has consciously reviewed and accepted as non-blocking for the
+# next wave. Unaccepted blocker findings always result in a BLOCKED verdict.
+maintenance_readiness_accepted_exceptions: []
+
+# Thresholds
+maintenance_readiness_max_disk_pct: 85
+maintenance_readiness_max_inode_pct: 85
+maintenance_readiness_max_pod_restarts: 5
+
+# Object locations discovered from the live cluster (docs/lifecycle/wave-minus1-control-tower.md
+# and the Wave -1 architecture assume these do not change without a documented migration).
+maintenance_readiness_calico_namespace: calico-system
+maintenance_readiness_calico_daemonsets:
+  - calico-node
+  - csi-node-driver
+maintenance_readiness_calico_deployments:
+  - calico-kube-controllers
+  - calico-typha
+maintenance_readiness_longhorn_namespace: longhorn-system
+maintenance_readiness_longhorn_daemonsets:
+  - longhorn-manager
+  - longhorn-csi-plugin
+maintenance_readiness_longhorn_deployments:
+  - longhorn-driver-deployer
+  - longhorn-ui
+
+# Report output (written on the Ansible controller, not on any node).
+maintenance_readiness_report_dir: /tmp/maintenance-readiness

@@ -1,0 +1,100 @@
+---
+# Wave 0.5 Task 5 (Flux/platform): read-only reconciliation health checks. Runs only on the
+# control-plane node. Does not suspend/resume/reconcile anything.
+
+- name: Fetch Flux Kustomization objects
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ maintenance_readiness_kubeconfig }}
+    get kustomizations.kustomize.toolkit.fluxcd.io -A -o json
+  become: true
+  changed_when: false
+  register: flux_ks_raw
+
+- name: Fetch Flux HelmRelease objects
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ maintenance_readiness_kubeconfig }}
+    get helmreleases.helm.toolkit.fluxcd.io -A -o json
+  become: true
+  changed_when: false
+  register: flux_hr_raw
+
+- name: Parse Flux objects
+  ansible.builtin.set_fact:
+    flux_kustomizations: "{{ (flux_ks_raw.stdout | from_json)['items'] }}"
+    flux_helmreleases: "{{ (flux_hr_raw.stdout | from_json)['items'] }}"
+
+- name: Record suspended Kustomization findings (intentional exceptions, not failures)
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'FLUX-KS-SUSPENDED-' + item.metadata.namespace + '-' + item.metadata.name,
+      'component': 'flux',
+      'severity': 'exception',
+      'observed': 'Kustomization ' + item.metadata.namespace + '/' + item.metadata.name + ' is suspended',
+      'evidence': 'spec.suspend=true',
+      'impact': 'This Kustomization will not reconcile new commits until resumed; confirm this is intentional',
+      'remediation': 'Resume if the suspension was temporary/forgotten, or document it as an intentional exception',
+      'blocks_next_wave': false,
+    }] }}"
+  loop: "{{ flux_kustomizations }}"
+  loop_control:
+    label: "{{ item.metadata.namespace }}/{{ item.metadata.name }}"
+  when: item.spec.suspend | default(false)
+
+- name: Record failed (non-suspended, not-Ready) Kustomization findings
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'FLUX-KS-FAILED-' + item.metadata.namespace + '-' + item.metadata.name,
+      'component': 'flux',
+      'severity': 'blocker',
+      'observed': 'Kustomization ' + item.metadata.namespace + '/' + item.metadata.name + ' is not Ready',
+      'evidence': (item.status.conditions | default([]) | selectattr('type', 'equalto', 'Ready') | list | first | default({'message': 'no Ready condition reported'})),
+      'impact': 'GitOps reconciliation is broken for this Kustomization; the live cluster state may already be drifting from Git before any new maintenance wave begins',
+      'remediation': 'Investigate and fix the Kustomization before starting maintenance (kubectl describe kustomization ' + item.metadata.name + ' -n ' + item.metadata.namespace + ')',
+      'blocks_next_wave': true,
+    }] }}"
+  loop: "{{ flux_kustomizations }}"
+  loop_control:
+    label: "{{ item.metadata.namespace }}/{{ item.metadata.name }}"
+  vars:
+    ready_cond: "{{ item.status.conditions | default([]) | selectattr('type', 'equalto', 'Ready') | list | first | default({'status': 'Unknown'}) }}"
+  when:
+    - not (item.spec.suspend | default(false))
+    - ready_cond.status != 'True'
+
+- name: Record suspended HelmRelease findings (intentional exceptions, not failures)
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'FLUX-HR-SUSPENDED-' + item.metadata.namespace + '-' + item.metadata.name,
+      'component': 'flux',
+      'severity': 'exception',
+      'observed': 'HelmRelease ' + item.metadata.namespace + '/' + item.metadata.name + ' is suspended',
+      'evidence': 'spec.suspend=true',
+      'impact': 'This HelmRelease will not reconcile new commits until resumed; confirm this is intentional',
+      'remediation': 'Resume if the suspension was temporary/forgotten, or document it as an intentional exception',
+      'blocks_next_wave': false,
+    }] }}"
+  loop: "{{ flux_helmreleases }}"
+  loop_control:
+    label: "{{ item.metadata.namespace }}/{{ item.metadata.name }}"
+  when: item.spec.suspend | default(false)
+
+- name: Record failed (non-suspended, not-Ready) HelmRelease findings
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'FLUX-HR-FAILED-' + item.metadata.namespace + '-' + item.metadata.name,
+      'component': 'flux',
+      'severity': 'blocker',
+      'observed': 'HelmRelease ' + item.metadata.namespace + '/' + item.metadata.name + ' is not Ready',
+      'evidence': (item.status.conditions | default([]) | selectattr('type', 'equalto', 'Ready') | list | first | default({'message': 'no Ready condition reported'})),
+      'impact': 'This platform component may already be degraded before any new maintenance wave begins',
+      'remediation': 'Investigate and fix the HelmRelease before starting maintenance (kubectl describe helmrelease ' + item.metadata.name + ' -n ' + item.metadata.namespace + ')',
+      'blocks_next_wave': true,
+    }] }}"
+  loop: "{{ flux_helmreleases }}"
+  loop_control:
+    label: "{{ item.metadata.namespace }}/{{ item.metadata.name }}"
+  vars:
+    ready_cond: "{{ item.status.conditions | default([]) | selectattr('type', 'equalto', 'Ready') | list | first | default({'status': 'Unknown'}) }}"
+  when:
+    - not (item.spec.suspend | default(false))
+    - ready_cond.status != 'True'

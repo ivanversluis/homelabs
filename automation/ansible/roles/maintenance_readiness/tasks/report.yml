@@ -1,0 +1,57 @@
+---
+# Wave 0.5 aggregation + verdict. Runs once on localhost (the Ansible controller / Semaphore
+# execution pod) after the per-node play has collected findings into each host's
+# hostvars.maintenance_readiness_findings. Produces the explicit READY / READY WITH ACCEPTED
+# EXCEPTIONS / BLOCKED verdict required before Wave 1 may start.
+
+- name: Aggregate findings from every inspected node
+  ansible.builtin.set_fact:
+    maintenance_readiness_all_findings: "{{ groups['k8s_homelab'] | map('extract', hostvars, 'maintenance_readiness_findings') | sum(start=[]) }}"
+
+- name: Split findings by severity
+  ansible.builtin.set_fact:
+    maintenance_readiness_blockers: "{{ maintenance_readiness_all_findings | selectattr('severity', 'equalto', 'blocker') | list }}"
+    maintenance_readiness_exceptions: "{{ maintenance_readiness_all_findings | selectattr('severity', 'equalto', 'exception') | list }}"
+    maintenance_readiness_info: "{{ maintenance_readiness_all_findings | selectattr('severity', 'equalto', 'info') | list }}"
+
+- name: Identify unaccepted blockers
+  ansible.builtin.set_fact:
+    maintenance_readiness_unaccepted_blockers: "{{ maintenance_readiness_blockers | rejectattr('id', 'in', maintenance_readiness_accepted_exceptions) | list }}"
+
+- name: Compute the readiness verdict
+  ansible.builtin.set_fact:
+    maintenance_readiness_verdict: >-
+      {{ 'BLOCKED' if (maintenance_readiness_unaccepted_blockers | length > 0)
+         else ('READY WITH ACCEPTED EXCEPTIONS' if ((maintenance_readiness_blockers | length > 0) or (maintenance_readiness_exceptions | length > 0))
+         else 'READY') }}
+
+- name: Ensure the report directory exists on the controller
+  ansible.builtin.file:
+    path: "{{ maintenance_readiness_report_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Render the Wave 0.5 readiness report
+  ansible.builtin.template:
+    src: readiness-report.md.j2
+    dest: "{{ maintenance_readiness_report_dir }}/{{ maintenance_readiness_run_id }}.md"
+    mode: "0644"
+
+- name: Show the readiness verdict
+  ansible.builtin.debug:
+    msg:
+      - "Wave 0.5 maintenance-readiness verdict: {{ maintenance_readiness_verdict }}"
+      - "Blockers: {{ maintenance_readiness_blockers | length }} (unaccepted: {{ maintenance_readiness_unaccepted_blockers | length }})"
+      - "Exceptions: {{ maintenance_readiness_exceptions | length }}"
+      - "Info findings: {{ maintenance_readiness_info | length }}"
+      - "Full report: {{ maintenance_readiness_report_dir }}/{{ maintenance_readiness_run_id }}.md"
+
+- name: Fail the run if the verdict is BLOCKED
+  ansible.builtin.fail:
+    msg: >-
+      Wave 0.5 readiness verdict is BLOCKED: {{ maintenance_readiness_unaccepted_blockers | length }}
+      unaccepted blocker(s) exist. Resolve them, or explicitly add their IDs to
+      maintenance_readiness_accepted_exceptions after a conscious operator review, before
+      Wave 1 may start. See {{ maintenance_readiness_report_dir }}/{{ maintenance_readiness_run_id }}.md
+      for full details: {{ maintenance_readiness_unaccepted_blockers | map(attribute='id') | list }}
+  when: maintenance_readiness_verdict == 'BLOCKED'

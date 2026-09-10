@@ -58,3 +58,54 @@ automation account, Vault-issued short-lived SSH certificates, and Semaphore as 
 orchestration surface that will eventually run these playbooks on a schedule or on demand.
 None of the maintenance playbooks described here exist yet — implementing them is a
 follow-up wave, not part of this one.
+
+## Wave 0.5: maintenance-readiness preflight (implemented)
+
+Before any component upgrade wave runs, the control tower can execute a **read-only**
+maintenance-readiness assessment: `automation/ansible/playbooks/50-maintenance-readiness.yml`
+(role: `roles/maintenance_readiness/`). It never cordons, drains, reboots, or changes any
+Kubernetes, Longhorn, Calico, or Arch package state — it only inspects live state and
+produces a verdict.
+
+It reuses the existing generic Semaphore control-tower runner
+(`scripts/lifecycle/semaphore-control-tower-run.sh`) — the runner requires no changes because
+that script only blocklists the two bootstrap-only playbooks
+(`05-control-tower-vault-ca.yml`, `10-control-tower-ssh-accounts.yml`); this playbook is not
+one of them. It reuses the same Semaphore -> Vault Kubernetes-auth -> ephemeral SSH
+certificate -> Ansible -> sudo path as every other routine playbook — no separate
+Vault/SSH logic and no new Kubernetes RBAC/ServiceAccount surface (cluster-API checks read
+`k8s-master01`'s own `/etc/kubernetes/admin.conf` via the existing root/sudo trust path).
+
+Coverage: Kubernetes node/pod/PDB health and version skew, single-control-plane risk, Calico
+DaemonSet/Deployment/TigeraStatus health and version, Longhorn manager/driver/volume/node
+health and drain policy, Flux Kustomization/HelmRelease reconciliation health, host
+disk/inode usage and reboot indicators, and control-tower trust-path health.
+
+Each check produces a structured finding (`id`, `component`, `severity`, `observed`,
+`evidence`, `impact`, `remediation`, `blocks_next_wave`). The run computes one of three
+verdicts:
+
+- **READY** — no blocker or exception findings.
+- **READY WITH ACCEPTED EXCEPTIONS** — only exception-severity findings, or blocker findings
+  whose `id` is present in `maintenance_readiness_accepted_exceptions`.
+- **BLOCKED** — one or more blocker findings not present in
+  `maintenance_readiness_accepted_exceptions`. The playbook fails the Ansible run in this
+  case so a `BLOCKED` result cannot be silently ignored by automation.
+
+See `roles/maintenance_readiness/README.md` for the full finding-ID catalogue and defaults.
+
+## Future wave sequence (not yet implemented beyond Wave 0.5)
+
+1. **Wave 1 — Longhorn**: worker-canary upgrade/validation strategy, one node at a time,
+   respecting the current `node-drain-policy` and per-volume replica health.
+2. **Wave 2 — Calico**: CNI upgrade, validated against the current Tigera-operator-managed
+   installation.
+3. **Wave 3 — coordinated Arch Linux + Kubernetes**: OS package updates and kubeadm/kubelet
+   minor version upgrades, control-plane-first ordering for the Kubernetes component.
+4. **Wave 4 — platform components**: cluster-wide platform workloads (e.g. observability,
+   ingress, cert-manager) reconciled via Flux.
+5. **Wave 5 — applications**: application-layer workloads.
+
+Each of these waves must pass the Wave 0.5 readiness gate (or have every blocker explicitly
+accepted) before it begins, and must re-run the gate after completion before advancing to the
+next wave.

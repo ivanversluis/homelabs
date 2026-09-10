@@ -87,6 +87,11 @@ issuance into the same wave as the client CA would combine two independent blast
 (client trust and host trust) into one change; keeping them separate makes each easier to
 validate and roll back independently.
 
+**Current status:** Wave -1e has not been implemented. No `ssh-host-signer` Vault mount
+exists and `known_hosts` on the control tower still contains only pinned plain
+`ssh-ed25519` keys (no `@cert-authority` lines). This is not required for Wave 0.5 or Wave 1
+to proceed and remains an optional future improvement.
+
 ## Bootstrap chicken/egg problem
 
 Before the `ansible` account and Vault CA trust exist on a node, the *only* way to create

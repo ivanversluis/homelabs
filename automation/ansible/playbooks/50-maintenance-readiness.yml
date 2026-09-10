@@ -1,0 +1,41 @@
+---
+# Wave 0.5 — read-only maintenance-readiness preflight for the k8s-homelab control tower.
+# Answers one question: is the cluster healthy enough to safely start Wave 1 (Longhorn)?
+#
+# This playbook only ever reads state. It never cordons, drains, upgrades, or reboots
+# anything. It is the first stage of the future execution model documented in
+# docs/lifecycle/maintenance-plan.md:
+#   preflight -> cordon -> drain -> host maintenance -> reboot -> wait SSH -> wait Ready
+#   -> validate Calico -> validate Longhorn -> uncordon -> app/observability gate -> next node
+# Only "preflight" is implemented here.
+#
+# Runs over the same Vault-issued ephemeral SSH certificate -> ansible -> sudo route as
+# every other operational playbook (scripts/lifecycle/semaphore-control-tower-run.sh).
+# It reuses roles/control_tower_validation rather than re-implementing any Vault/SSH
+# certificate logic, and reuses each node's own root-readable kubeconfig for cluster-API
+# checks instead of introducing a new ServiceAccount/RBAC/Vault role.
+- name: Wave 0.5 maintenance-readiness preflight (per-node + cluster-API checks)
+  hosts: k8s_homelab
+  gather_facts: false
+  serial: 1
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  pre_tasks:
+    - name: Ensure a functional Python 3 interpreter is selected
+      ansible.builtin.import_tasks: tasks/bootstrap-python.yml
+  roles:
+    - control_tower_validation
+    - maintenance_readiness
+
+- name: Wave 0.5 maintenance-readiness report (aggregation and verdict)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    maintenance_readiness_run_id: "{{ lookup('pipe', 'date -u +%Y%m%dT%H%M%SZ') }}"
+  tasks:
+    - name: Aggregate findings and render the readiness report
+      ansible.builtin.include_role:
+        name: maintenance_readiness
+        tasks_from: report.yml

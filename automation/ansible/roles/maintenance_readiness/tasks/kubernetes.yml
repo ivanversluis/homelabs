@@ -1,0 +1,207 @@
+---
+# Wave 0.5 Task 2 (Kubernetes): read-only cluster-API checks. Runs only on the control-plane
+# node, using its own root-readable admin kubeconfig over the existing ansible->sudo SSH
+# route (reuses established trust; no new ServiceAccount/RBAC/Vault role is introduced).
+
+- name: Confirm the cluster admin kubeconfig is readable
+  ansible.builtin.command: test -r {{ maintenance_readiness_kubeconfig }}
+  become: true
+  changed_when: false
+
+- name: Fetch node objects
+  ansible.builtin.command: kubectl --kubeconfig={{ maintenance_readiness_kubeconfig }} get nodes -o json
+  become: true
+  changed_when: false
+  register: k8s_nodes_raw
+
+- name: Fetch pod objects (all namespaces)
+  ansible.builtin.command: kubectl --kubeconfig={{ maintenance_readiness_kubeconfig }} get pods -A -o json
+  become: true
+  changed_when: false
+  register: k8s_pods_raw
+
+- name: Fetch PodDisruptionBudget objects (all namespaces)
+  ansible.builtin.command: kubectl --kubeconfig={{ maintenance_readiness_kubeconfig }} get poddisruptionbudgets -A -o json
+  become: true
+  changed_when: false
+  register: k8s_pdb_raw
+
+- name: Parse Kubernetes objects
+  ansible.builtin.set_fact:
+    k8s_nodes: "{{ (k8s_nodes_raw.stdout | from_json)['items'] }}"
+    k8s_pods: "{{ (k8s_pods_raw.stdout | from_json)['items'] }}"
+    k8s_pdbs: "{{ (k8s_pdb_raw.stdout | from_json)['items'] }}"
+
+- name: Record single-control-plane risk (accepted architectural fact, not a new problem)
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'K8S-SINGLE-CP',
+      'component': 'kubernetes',
+      'severity': 'exception',
+      'observed': 'Cluster has exactly one control-plane node (' + groups['control_plane'][0] + ')',
+      'evidence': 'inventory control_plane group has ' + (groups['control_plane'] | length | string) + ' member(s)',
+      'impact': 'There is no HA control plane; mishandling k8s-master01 during any future wave (especially Wave 3) has no automatic fallback',
+      'remediation': 'None required for Wave 0.5. Always apply control-plane-first ordering and extra caution for k8s-master01 in later waves, per docs/lifecycle/maintenance-plan.md',
+      'blocks_next_wave': false,
+    }] }}"
+  when: groups['control_plane'] | length == 1
+
+# NOTE: no custom filter plugins are introduced (keeps this a normal, portable Ansible role).
+# Each condition below is evaluated directly against the parsed JSON with core Jinja filters.
+
+- name: Record NotReady node findings
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'K8S-NODE-READY-' + item.metadata.name,
+      'component': 'kubernetes',
+      'severity': 'blocker',
+      'observed': 'Node ' + item.metadata.name + ' Ready condition is not True',
+      'evidence': (item.status.conditions | selectattr('type', 'equalto', 'Ready') | list | first),
+      'impact': 'A node that is not Ready must not be cordoned/drained/maintained until it recovers or is investigated',
+      'remediation': 'Investigate kubelet/containerd health on ' + item.metadata.name + ' before starting maintenance',
+      'blocks_next_wave': true,
+    }] }}"
+  loop: "{{ k8s_nodes }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when: (item.status.conditions | selectattr('type', 'equalto', 'Ready') | list | first).status != 'True'
+
+- name: Record adverse node condition findings (MemoryPressure/DiskPressure/PIDPressure/NetworkUnavailable)
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'K8S-NODE-COND-' + item.0.metadata.name + '-' + item.1,
+      'component': 'kubernetes',
+      'severity': 'blocker',
+      'observed': item.1 + ' is asserted True on node ' + item.0.metadata.name,
+      'evidence': (item.0.status.conditions | selectattr('type', 'equalto', item.1) | list | first),
+      'impact': 'Indicates active node resource pressure; draining or maintaining this node now risks cascading failures for rescheduled pods',
+      'remediation': 'Resolve the underlying resource pressure on ' + item.0.metadata.name + ' before maintenance',
+      'blocks_next_wave': true,
+    }] }}"
+  loop: "{{ k8s_nodes | product(['MemoryPressure', 'DiskPressure', 'PIDPressure']) | list }}"
+  loop_control:
+    label: "{{ item.0.metadata.name }}-{{ item.1 }}"
+  when: (item.0.status.conditions | selectattr('type', 'equalto', item.1) | list | first).status == 'True'
+
+- name: Record unschedulable node findings
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'K8S-NODE-UNSCHED-' + item.metadata.name,
+      'component': 'kubernetes',
+      'severity': 'exception',
+      'observed': 'Node ' + item.metadata.name + ' is already cordoned (unschedulable)',
+      'evidence': 'spec.unschedulable=' + (item.spec.unschedulable | string),
+      'impact': 'A pre-existing cordon may be intentional (in-progress maintenance) or forgotten; either way it changes current scheduling capacity',
+      'remediation': 'Confirm whether this cordon is intentional before starting a new maintenance wave',
+      'blocks_next_wave': false,
+    }] }}"
+  loop: "{{ k8s_nodes }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when: item.spec.unschedulable | default(false)
+
+- name: Record Kubernetes version-per-node report finding (informational, surfaces skew)
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'K8S-VERSIONS',
+      'component': 'kubernetes',
+      'severity': ('exception' if (k8s_nodes | map(attribute='status.nodeInfo.kubeletVersion') | unique | list | length > 1) else 'info'),
+      'observed': 'Kubernetes/kubelet versions per node',
+      'evidence': k8s_nodes | map(attribute='metadata.name') | zip(k8s_nodes | map(attribute='status.nodeInfo.kubeletVersion')) | list,
+      'impact': ('Version skew across nodes is within normal kubeadm skew policy but should be closed during Wave 3' if (k8s_nodes | map(attribute='status.nodeInfo.kubeletVersion') | unique | list | length > 1) else 'none'),
+      'remediation': ('Plan to converge all nodes to the same Kubernetes version in Wave 3' if (k8s_nodes | map(attribute='status.nodeInfo.kubeletVersion') | unique | list | length > 1) else 'none'),
+      'blocks_next_wave': false,
+    }] }}"
+
+- name: Record pods not Running/Succeeded findings
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'K8S-POD-PHASE-' + item.metadata.namespace + '-' + item.metadata.name,
+      'component': 'kubernetes',
+      'severity': 'blocker',
+      'observed': 'Pod ' + item.metadata.namespace + '/' + item.metadata.name + ' phase is ' + item.status.phase,
+      'evidence': 'status.phase=' + item.status.phase + ', reason=' + (item.status.reason | default('n/a')),
+      'impact': 'A pod stuck outside Running/Succeeded indicates an existing scheduling or image/runtime problem that maintenance actions would compound',
+      'remediation': 'Investigate ' + item.metadata.namespace + '/' + item.metadata.name + ' before starting maintenance',
+      'blocks_next_wave': true,
+    }] }}"
+  loop: "{{ k8s_pods }}"
+  loop_control:
+    label: "{{ item.metadata.namespace }}/{{ item.metadata.name }}"
+  when:
+    - item.status.phase not in ['Running', 'Succeeded']
+
+- name: Record pods not Ready findings (Running phase but a container is not ready)
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'K8S-POD-NOTREADY-' + item.metadata.namespace + '-' + item.metadata.name,
+      'component': 'kubernetes',
+      'severity': 'blocker',
+      'observed': 'Pod ' + item.metadata.namespace + '/' + item.metadata.name + ' is Running but not all containers are Ready',
+      'evidence': item.status.containerStatuses | default([]) | selectattr('ready', 'equalto', false) | list,
+      'impact': 'A not-Ready pod will not receive traffic and may indicate a probe/dependency failure that maintenance would worsen',
+      'remediation': 'Investigate ' + item.metadata.namespace + '/' + item.metadata.name + ' readiness probe/dependencies before starting maintenance',
+      'blocks_next_wave': true,
+    }] }}"
+  loop: "{{ k8s_pods }}"
+  loop_control:
+    label: "{{ item.metadata.namespace }}/{{ item.metadata.name }}"
+  when:
+    - item.status.phase == 'Running'
+    - (item.status.containerStatuses | default([]) | selectattr('ready', 'equalto', false) | list | length) > 0
+
+- name: Record high restart-count / crash-loop / image-pull findings
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'K8S-POD-RESTARTS-' + item.0.metadata.namespace + '-' + item.0.metadata.name + '-' + item.1.name,
+      'component': 'kubernetes',
+      'severity': 'blocker',
+      'observed': 'Container ' + item.1.name + ' in pod ' + item.0.metadata.namespace + '/' + item.0.metadata.name + ' has restartCount=' + (item.1.restartCount | string) + (' waiting=' + item.1.state.waiting.reason if (item.1.state.waiting is defined and item.1.state.waiting.reason is defined) else ''),
+      'evidence': item.1,
+      'impact': 'Crash-looping or image-pull-failing containers indicate an existing application problem independent of any future maintenance action',
+      'remediation': 'Investigate ' + item.0.metadata.namespace + '/' + item.0.metadata.name + ' (container ' + item.1.name + ') before starting maintenance',
+      'blocks_next_wave': true,
+    }] }}"
+  loop: "{{ k8s_pods | subelements('status.containerStatuses', skip_missing=True) }}"
+  loop_control:
+    label: "{{ item.0.metadata.namespace }}/{{ item.0.metadata.name }}/{{ item.1.name }}"
+  when: >-
+    item.1.restartCount | default(0) > maintenance_readiness_max_pod_restarts
+    or (item.1.state.waiting is defined and item.1.state.waiting.reason is defined
+        and item.1.state.waiting.reason in ['CrashLoopBackOff', 'ImagePullBackOff', 'ErrImagePull'])
+
+- name: Record PodDisruptionBudget report and drain-blocking findings
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'K8S-PDB-BLOCKING-' + item.metadata.namespace + '-' + item.metadata.name,
+      'component': 'kubernetes',
+      'severity': 'exception',
+      'observed': 'PodDisruptionBudget ' + item.metadata.namespace + '/' + item.metadata.name + ' currently allows 0 disruptions',
+      'evidence': 'status.disruptionsAllowed=' + (item.status.disruptionsAllowed | string) + ', desiredHealthy=' + (item.status.desiredHealthyReplicas | default(item.status.currentHealthy) | string),
+      'impact': 'kubectl drain on any node hosting a matching pod will block until this PDB allows at least one disruption',
+      'remediation': 'Confirm replica health for the workload behind this PDB before draining a node that hosts it; do not bypass with --disable-eviction',
+      'blocks_next_wave': false,
+    }] }}"
+  loop: "{{ k8s_pdbs }}"
+  loop_control:
+    label: "{{ item.metadata.namespace }}/{{ item.metadata.name }}"
+  when: (item.status.disruptionsAllowed | default(0)) == 0
+
+- name: Record unmanaged/bare pod findings (would block kubectl drain without --force)
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'K8S-BAREPOD-' + item.metadata.namespace + '-' + item.metadata.name,
+      'component': 'kubernetes',
+      'severity': 'exception',
+      'observed': 'Pod ' + item.metadata.namespace + '/' + item.metadata.name + ' has no owning controller (bare pod) on node ' + (item.spec.nodeName | default('unscheduled')),
+      'evidence': 'metadata.ownerReferences is empty',
+      'impact': 'kubectl drain refuses to evict unmanaged pods by default (requires --force, which discards the pod permanently)',
+      'remediation': 'Recreate this workload under a Deployment/Job/DaemonSet, or explicitly plan for --force eviction (data loss for that pod) during the drain of its node',
+      'blocks_next_wave': false,
+    }] }}"
+  loop: "{{ k8s_pods }}"
+  loop_control:
+    label: "{{ item.metadata.namespace }}/{{ item.metadata.name }}"
+  when:
+    - (item.metadata.ownerReferences | default([]) | length) == 0
+    - item.status.phase == 'Running'
