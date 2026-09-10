@@ -14,14 +14,29 @@
   register: automation_id
   changed_when: false
 
-- name: Confirm the automation account password is locked
+- name: Read the automation account password status
   ansible.builtin.command: passwd -S "{{ validation_automation_user }}"
   register: automation_passwd_status
   changed_when: false
-  failed_when: "'L' not in automation_passwd_status.stdout.split()[1]"
 
-- name: Confirm passwordless sudo works for the automation account
-  ansible.builtin.command: sudo -n -u "{{ validation_automation_user }}" true
+- name: Confirm automation account is not OS-locked and password login remains unusable
+  ansible.builtin.shell: |
+    set -eu
+    shadow_field="$(getent shadow {{ validation_automation_user }} | cut -d: -f2)"
+    test -n "$shadow_field"
+    case "$shadow_field" in
+      !*) echo "automation account is OS-locked: $shadow_field" >&2; exit 1 ;;
+    esac
+    test "$shadow_field" = "*NP*"
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Confirm passwordless sudo works from the automation account to root
+  ansible.builtin.command: sudo -n true
+  become: false
+  vars:
+    ansible_become: false
   changed_when: false
 
 - name: Confirm sshd configuration is syntactically valid
@@ -45,16 +60,30 @@
   ansible.builtin.command: id "{{ validation_admin_user }}"
   changed_when: false
 
-- name: Gather effective sshd configuration
-  ansible.builtin.command: sshd -T
-  register: sshd_effective
+- name: Gather effective sshd configuration for root
+  ansible.builtin.command: sshd -T -C user=root,host={{ inventory_hostname }},addr=127.0.0.1
+  register: sshd_effective_root
   changed_when: false
 
 - name: Assert root SSH login remains disabled
   ansible.builtin.assert:
     that:
-      - "'permitrootlogin no' in sshd_effective.stdout_lines | map('lower') | list"
+      - "'permitrootlogin no' in sshd_effective_root.stdout_lines | map('lower') | list"
     fail_msg: "PermitRootLogin has drifted from 'no' on {{ inventory_hostname }}"
+
+- name: Gather effective sshd configuration for ansible
+  ansible.builtin.command: sshd -T -C user={{ validation_automation_user }},host={{ inventory_hostname }},addr=127.0.0.1
+  register: sshd_effective_ansible
+  changed_when: false
+
+- name: Assert ansible-specific certificate-only SSH controls are effective
+  ansible.builtin.assert:
+    that:
+      - "'passwordauthentication no' in sshd_effective_ansible.stdout_lines | map('lower') | list"
+      - "'authenticationmethods publickey' in sshd_effective_ansible.stdout_lines | map('lower') | list"
+      - "('trustedusercakeys ' ~ trusted_user_ca_keys_path) in sshd_effective_ansible.stdout | lower"
+      - "('authorizedprincipalsfile ' ~ auth_principals_file) in sshd_effective_ansible.stdout | lower"
+    fail_msg: "ansible certificate-only sshd controls are not effective on {{ inventory_hostname }}"
 
 - name: Show validation summary
   ansible.builtin.debug:
