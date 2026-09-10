@@ -1,13 +1,5 @@
 #!/usr/bin/env bash
-# Run an Ansible playbook from Semaphore with a short-lived Vault-signed SSH certificate.
-#
-# Security model:
-# - authenticates to Vault with the Semaphore pod ServiceAccount JWT
-# - generates a fresh Ed25519 keypair for every task
-# - asks Vault to sign only the public key for principal "ansible"
-# - never stores a permanent SSH private key or Vault token in Semaphore/Git
-# - requires pre-trusted SSH host keys; never uses StrictHostKeyChecking=no/accept-new
-# - revokes the short-lived Vault token and deletes the key/certificate on every exit
+# Run an operational Ansible playbook from Semaphore with a short-lived Vault-signed SSH certificate.
 set -Eeuo pipefail
 
 VAULT_ADDR="${VAULT_ADDR:-http://vault.vault.svc.cluster.local:8200}"
@@ -38,12 +30,8 @@ trim() {
   printf '%s' "$value"
 }
 
-# Print before parsing any Semaphore-provided arguments so preparation failures are visible.
 log "Starting Semaphore control-tower runner"
 
-# Semaphore shell survey variables are passed as key=value arguments. Only the two values used
-# by this wrapper are consumed. Other task arguments are deliberately ignored with a warning so
-# a Semaphore metadata/survey addition cannot make the runner exit before diagnostics appear.
 for arg in "$@"; do
   case "$arg" in
     playbook=*) CONTROL_TOWER_PLAYBOOK="${arg#playbook=}" ;;
@@ -53,8 +41,6 @@ for arg in "$@"; do
   esac
 done
 
-# Semaphore survey values may accidentally include leading/trailing whitespace. Normalize those
-# values before path/limit validation while still rejecting path traversal and unknown playbooks.
 CONTROL_TOWER_PLAYBOOK="$(trim "$CONTROL_TOWER_PLAYBOOK")"
 CONTROL_TOWER_LIMIT="$(trim "$CONTROL_TOWER_LIMIT")"
 
@@ -72,6 +58,15 @@ case "$CONTROL_TOWER_PLAYBOOK" in
 esac
 [[ "$CONTROL_TOWER_PLAYBOOK" != *".."* ]] || fail "playbook path must not contain '..'"
 [[ -f "$ANSIBLE_DIR/$CONTROL_TOWER_PLAYBOOK" ]] || fail "playbook not found: automation/ansible/$CONTROL_TOWER_PLAYBOOK"
+
+# Bootstrap/control-plane configuration must never run through the already-established
+# certificate route. These playbooks need privileged local/Vault bootstrap context and can
+# mutate the authentication path itself. Run them explicitly from the trusted WSL/admin route.
+case "$CONTROL_TOWER_PLAYBOOK" in
+  playbooks/05-control-tower-vault-ca.yml|playbooks/10-control-tower-ssh-accounts.yml)
+    fail "bootstrap-only playbook '$CONTROL_TOWER_PLAYBOOK' is not allowed through the Semaphore operational runner; use scripts/lifecycle/bootstrap-control-tower.sh from the trusted WSL/admin route"
+    ;;
+esac
 
 require_cmd ansible-playbook
 require_cmd curl
@@ -92,9 +87,8 @@ cleanup() {
   local rc=$?
   trap - EXIT INT TERM
   if [[ -n "$VAULT_TOKEN" ]]; then
-    curl -fsS --max-time 5 \
-      -H "X-Vault-Token: $VAULT_TOKEN" \
-      -X POST "$VAULT_ADDR/v1/auth/token/revoke-self" >/dev/null 2>&1 || true
+    curl -fsS --max-time 5 -H "X-Vault-Token: $VAULT_TOKEN" -X POST \
+      "$VAULT_ADDR/v1/auth/token/revoke-self" >/dev/null 2>&1 || true
   fi
   VAULT_TOKEN=""
   K8S_JWT=""
@@ -103,8 +97,6 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# Public node host keys are pinned in Git after verification through an independent trusted path.
-# A Variable Group override remains supported, but is no longer required for normal execution.
 KNOWN_HOSTS_FILE="$WORKDIR/known_hosts"
 if [[ -n "${CONTROL_TOWER_KNOWN_HOSTS:-}" ]]; then
   printf '%s\n' "$CONTROL_TOWER_KNOWN_HOSTS" > "$KNOWN_HOSTS_FILE"
@@ -120,21 +112,12 @@ else
 fi
 chmod 600 "$KNOWN_HOSTS_FILE"
 
-# Validate host keys only for hosts the Ansible invocation can actually target.
 TARGET_NODES=()
 case "${CONTROL_TOWER_LIMIT:-}" in
-  k8s-master01)
-    TARGET_NODES=("k8s-master01:172.16.20.200")
-    ;;
-  k8s-worker01)
-    TARGET_NODES=("k8s-worker01:172.16.20.201")
-    ;;
-  k8s-worker02)
-    TARGET_NODES=("k8s-worker02:172.16.20.202")
-    ;;
-  k8s-worker03)
-    TARGET_NODES=("k8s-worker03:172.16.20.203")
-    ;;
+  k8s-master01) TARGET_NODES=("k8s-master01:172.16.20.200") ;;
+  k8s-worker01) TARGET_NODES=("k8s-worker01:172.16.20.201") ;;
+  k8s-worker02) TARGET_NODES=("k8s-worker02:172.16.20.202") ;;
+  k8s-worker03) TARGET_NODES=("k8s-worker03:172.16.20.203") ;;
   workers)
     TARGET_NODES=(
       "k8s-worker01:172.16.20.201"
@@ -142,9 +125,7 @@ case "${CONTROL_TOWER_LIMIT:-}" in
       "k8s-worker03:172.16.20.203"
     )
     ;;
-  ""|all|k8s_homelab)
-    TARGET_NODES=("${NODES[@]}")
-    ;;
+  ""|all|k8s_homelab) TARGET_NODES=("${NODES[@]}") ;;
   *)
     log "Limit expression '$CONTROL_TOWER_LIMIT' is not a simple known host/group; requiring trust for all nodes"
     TARGET_NODES=("${NODES[@]}")
@@ -154,9 +135,8 @@ esac
 for entry in "${TARGET_NODES[@]}"; do
   host="${entry%%:*}"
   ip="${entry##*:}"
-  if ! ssh-keygen -F "$ip" -f "$KNOWN_HOSTS_FILE" >/dev/null 2>&1; then
-    fail "trusted known_hosts has no entry for $host ($ip); add and independently verify that node's public SSH host key in $REPO_KNOWN_HOSTS"
-  fi
+  ssh-keygen -F "$ip" -f "$KNOWN_HOSTS_FILE" >/dev/null 2>&1 \
+    || fail "trusted known_hosts has no entry for $host ($ip); add and independently verify that node's public SSH host key in $REPO_KNOWN_HOSTS"
   log "Trusted host key present for $host ($ip)"
 done
 log "Host-key preflight passed for ${#TARGET_NODES[@]} target node(s)"
@@ -170,17 +150,12 @@ log "Vault is reachable and unsealed"
 K8S_JWT="$(cat "$SA_TOKEN_FILE")"
 LOGIN_PAYLOAD="$(python3 -c 'import json,sys; print(json.dumps({"role":sys.argv[1],"jwt":sys.stdin.read().strip()}))' "$VAULT_K8S_ROLE" <<<"$K8S_JWT")"
 LOGIN_RESPONSE="$(printf '%s' "$LOGIN_PAYLOAD" | curl -fsS --max-time 10 \
-  -H 'Content-Type: application/json' \
-  --data-binary @- \
-  "$VAULT_ADDR/v1/auth/kubernetes/login")" \
-  || fail "Vault Kubernetes-auth login failed"
-
-VAULT_TOKEN="$(printf '%s' "$LOGIN_RESPONSE" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("auth",{}).get("client_token",""))')"
+  -H 'Content-Type: application/json' --data-binary @- \
+  "$VAULT_ADDR/v1/auth/kubernetes/login")" || fail "Vault Kubernetes-auth login failed"
+VAULT_TOKEN="$(printf '%s' "$LOGIN_RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("auth",{}).get("client_token",""))')"
 [[ -n "$VAULT_TOKEN" ]] || fail "Vault Kubernetes-auth response did not contain a client token"
-
-if ! printf '%s' "$LOGIN_RESPONSE" | python3 -c 'import json,sys; d=json.load(sys.stdin); p=sys.argv[1]; raise SystemExit(0 if p in d.get("auth",{}).get("policies",[]) else 1)' "$VAULT_EXPECTED_POLICY"; then
-  fail "Vault token does not contain expected policy $VAULT_EXPECTED_POLICY"
-fi
+printf '%s' "$LOGIN_RESPONSE" | python3 -c 'import json,sys; d=json.load(sys.stdin); p=sys.argv[1]; raise SystemExit(0 if p in d.get("auth",{}).get("policies",[]) else 1)' "$VAULT_EXPECTED_POLICY" \
+  || fail "Vault token does not contain expected policy $VAULT_EXPECTED_POLICY"
 K8S_JWT=""
 LOGIN_PAYLOAD=""
 LOGIN_RESPONSE=""
@@ -195,16 +170,9 @@ TASK_USER="${SEMAPHORE_TASK_DETAILS_USERNAME:-operator}"
 KEY_ID="semaphore:${TASK_USER}:$(date -u +%Y%m%dT%H%M%SZ)"
 SIGN_PAYLOAD="$(python3 -c 'import json,sys; print(json.dumps({"public_key":sys.stdin.read().strip(),"valid_principals":sys.argv[1],"ttl":sys.argv[2],"key_id":sys.argv[3]}))' \
   "$SSH_PRINCIPAL" "$SSH_CERT_TTL" "$KEY_ID" < "$KEY_FILE.pub")"
-SIGN_RESPONSE="$(curl -fsS --max-time 10 \
-  -H "X-Vault-Token: $VAULT_TOKEN" \
-  -H 'Content-Type: application/json' \
-  --data "$SIGN_PAYLOAD" \
-  "$VAULT_ADDR/v1/$VAULT_SSH_MOUNT/sign/$VAULT_SSH_ROLE")" \
-  || fail "Vault SSH certificate signing failed"
-
-# Vault's signed_key may include a trailing newline. Write exactly one normalized OpenSSH
-# certificate line; using Python print() here previously produced an extra blank line and
-# caused ssh-keygen to warn about an invalid second key.
+SIGN_RESPONSE="$(curl -fsS --max-time 10 -H "X-Vault-Token: $VAULT_TOKEN" \
+  -H 'Content-Type: application/json' --data "$SIGN_PAYLOAD" \
+  "$VAULT_ADDR/v1/$VAULT_SSH_MOUNT/sign/$VAULT_SSH_ROLE")" || fail "Vault SSH certificate signing failed"
 printf '%s' "$SIGN_RESPONSE" | python3 -c 'import json,sys; s=json.load(sys.stdin).get("data",{}).get("signed_key","").strip(); sys.stdout.write(s + ("\n" if s else ""))' > "$CERT_FILE"
 [[ -s "$CERT_FILE" ]] || fail "Vault signing response did not contain signed_key"
 [[ "$(grep -cve '^[[:space:]]*$' "$CERT_FILE")" -eq 1 ]] || fail "Vault returned an unexpected multi-line SSH certificate"
@@ -218,50 +186,29 @@ if ! ssh-keygen -Lf "$CERT_FILE" > "$CERT_INFO" 2> "$CERT_ERROR"; then
   cat "$CERT_ERROR" >&2 || true
   fail "Vault returned an invalid OpenSSH certificate"
 fi
-if [[ -s "$CERT_ERROR" ]]; then
-  cat "$CERT_ERROR" >&2
-  fail "OpenSSH reported warnings while parsing the Vault certificate"
-fi
-if ! grep -Eq "^[[:space:]]+$SSH_PRINCIPAL([[:space:]]*)$" "$CERT_INFO"; then
-  fail "issued SSH certificate does not contain required principal $SSH_PRINCIPAL"
-fi
+[[ ! -s "$CERT_ERROR" ]] || { cat "$CERT_ERROR" >&2; fail "OpenSSH reported warnings while parsing the Vault certificate"; }
+grep -Eq "^[[:space:]]+$SSH_PRINCIPAL([[:space:]]*)$" "$CERT_INFO" \
+  || fail "issued SSH certificate does not contain required principal $SSH_PRINCIPAL"
 log "Ephemeral SSH certificate issued for principal $SSH_PRINCIPAL (requested TTL $SSH_CERT_TTL)"
-# Certificate metadata is public/safe; show only signer/validity/principal fields, never key material.
 grep -E 'Signing CA:|Valid:|Principals:|^[[:space:]]+ansible$' "$CERT_INFO" | sed 's/^/[control-tower] cert: /' || true
 
-# Prove the exact private-key + certificate combination works with plain OpenSSH before Ansible.
-# This cleanly separates SSH trust/account problems from Ansible configuration problems.
 for entry in "${TARGET_NODES[@]}"; do
   host="${entry%%:*}"
   ip="${entry##*:}"
   SSH_PROBE_LOG="$WORKDIR/ssh-probe-$host.log"
-  if ssh \
-      -o BatchMode=yes \
-      -o IdentitiesOnly=yes \
-      -o IdentityFile="$KEY_FILE" \
-      -o CertificateFile="$CERT_FILE" \
-      -o StrictHostKeyChecking=yes \
-      -o UserKnownHostsFile="$KNOWN_HOSTS_FILE" \
-      -o ConnectTimeout=8 \
-      -o LogLevel=ERROR \
-      "$SSH_PRINCIPAL@$ip" \
-      'test "$(id -un)" = "ansible"' 2>"$SSH_PROBE_LOG"; then
+  if ssh -o BatchMode=yes -o IdentitiesOnly=yes -o IdentityFile="$KEY_FILE" \
+      -o CertificateFile="$CERT_FILE" -o StrictHostKeyChecking=yes \
+      -o UserKnownHostsFile="$KNOWN_HOSTS_FILE" -o ConnectTimeout=8 -o LogLevel=ERROR \
+      "$SSH_PRINCIPAL@$ip" 'test "$(id -un)" = "ansible"' 2>"$SSH_PROBE_LOG"; then
     log "Direct Vault-certificate SSH probe passed for $host ($ip)"
   else
     log "Direct Vault-certificate SSH probe failed for $host ($ip); collecting safe client diagnostics"
-    ssh \
-      -vvv \
-      -o BatchMode=yes \
-      -o IdentitiesOnly=yes \
-      -o IdentityFile="$KEY_FILE" \
-      -o CertificateFile="$CERT_FILE" \
-      -o StrictHostKeyChecking=yes \
-      -o UserKnownHostsFile="$KNOWN_HOSTS_FILE" \
-      -o ConnectTimeout=8 \
+    ssh -vvv -o BatchMode=yes -o IdentitiesOnly=yes -o IdentityFile="$KEY_FILE" \
+      -o CertificateFile="$CERT_FILE" -o StrictHostKeyChecking=yes \
+      -o UserKnownHostsFile="$KNOWN_HOSTS_FILE" -o ConnectTimeout=8 \
       "$SSH_PRINCIPAL@$ip" true >/dev/null 2>"$SSH_PROBE_LOG" || true
     grep -E 'Offering public key|Server accepts key|Authentications that can continue|sign_and_send_pubkey|Permission denied|certificate|CertificateFile|identity file' "$SSH_PROBE_LOG" \
-      | tail -n 30 \
-      | sed 's/^/[control-tower] ssh-debug: /' >&2 || true
+      | tail -n 30 | sed 's/^/[control-tower] ssh-debug: /' >&2 || true
     fail "Vault certificate was issued but worker SSH authentication rejected it for $SSH_PRINCIPAL@$ip. Check the node TrustedUserCAKeys/AuthorizedPrincipalsFile/account state before changing Ansible"
   fi
 done
@@ -276,15 +223,10 @@ ANSIBLE_ARGS=(
   -e "control_tower_ssh_certificate=$CERT_FILE"
   -e "ansible_user=$SSH_PRINCIPAL"
 )
-if [[ -n "$CONTROL_TOWER_LIMIT" ]]; then
-  ANSIBLE_ARGS+=(--limit "$CONTROL_TOWER_LIMIT")
-fi
+[[ -z "$CONTROL_TOWER_LIMIT" ]] || ANSIBLE_ARGS+=(--limit "$CONTROL_TOWER_LIMIT")
 
 log "Running automation/ansible/$CONTROL_TOWER_PLAYBOOK as $SSH_PRINCIPAL"
-if [[ -n "$CONTROL_TOWER_LIMIT" ]]; then
-  log "Ansible limit: $CONTROL_TOWER_LIMIT"
-fi
-
+[[ -z "$CONTROL_TOWER_LIMIT" ]] || log "Ansible limit: $CONTROL_TOWER_LIMIT"
 cd "$ANSIBLE_DIR"
 ansible-playbook "${ANSIBLE_ARGS[@]}"
 log "Playbook completed successfully; ephemeral credentials will now be revoked and deleted"
