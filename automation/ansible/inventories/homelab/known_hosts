@@ -1,0 +1,5 @@
+# Pinned SSH host keys used by the Semaphore control-tower runner.
+# Public host keys are intentionally version controlled so task execution does not depend
+# on mutable pod-local ~/.ssh/known_hosts state or disabling StrictHostKeyChecking.
+# Add a node only after its fingerprint has been verified through an independent trusted path.
+172.16.20.203 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICZG4SD3fWO8HzFXNgMWLd3wlncISstp6NbBQlFVbCf0
