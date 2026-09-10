@@ -64,6 +64,7 @@ fi
 
 require_cmd kubectl
 require_cmd ansible-playbook
+require_cmd jq
 
 run_playbook() {
   local playbook="$1"; shift
@@ -94,14 +95,19 @@ stage_nodes() {
     || fail "Aborted by operator."
 
   info "Fetching the Vault SSH CA public key (public key only — never the private key)..."
-  local vault_pod ca_pub
+  local vault_pod ca_pub ca_extra_vars
   vault_pod=$(vault_pod_name)
   ca_pub=$(kubectl exec -n "$VAULT_NAMESPACE" "$vault_pod" -- \
     env VAULT_TOKEN="$VAULT_TOKEN" vault read -field=public_key "$VAULT_SSH_MOUNT/config/ca")
   [[ -n "$ca_pub" ]] || fail "Could not read the Vault SSH CA public key. Has 'vault-ca' been run yet?"
 
+  # An OpenSSH public key contains spaces (for example: "ssh-rsa AAAA..."). Passing it as a
+  # plain Ansible key=value extra-var lets Ansible's argument parser split/truncate the value.
+  # Encode it as JSON so the complete public key reaches the role byte-for-byte.
+  ca_extra_vars=$(jq -cn --arg ca "$ca_pub" '{vault_ssh_ca_public_key:$ca}')
+
   info "Applying node changes one at a time (never sshpass; interactive admin SSH/sudo as needed)..."
-  run_playbook 10-control-tower-ssh-accounts.yml -e "vault_ssh_ca_public_key=${ca_pub}" -k -K
+  run_playbook 10-control-tower-ssh-accounts.yml --extra-vars "$ca_extra_vars" -k -K
   ok "Node SSH trust + ansible account bootstrap complete"
 }
 
