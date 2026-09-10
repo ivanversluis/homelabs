@@ -191,18 +191,69 @@ SIGN_RESPONSE="$(curl -fsS --max-time 10 \
   "$VAULT_ADDR/v1/$VAULT_SSH_MOUNT/sign/$VAULT_SSH_ROLE")" \
   || fail "Vault SSH certificate signing failed"
 
-printf '%s' "$SIGN_RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("data",{}).get("signed_key",""))' > "$CERT_FILE"
+# Vault's signed_key may include a trailing newline. Write exactly one normalized OpenSSH
+# certificate line; using Python print() here previously produced an extra blank line and
+# caused ssh-keygen to warn about an invalid second key.
+printf '%s' "$SIGN_RESPONSE" | python3 -c 'import json,sys; s=json.load(sys.stdin).get("data",{}).get("signed_key","").strip(); sys.stdout.write(s + ("\n" if s else ""))' > "$CERT_FILE"
 [[ -s "$CERT_FILE" ]] || fail "Vault signing response did not contain signed_key"
+[[ "$(grep -cve '^[[:space:]]*$' "$CERT_FILE")" -eq 1 ]] || fail "Vault returned an unexpected multi-line SSH certificate"
 chmod 600 "$CERT_FILE"
 SIGN_PAYLOAD=""
 SIGN_RESPONSE=""
 
 CERT_INFO="$WORKDIR/cert-info.txt"
-ssh-keygen -Lf "$CERT_FILE" > "$CERT_INFO" || fail "Vault returned an invalid OpenSSH certificate"
+CERT_ERROR="$WORKDIR/cert-error.txt"
+if ! ssh-keygen -Lf "$CERT_FILE" > "$CERT_INFO" 2> "$CERT_ERROR"; then
+  cat "$CERT_ERROR" >&2 || true
+  fail "Vault returned an invalid OpenSSH certificate"
+fi
+if [[ -s "$CERT_ERROR" ]]; then
+  cat "$CERT_ERROR" >&2
+  fail "OpenSSH reported warnings while parsing the Vault certificate"
+fi
 if ! grep -Eq "^[[:space:]]+$SSH_PRINCIPAL([[:space:]]*)$" "$CERT_INFO"; then
   fail "issued SSH certificate does not contain required principal $SSH_PRINCIPAL"
 fi
 log "Ephemeral SSH certificate issued for principal $SSH_PRINCIPAL (requested TTL $SSH_CERT_TTL)"
+# Certificate metadata is public/safe; show only signer/validity/principal fields, never key material.
+grep -E 'Signing CA:|Valid:|Principals:|^[[:space:]]+ansible$' "$CERT_INFO" | sed 's/^/[control-tower] cert: /' || true
+
+# Prove the exact private-key + certificate combination works with plain OpenSSH before Ansible.
+# This cleanly separates SSH trust/account problems from Ansible configuration problems.
+for entry in "${TARGET_NODES[@]}"; do
+  host="${entry%%:*}"
+  ip="${entry##*:}"
+  SSH_PROBE_LOG="$WORKDIR/ssh-probe-$host.log"
+  if ssh \
+      -o BatchMode=yes \
+      -o IdentitiesOnly=yes \
+      -o IdentityFile="$KEY_FILE" \
+      -o CertificateFile="$CERT_FILE" \
+      -o StrictHostKeyChecking=yes \
+      -o UserKnownHostsFile="$KNOWN_HOSTS_FILE" \
+      -o ConnectTimeout=8 \
+      -o LogLevel=ERROR \
+      "$SSH_PRINCIPAL@$ip" \
+      'test "$(id -un)" = "ansible"' 2>"$SSH_PROBE_LOG"; then
+    log "Direct Vault-certificate SSH probe passed for $host ($ip)"
+  else
+    log "Direct Vault-certificate SSH probe failed for $host ($ip); collecting safe client diagnostics"
+    ssh \
+      -vvv \
+      -o BatchMode=yes \
+      -o IdentitiesOnly=yes \
+      -o IdentityFile="$KEY_FILE" \
+      -o CertificateFile="$CERT_FILE" \
+      -o StrictHostKeyChecking=yes \
+      -o UserKnownHostsFile="$KNOWN_HOSTS_FILE" \
+      -o ConnectTimeout=8 \
+      "$SSH_PRINCIPAL@$ip" true >/dev/null 2>"$SSH_PROBE_LOG" || true
+    grep -E 'Offering public key|Server accepts key|Authentications that can continue|sign_and_send_pubkey|Permission denied|certificate|CertificateFile|identity file' "$SSH_PROBE_LOG" \
+      | tail -n 30 \
+      | sed 's/^/[control-tower] ssh-debug: /' >&2 || true
+    fail "Vault certificate was issued but worker SSH authentication rejected it for $SSH_PRINCIPAL@$ip. Check the node TrustedUserCAKeys/AuthorizedPrincipalsFile/account state before changing Ansible"
+  fi
+done
 
 export ANSIBLE_CONFIG="$ANSIBLE_DIR/ansible.cfg"
 export ANSIBLE_HOST_KEY_CHECKING=True
