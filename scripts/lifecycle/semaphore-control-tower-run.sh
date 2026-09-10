@@ -31,6 +31,12 @@ NODES=(
 log() { printf '[control-tower] %s\n' "$*"; }
 fail() { printf '[control-tower] ERROR: %s\n' "$*" >&2; exit 1; }
 require_cmd() { command -v "$1" >/dev/null 2>&1 || fail "required command '$1' is not available in the Semaphore execution environment"; }
+trim() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "$value"
+}
 
 # Print before parsing any Semaphore-provided arguments so preparation failures are visible.
 log "Starting Semaphore control-tower runner"
@@ -47,8 +53,13 @@ for arg in "$@"; do
   esac
 done
 
-log "Playbook: $CONTROL_TOWER_PLAYBOOK"
-log "Target limit: ${CONTROL_TOWER_LIMIT:-all nodes}"
+# Semaphore survey values may accidentally include leading/trailing whitespace. Normalize those
+# values before path/limit validation while still rejecting path traversal and unknown playbooks.
+CONTROL_TOWER_PLAYBOOK="$(trim "$CONTROL_TOWER_PLAYBOOK")"
+CONTROL_TOWER_LIMIT="$(trim "$CONTROL_TOWER_LIMIT")"
+
+log "Playbook: [$CONTROL_TOWER_PLAYBOOK]"
+log "Target limit: [${CONTROL_TOWER_LIMIT:-all nodes}]"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
