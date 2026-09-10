@@ -5,13 +5,20 @@
     system: true
     state: present
 
-- name: Create the dedicated ansible automation account (locked password, no wheel)
+- name: Create the dedicated ansible automation account (no usable password, no wheel)
   ansible.builtin.user:
     name: "{{ automation_account_name }}"
     group: "{{ automation_account_name }}"
     home: "{{ automation_account_home }}"
     shell: "{{ automation_account_shell }}"
-    password_lock: true
+    # Do NOT use password_lock: true here. On Linux OpenSSH rejects an OS-locked account
+    # before public-key/certificate authentication is evaluated. *NP* is deliberately not a
+    # valid crypt password hash, so password login remains impossible while the account stays
+    # accessible to the Vault-signed SSH certificate route. sshd additionally disables
+    # PasswordAuthentication specifically for this account.
+    password: "*NP*"
+    password_lock: false
+    update_password: always
     create_home: true
     system: true
     groups: []
