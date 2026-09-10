@@ -59,3 +59,20 @@ Wave -1c live activation approved. Re-read .github/prompts/wave-minus1-control-t
 ## Post-activation backup
 
 After Vault begins holding the SSH CA private key, create another Vault checkpoint backup and copy it offsite. The original pre-change Wave -1b backup must remain retained as the clean rollback checkpoint.
+
+### Status: completed 2026-09-10
+
+Wave -1c/-1d live activation is fully complete and validated end-to-end via the real
+Semaphore -> Vault Kubernetes-auth -> ephemeral-cert -> Ansible path (all 4 nodes,
+`ok=21 failed=0` each, run from the Semaphore UI).
+
+Post-activation Vault checkpoint backup taken (Vault scaled to 0, filesystem copied,
+scaled back to 1, unsealed):
+
+```text
+/var/lib/homelab-backups/post-wave-1c/20260910T183848Z   (on k8s-master01)
+```
+
+Still needs: copy this directory to Synology and run `sha256sum -c SHA256SUMS` there before
+considering this checkpoint durable, same as the Wave -1b gate. The original Wave -1b backup
+at `/var/lib/homelab-backups/pre-maintenance/20260909T144749Z` remains untouched.
