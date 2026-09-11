@@ -4,6 +4,7 @@ resources:
   - homebox-namespace.yaml
   - homebox-netpol.yaml
   - homebox-externalsecret.yaml
+  - homebox-api-key-pepper.yaml
   - homebox-pvc.yaml
   - homebox-deployment.yaml
   - homebox-service.yaml
