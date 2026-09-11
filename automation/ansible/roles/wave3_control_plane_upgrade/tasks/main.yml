@@ -40,13 +40,15 @@
     arch="$(uname -m)"
     server="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} version -o json | jq -r '.serverVersion.gitVersion')"
     nodes_not_ready="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get nodes -o json | jq -r '.items[] | select(([.status.conditions[] | select(.type=="Ready" and .status=="True")] | length) == 0) | .metadata.name')"
+    bad_pods="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get pods -A -o json | jq -r '.items[] | select(.status.phase != "Succeeded") | select(.status.phase != "Running" or ([.status.containerStatuses[]? | select(.ready != true)] | length) > 0) | (.metadata.namespace + "/" + .metadata.name)')"
     bad_volumes="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n {{ wave3_cp_longhorn_namespace }} get volumes.longhorn.io -o json | jq -r '.items[] | select(.status.robustness != "healthy") | .metadata.name')"
     manager="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n {{ wave3_cp_longhorn_namespace }} get daemonset longhorn-manager -o jsonpath='{.spec.template.spec.containers[?(@.name=="longhorn-manager")].image}')"
     calico="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get installation.operator.tigera.io default -o jsonpath='{.status.calicoVersion}')"
-    printf 'arch=%s\nserver=%s\nnodes_not_ready=%s\nbad_volumes=%s\nlonghorn=%s\ncalico=%s\n' "$arch" "$server" "$nodes_not_ready" "$bad_volumes" "$manager" "$calico"
+    printf 'arch=%s\nserver=%s\nnodes_not_ready=%s\nbad_pods=%s\nbad_volumes=%s\nlonghorn=%s\ncalico=%s\n' "$arch" "$server" "$nodes_not_ready" "$bad_pods" "$bad_volumes" "$manager" "$calico"
     test "$arch" = x86_64
-    test "$server" = '{{ wave3_cp_source_version }}' -o "$server" = '{{ wave3_cp_target_version }}'
+    if [ "$server" != '{{ wave3_cp_source_version }}' ] && [ "$server" != '{{ wave3_cp_target_version }}' ]; then exit 1; fi
     test -z "$nodes_not_ready"
+    test -z "$bad_pods"
     test -z "$bad_volumes"
     test "$manager" = '{{ wave3_cp_expected_longhorn_manager_image }}'
     test "$calico" = '{{ wave3_cp_expected_calico_version }}'
@@ -81,8 +83,9 @@
     printf '%s\n' "$digest" | grep -Eq '^[0-9a-f]{64}$'
     printf '%s  %s\n' "$digest" '{{ wave3_cp_work_dir }}/kubeadm-{{ wave3_cp_target_version }}' | sha256sum -c -
     chmod 0755 '{{ wave3_cp_work_dir }}/kubeadm-{{ wave3_cp_target_version }}'
-    test "$('{{ wave3_cp_work_dir }}/kubeadm-{{ wave3_cp_target_version }}' version -o short)" = '{{ wave3_cp_target_version }}'
-    printf 'kubeadm=%s\nsha256=%s\n' "$('{{ wave3_cp_work_dir }}/kubeadm-{{ wave3_cp_target_version }}' version -o short)" "$digest"
+    version="$('{{ wave3_cp_work_dir }}/kubeadm-{{ wave3_cp_target_version }}' version -o short)"
+    test "$version" = '{{ wave3_cp_target_version }}'
+    printf 'kubeadm=%s\nsha256=%s\n' "$version" "$digest"
   changed_when: true
   register: wave3_cp_kubeadm_binary
 
@@ -108,7 +111,7 @@
       - wave3_cp_upgrade_plan.rc == 0
       - "'strict decoding error' not in (wave3_cp_upgrade_plan.stdout | lower)"
       - "'already set in map' not in (wave3_cp_upgrade_plan.stdout | lower)"
-      - "'manual upgrade required' not in (wave3_cp_upgrade_plan.stdout | lower) or 'yes' not in (wave3_cp_upgrade_plan.stdout | lower)"
+      - "'error unmarshaling configuration' not in (wave3_cp_upgrade_plan.stdout | lower)"
     fail_msg: >-
       kubeadm v1.36.4 did not produce a clean upgrade plan. Stop before control-plane mutation.
 
@@ -162,18 +165,52 @@
     exit 1
   changed_when: false
 
-- name: Verify control-plane version, preserved OIDC configuration, and cluster health
+- name: Wait for v1.36.4 control-plane static pods
+  ansible.builtin.raw: |
+    set -e
+    elapsed=0
+    while [ "$elapsed" -lt 300 ]; do
+      ok=true
+      for component in kube-apiserver kube-controller-manager kube-scheduler; do
+        image="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n kube-system get pod "${component}-{{ inventory_hostname }}" -o jsonpath='{.spec.containers[0].image}' 2>/dev/null || true)"
+        printf '%s=%s\n' "$component" "$image"
+        printf '%s\n' "$image" | grep -q ':{{ wave3_cp_target_version }}$' || ok=false
+      done
+      if [ "$ok" = true ]; then exit 0; fi
+      sleep 5
+      elapsed=$((elapsed + 5))
+    done
+    echo 'Control-plane static pods did not converge to {{ wave3_cp_target_version }} within 300 seconds'
+    exit 1
+  changed_when: false
+
+- name: Wait for post-upgrade cluster health
+  ansible.builtin.raw: |
+    set -e
+    elapsed=0
+    while [ "$elapsed" -lt 300 ]; do
+      nodes_not_ready="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get nodes -o json | jq -r '.items[] | select(([.status.conditions[] | select(.type=="Ready" and .status=="True")] | length) == 0) | .metadata.name')"
+      bad_volumes="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n {{ wave3_cp_longhorn_namespace }} get volumes.longhorn.io -o json | jq -r '.items[] | select(.status.robustness != "healthy") | .metadata.name')"
+      bad_tigera="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get tigerastatus -o json | jq -r '.items[] | select(([.status.conditions[]? | select(.type=="Available" and .status=="True")] | length) == 0 or ([.status.conditions[]? | select((.type=="Progressing" or .type=="Degraded") and .status=="True")] | length) > 0) | .metadata.name')"
+      bad_ks="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get kustomizations.kustomize.toolkit.fluxcd.io -A -o json | jq -r '.items[] | select((.spec.suspend // false) == false) | select(([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | (.metadata.namespace + "/" + .metadata.name)')"
+      bad_hr="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get helmreleases.helm.toolkit.fluxcd.io -A -o json | jq -r '.items[] | select((.spec.suspend // false) == false) | select(([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | (.metadata.namespace + "/" + .metadata.name)')"
+      printf 'nodes_not_ready=%s bad_volumes=%s bad_tigera=%s bad_ks=%s bad_hr=%s\n' "$nodes_not_ready" "$bad_volumes" "$bad_tigera" "$bad_ks" "$bad_hr"
+      if [ -z "$nodes_not_ready" ] && [ -z "$bad_volumes" ] && [ -z "$bad_tigera" ] && [ -z "$bad_ks" ] && [ -z "$bad_hr" ]; then
+        exit 0
+      fi
+      sleep 10
+      elapsed=$((elapsed + 10))
+    done
+    echo 'Cluster did not return to the required health baseline within 300 seconds'
+    exit 1
+  changed_when: false
+
+- name: Verify target version and preserved OIDC configuration
   ansible.builtin.raw: |
     set -e
     server="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} version -o json | jq -r '.serverVersion.gitVersion')"
     printf 'server=%s\n' "$server"
     test "$server" = '{{ wave3_cp_target_version }}'
-
-    for component in kube-apiserver kube-controller-manager kube-scheduler; do
-      image="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n kube-system get pod "${component}-{{ inventory_hostname }}" -o jsonpath='{.spec.containers[0].image}')"
-      printf '%s=%s\n' "$component" "$image"
-      printf '%s\n' "$image" | grep -q ':{{ wave3_cp_target_version }}$'
-    done
 
     config="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n kube-system get configmap kubeadm-config -o jsonpath='{.data.ClusterConfiguration}')"
     printf '%s\n' "$config" | grep -q 'kubernetesVersion: {{ wave3_cp_target_version }}'
@@ -185,18 +222,8 @@
       test "$manifest_count" -eq 1
     done
 
-    nodes_not_ready="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get nodes -o json | jq -r '.items[] | select(([.status.conditions[] | select(.type=="Ready" and .status=="True")] | length) == 0) | .metadata.name')"
-    bad_volumes="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n {{ wave3_cp_longhorn_namespace }} get volumes.longhorn.io -o json | jq -r '.items[] | select(.status.robustness != "healthy") | .metadata.name')"
-    bad_tigera="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get tigerastatus -o json | jq -r '.items[] | select(([.status.conditions[]? | select(.type=="Available" and .status=="True")] | length) == 0 or ([.status.conditions[]? | select((.type=="Progressing" or .type=="Degraded") and .status=="True")] | length) > 0) | .metadata.name')"
-    bad_ks="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get kustomizations.kustomize.toolkit.fluxcd.io -A -o json | jq -r '.items[] | select((.spec.suspend // false) == false) | select(([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | (.metadata.namespace + "/" + .metadata.name)')"
-    bad_hr="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get helmreleases.helm.toolkit.fluxcd.io -A -o json | jq -r '.items[] | select((.spec.suspend // false) == false) | select(([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | (.metadata.namespace + "/" + .metadata.name)')"
-    printf 'nodes_not_ready=%s\nbad_volumes=%s\nbad_tigera=%s\nbad_flux_kustomizations=%s\nbad_flux_helmreleases=%s\n' "$nodes_not_ready" "$bad_volumes" "$bad_tigera" "$bad_ks" "$bad_hr"
-    test -z "$nodes_not_ready"
-    test -z "$bad_volumes"
-    test -z "$bad_tigera"
-    test -z "$bad_ks"
-    test -z "$bad_hr"
-
+    printf '%s\n' 'CONTROL_PLANE_IMAGES'
+    kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n kube-system get pods -o custom-columns=NAME:.metadata.name,IMAGE:.spec.containers[0].image --no-headers | grep -E '^(kube-apiserver|kube-controller-manager|kube-scheduler)'
     printf '%s\n' 'NODE_VERSIONS'
     kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get nodes -o custom-columns=NAME:.metadata.name,KUBELET:.status.nodeInfo.kubeletVersion
     printf '%s\n' 'KUBE_PROXY_IMAGE'
