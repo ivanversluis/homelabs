@@ -1,0 +1,9 @@
+---
+longhorn_upgrade_namespace: longhorn-system
+longhorn_upgrade_kubeconfig: /etc/kubernetes/admin.conf
+longhorn_upgrade_source_minor: "v1.11"
+longhorn_upgrade_target_version: "v1.12.1"
+
+# A Longhorn SystemBackup older than this is reported as a blocker. The final upgrade must
+# use a freshly completed backup; operators may tighten this value for the maintenance window.
+longhorn_upgrade_max_system_backup_age_hours: 24

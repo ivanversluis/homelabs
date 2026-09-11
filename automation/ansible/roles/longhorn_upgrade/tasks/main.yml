@@ -1,0 +1,328 @@
+---
+# Read-only Wave 1 preparation. Every Kubernetes command is a GET and every condition is
+# reported before the final gate. No object, backup, setting, or workload is changed.
+
+- name: Fetch Longhorn DaemonSets
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ longhorn_upgrade_kubeconfig }}
+    get daemonsets -n {{ longhorn_upgrade_namespace }} -o json
+  become: true
+  changed_when: false
+  register: longhorn_upgrade_daemonsets_raw
+
+- name: Fetch Longhorn Deployments
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ longhorn_upgrade_kubeconfig }}
+    get deployments -n {{ longhorn_upgrade_namespace }} -o json
+  become: true
+  changed_when: false
+  register: longhorn_upgrade_deployments_raw
+
+- name: Fetch Longhorn volumes
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ longhorn_upgrade_kubeconfig }}
+    get volumes.longhorn.io -n {{ longhorn_upgrade_namespace }} -o json
+  become: true
+  changed_when: false
+  register: longhorn_upgrade_volumes_raw
+
+- name: Fetch Longhorn replicas
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ longhorn_upgrade_kubeconfig }}
+    get replicas.longhorn.io -n {{ longhorn_upgrade_namespace }} -o json
+  become: true
+  changed_when: false
+  register: longhorn_upgrade_replicas_raw
+
+- name: Fetch Longhorn engines
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ longhorn_upgrade_kubeconfig }}
+    get engines.longhorn.io -n {{ longhorn_upgrade_namespace }} -o json
+  become: true
+  changed_when: false
+  register: longhorn_upgrade_engines_raw
+
+- name: Fetch Longhorn BackingImages
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ longhorn_upgrade_kubeconfig }}
+    get backingimages.longhorn.io -n {{ longhorn_upgrade_namespace }} -o json
+  become: true
+  changed_when: false
+  register: longhorn_upgrade_backing_images_raw
+
+- name: Fetch Longhorn BackingImageDataSources
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ longhorn_upgrade_kubeconfig }}
+    get backingimagedatasources.longhorn.io -n {{ longhorn_upgrade_namespace }} -o json
+  become: true
+  changed_when: false
+  register: longhorn_upgrade_backing_image_sources_raw
+
+- name: Fetch Longhorn backup targets
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ longhorn_upgrade_kubeconfig }}
+    get backuptargets.longhorn.io -n {{ longhorn_upgrade_namespace }} -o json
+  become: true
+  changed_when: false
+  register: longhorn_upgrade_backup_targets_raw
+
+- name: Fetch Longhorn system backups
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ longhorn_upgrade_kubeconfig }}
+    get systembackups.longhorn.io -n {{ longhorn_upgrade_namespace }} -o json
+  become: true
+  changed_when: false
+  register: longhorn_upgrade_system_backups_raw
+
+- name: Fetch Longhorn volume backups
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ longhorn_upgrade_kubeconfig }}
+    get backups.longhorn.io -n {{ longhorn_upgrade_namespace }} -o json
+  become: true
+  changed_when: false
+  register: longhorn_upgrade_backups_raw
+
+- name: Fetch current StorageClasses
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ longhorn_upgrade_kubeconfig }}
+    get storageclasses.storage.k8s.io -o json
+  become: true
+  changed_when: false
+  register: longhorn_upgrade_storage_classes_raw
+
+- name: Parse Wave 1 preparation objects
+  ansible.builtin.set_fact:
+    longhorn_upgrade_daemonsets: "{{ (longhorn_upgrade_daemonsets_raw.stdout | from_json).items }}"
+    longhorn_upgrade_deployments: "{{ (longhorn_upgrade_deployments_raw.stdout | from_json).items }}"
+    longhorn_upgrade_volumes: "{{ (longhorn_upgrade_volumes_raw.stdout | from_json).items }}"
+    longhorn_upgrade_replicas: "{{ (longhorn_upgrade_replicas_raw.stdout | from_json).items }}"
+    longhorn_upgrade_engines: "{{ (longhorn_upgrade_engines_raw.stdout | from_json).items }}"
+    longhorn_upgrade_backing_images: "{{ (longhorn_upgrade_backing_images_raw.stdout | from_json).items }}"
+    longhorn_upgrade_backing_image_sources: "{{ (longhorn_upgrade_backing_image_sources_raw.stdout | from_json).items }}"
+    longhorn_upgrade_backup_targets: "{{ (longhorn_upgrade_backup_targets_raw.stdout | from_json).items }}"
+    longhorn_upgrade_system_backups: "{{ (longhorn_upgrade_system_backups_raw.stdout | from_json).items }}"
+    longhorn_upgrade_backups: "{{ (longhorn_upgrade_backups_raw.stdout | from_json).items }}"
+    longhorn_upgrade_storage_classes: "{{ (longhorn_upgrade_storage_classes_raw.stdout | from_json).items }}"
+    longhorn_upgrade_blockers: []
+    longhorn_upgrade_latest_system_backup:
+      metadata:
+        name: none
+      spec:
+        volumeBackupPolicy: unavailable
+    longhorn_upgrade_latest_system_backup_age_hours: unavailable
+
+- name: Record current manager and driver-deployer images
+  ansible.builtin.set_fact:
+    longhorn_upgrade_current_manager_image: >-
+      {{ longhorn_upgrade_daemonsets
+         | selectattr('metadata.name', 'equalto', 'longhorn-manager')
+         | map(attribute='spec.template.spec.containers') | first | default([])
+         | selectattr('name', 'equalto', 'longhorn-manager')
+         | map(attribute='image') | first | default('unavailable') }}
+    longhorn_upgrade_current_driver_deployer_image: >-
+      {{ longhorn_upgrade_deployments
+         | selectattr('metadata.name', 'equalto', 'longhorn-driver-deployer')
+         | map(attribute='spec.template.spec.containers') | first | default([])
+         | selectattr('name', 'equalto', 'longhorn-driver-deployer')
+         | map(attribute='image') | first | default('unavailable') }}
+
+- name: Split volumes, replicas, and engines by data engine
+  ansible.builtin.set_fact:
+    longhorn_upgrade_v1_volumes: "{{ longhorn_upgrade_volumes | selectattr('spec.dataEngine', 'equalto', 'v1') | list }}"
+    longhorn_upgrade_v2_volumes: "{{ longhorn_upgrade_volumes | selectattr('spec.dataEngine', 'equalto', 'v2') | list }}"
+    longhorn_upgrade_v1_replicas: "{{ longhorn_upgrade_replicas | selectattr('spec.dataEngine', 'equalto', 'v1') | list }}"
+    longhorn_upgrade_v2_replicas: "{{ longhorn_upgrade_replicas | selectattr('spec.dataEngine', 'equalto', 'v2') | list }}"
+    longhorn_upgrade_v1_engines: "{{ longhorn_upgrade_engines | selectattr('spec.dataEngine', 'equalto', 'v1') | list }}"
+    longhorn_upgrade_v2_engines: "{{ longhorn_upgrade_engines | selectattr('spec.dataEngine', 'equalto', 'v2') | list }}"
+
+- name: Block unsupported or unknown source versions
+  ansible.builtin.set_fact:
+    longhorn_upgrade_blockers: "{{ longhorn_upgrade_blockers + ['LH-PREP-SOURCE-VERSION'] }}"
+  when: longhorn_upgrade_source_minor not in longhorn_upgrade_current_manager_image
+
+- name: Record unhealthy volume blockers
+  ansible.builtin.set_fact:
+    longhorn_upgrade_blockers: "{{ longhorn_upgrade_blockers + ['LH-PREP-VOLUME-' + item.metadata.name] }}"
+  loop: "{{ longhorn_upgrade_volumes }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when: >-
+    (item.status.robustness | default('unknown') | lower == 'faulted') or
+    (item.status.state | default('unknown') == 'attached' and
+     item.status.robustness | default('unknown') != 'healthy') or
+    (item.status.state | default('unknown') not in ['attached', 'detached'])
+
+- name: Record failed replica blockers
+  ansible.builtin.set_fact:
+    longhorn_upgrade_blockers: "{{ longhorn_upgrade_blockers + ['LH-PREP-REPLICA-' + item.metadata.name] }}"
+  loop: "{{ longhorn_upgrade_replicas }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when: >-
+    (item.spec.failedAt | default('') | length > 0) or
+    (item.status.currentState | default('unknown') | lower == 'error')
+
+- name: Record attached V2 volume blockers
+  ansible.builtin.set_fact:
+    longhorn_upgrade_blockers: "{{ longhorn_upgrade_blockers + ['LH-PREP-V2-VOLUME-' + item.metadata.name] }}"
+  loop: "{{ longhorn_upgrade_volumes }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when:
+    - item.spec.dataEngine | default('v1') == 'v2'
+    - item.status.state | default('unknown') != 'detached'
+
+- name: Record running V2 replica blockers
+  ansible.builtin.set_fact:
+    longhorn_upgrade_blockers: "{{ longhorn_upgrade_blockers + ['LH-PREP-V2-REPLICA-' + item.metadata.name] }}"
+  loop: "{{ longhorn_upgrade_replicas }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when:
+    - item.spec.dataEngine | default('v1') == 'v2'
+    - item.status.currentState | default('unknown') != 'stopped'
+
+- name: Record abnormal engine blockers
+  ansible.builtin.set_fact:
+    longhorn_upgrade_blockers: "{{ longhorn_upgrade_blockers + ['LH-PREP-ENGINE-' + item.metadata.name] }}"
+  loop: "{{ longhorn_upgrade_engines }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when: >-
+    (item.status.currentState | default('unknown') not in ['running', 'stopped']) or
+    (item.spec.dataEngine | default('v1') == 'v2' and
+     item.status.currentState | default('unknown') != 'stopped')
+
+- name: Record failed BackingImage blockers
+  ansible.builtin.set_fact:
+    longhorn_upgrade_blockers: "{{ longhorn_upgrade_blockers + ['LH-PREP-BACKING-IMAGE-' + item.metadata.name] }}"
+  loop: "{{ longhorn_upgrade_backing_images }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when: >-
+    (item.status.v2FirstCopyStatus | default('') | lower == 'failed') or
+    ('failed' in (item.status.diskFileStatusMap | default({}) | dict2items
+                  | map(attribute='value.state') | map('lower') | list))
+
+- name: Record failed BackingImageDataSource blockers
+  ansible.builtin.set_fact:
+    longhorn_upgrade_blockers: "{{ longhorn_upgrade_blockers + ['LH-PREP-BACKING-SOURCE-' + item.metadata.name] }}"
+  loop: "{{ longhorn_upgrade_backing_image_sources }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when: (item.status.currentState | default('') | lower) in ['failed', 'error']
+
+- name: Record missing backup-target blocker
+  ansible.builtin.set_fact:
+    longhorn_upgrade_blockers: "{{ longhorn_upgrade_blockers + ['LH-PREP-BACKUP-TARGET-MISSING'] }}"
+  when: longhorn_upgrade_backup_targets | length == 0
+
+- name: Record unavailable backup-target blockers
+  ansible.builtin.set_fact:
+    longhorn_upgrade_blockers: "{{ longhorn_upgrade_blockers + ['LH-PREP-BACKUP-TARGET-' + item.metadata.name] }}"
+  loop: "{{ longhorn_upgrade_backup_targets }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when: not (item.status.available | default(false) | bool)
+
+- name: Identify ready Longhorn system backups
+  ansible.builtin.set_fact:
+    longhorn_upgrade_ready_system_backups: >-
+      {{ longhorn_upgrade_system_backups
+         | selectattr('status.state', 'defined')
+         | selectattr('status.state', 'equalto', 'Ready')
+         | sort(attribute='status.createdAt') | list }}
+    longhorn_upgrade_completed_volume_backups: >-
+      {{ longhorn_upgrade_backups
+         | selectattr('status.state', 'defined')
+         | selectattr('status.state', 'equalto', 'Completed') | list }}
+
+- name: Record missing system-backup blocker
+  ansible.builtin.set_fact:
+    longhorn_upgrade_blockers: "{{ longhorn_upgrade_blockers + ['LH-PREP-SYSTEM-BACKUP-MISSING'] }}"
+  when: longhorn_upgrade_ready_system_backups | length == 0
+
+- name: Record the latest ready system backup
+  ansible.builtin.set_fact:
+    longhorn_upgrade_latest_system_backup: "{{ longhorn_upgrade_ready_system_backups | last }}"
+  when: longhorn_upgrade_ready_system_backups | length > 0
+
+- name: Convert latest system-backup creation time to epoch
+  ansible.builtin.command:
+    argv:
+      - date
+      - -u
+      - -d
+      - "{{ longhorn_upgrade_latest_system_backup.status.createdAt }}"
+      - +%s
+  changed_when: false
+  register: longhorn_upgrade_latest_system_backup_epoch
+  when: longhorn_upgrade_ready_system_backups | length > 0
+
+- name: Calculate latest system-backup age
+  ansible.builtin.set_fact:
+    longhorn_upgrade_latest_system_backup_age_hours: >-
+      {{ ((ansible_date_time.epoch | int) -
+          (longhorn_upgrade_latest_system_backup_epoch.stdout | int)) / 3600 }}
+  when: longhorn_upgrade_ready_system_backups | length > 0
+
+- name: Record stale system-backup blocker
+  ansible.builtin.set_fact:
+    longhorn_upgrade_blockers: "{{ longhorn_upgrade_blockers + ['LH-PREP-SYSTEM-BACKUP-STALE'] }}"
+  when:
+    - longhorn_upgrade_ready_system_backups | length > 0
+    - longhorn_upgrade_latest_system_backup_age_hours | float > longhorn_upgrade_max_system_backup_age_hours | float
+
+- name: Require the latest system backup to include fresh volume backups
+  ansible.builtin.set_fact:
+    longhorn_upgrade_blockers: "{{ longhorn_upgrade_blockers + ['LH-PREP-VOLUME-BACKUP-POLICY'] }}"
+  when:
+    - longhorn_upgrade_ready_system_backups | length > 0
+    - longhorn_upgrade_latest_system_backup.spec.volumeBackupPolicy | default('disabled') != 'always'
+
+- name: Show current StorageClass configuration
+  ansible.builtin.debug:
+    msg: >-
+      StorageClass={{ item.metadata.name }};
+      default={{ (item.metadata.annotations | default({}))['storageclass.kubernetes.io/is-default-class'] | default('false') }};
+      provisioner={{ item.provisioner }};
+      reclaimPolicy={{ item.reclaimPolicy | default('Delete') }};
+      volumeBindingMode={{ item.volumeBindingMode | default('Immediate') }};
+      dataEngine={{ item.parameters.dataEngine | default('unspecified') }};
+      replicas={{ item.parameters.numberOfReplicas | default('unspecified') }}
+  loop: "{{ longhorn_upgrade_storage_classes }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+
+- name: Show Wave 1 preparation verdict
+  ansible.builtin.debug:
+    msg:
+      - >-
+        Wave 1 Longhorn {{ longhorn_upgrade_target_version }} preparation verdict:
+        {{ 'READY FOR APPROVAL' if longhorn_upgrade_blockers | length == 0 else 'BLOCKED' }}
+      - "Current manager image: {{ longhorn_upgrade_current_manager_image }}"
+      - "Current driver-deployer image: {{ longhorn_upgrade_current_driver_deployer_image }}"
+      - "Volumes: total={{ longhorn_upgrade_volumes | length }}, V1={{ longhorn_upgrade_v1_volumes | length }}, V2={{ longhorn_upgrade_v2_volumes | length }}"
+      - >-
+        Replicas: total={{ longhorn_upgrade_replicas | length }},
+        V1={{ longhorn_upgrade_v1_replicas | length }},
+        V2={{ longhorn_upgrade_v2_replicas | length }}
+      - "Engines: total={{ longhorn_upgrade_engines | length }}, V1={{ longhorn_upgrade_v1_engines | length }}, V2={{ longhorn_upgrade_v2_engines | length }}"
+      - "BackingImages={{ longhorn_upgrade_backing_images | length }}; BackingImageDataSources={{ longhorn_upgrade_backing_image_sources | length }}"
+      - >-
+        Ready system backups={{ longhorn_upgrade_ready_system_backups | length }};
+        completed volume backups={{ longhorn_upgrade_completed_volume_backups | length }}
+      - >-
+        Latest ready system backup={{ longhorn_upgrade_latest_system_backup.metadata.name }};
+        age_hours={{ longhorn_upgrade_latest_system_backup_age_hours }};
+        volumeBackupPolicy={{ longhorn_upgrade_latest_system_backup.spec.volumeBackupPolicy }}
+      - "Blocker IDs: {{ longhorn_upgrade_blockers | unique | list }}"
+      - "Prepared GitOps target: commit-pinned Longhorn {{ longhorn_upgrade_target_version }} (not active; explicit approval required)"
+
+- name: Stop when Wave 1 preparation blockers exist
+  ansible.builtin.fail:
+    msg: >-
+      Wave 1 preparation is BLOCKED. Resolve every reported blocker and rerun this read-only
+      playbook before approving the Git/Flux manager upgrade. Blocker IDs:
+      {{ longhorn_upgrade_blockers | unique | list }}
+  when: longhorn_upgrade_blockers | length > 0

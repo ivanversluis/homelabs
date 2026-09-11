@@ -94,10 +94,13 @@ verdicts:
 
 See `roles/maintenance_readiness/README.md` for the full finding-ID catalogue and defaults.
 
-## Future wave sequence (not yet implemented beyond Wave 0.5)
+## Future wave sequence
 
-1. **Wave 1 — Longhorn**: worker-canary upgrade/validation strategy, one node at a time,
-   respecting the current `node-drain-policy` and per-volume replica health.
+1. **Wave 1 — Longhorn**: manager/system upgrade first, followed by engine upgrades after
+   system health is revalidated. This is not an Arch-style node-by-node upgrade. Preparation
+   is implemented in `playbooks/55-longhorn-upgrade-preparation.yml`; execution still
+   requires a fresh backup gate and explicit approval. See
+   [`wave1-longhorn.md`](./wave1-longhorn.md).
 2. **Wave 2 — Calico**: CNI upgrade, validated against the current Tigera-operator-managed
    installation.
 3. **Wave 3 — coordinated Arch Linux + Kubernetes**: OS package updates and kubeadm/kubelet

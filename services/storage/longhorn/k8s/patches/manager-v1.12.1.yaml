@@ -1,0 +1,14 @@
+---
+# Inert Wave 1 candidate patch. Not referenced by the active Kustomization until approval.
+# v1.12.1 supplies its own release images/arguments; only the homelab scheduling constraint
+# from manager-hotfix.yaml remains necessary.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: longhorn-manager
+  namespace: longhorn-system
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node.longhorn.io/create-default-disk: "true"
