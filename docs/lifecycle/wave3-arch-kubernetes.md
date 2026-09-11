@@ -1,6 +1,6 @@
 # Wave 3: coordinated Arch Linux + Kubernetes
 
-Status: **LIVE PREFLIGHT COMPLETE — KUBEADM CONFIG REPAIRED — EXECUTION GATE RERUN PENDING**.
+Status: **LIVE PREFLIGHT COMPLETE — KUBEADM CONFIG REPAIRED — LONGHORN DRAIN READINESS UNDER REVIEW**.
 
 Wave 3 is the first lifecycle stage where host package state, reboot behavior, kubeadm ordering,
 CNI/storage health and disruption policy interact. Preparation and execution are therefore
@@ -24,85 +24,64 @@ Observed baseline:
 - Longhorn manager `v1.12.1` is present; all listed V1 volumes are healthy. Node drain policy remains `block-if-contains-last-replica` and several instance-manager PDBs have `disruptionsAllowed=0`.
 - Flux Kustomizations/HelmReleases reported Ready.
 
-## Execution gate evidence — Semaphore task 47
+## Kubeadm ConfigMap repair — Semaphore tasks 47/48
 
-`playbooks/61-wave3-execution-gate.yml` correctly blocked mutation and printed the exact live
-`ClusterConfiguration`. The malformed shape was proven rather than inferred:
+Task 47 proved the live `ClusterConfiguration` contained one valid `apiServer.extraArgs` block
+for Authentik OIDC plus a duplicate empty `apiServer: {}` mapping. The dedicated repair playbook
+`62-wave3-kubeadm-config-repair.yml` removed only the empty duplicate, preserved all OIDC flags,
+created a protected backup, validated the corrected v1beta4 configuration, uploaded it through
+kubeadm, and proved the kube-apiserver static manifest checksum was unchanged.
 
-```yaml
-apiServer:
-  extraArgs:
-    - name: oidc-issuer-url
-      value: <existing live value>
-    - name: oidc-client-id
-      value: <existing live value>
-    - name: oidc-username-claim
-      value: preferred_username
-    - name: oidc-groups-claim
-      value: groups
-apiServer: {}
-```
-
-The empty second top-level `apiServer: {}` was line 11 in the live ConfigMap. kubeadm reported:
-
-```text
-strict decoding error: yaml: unmarshal errors:
-  line 11: key "apiServer" already set in map
-```
-
-The first `apiServer` block was the valid one because it contains the active Authentik OIDC
-configuration. The repair therefore had to preserve that complete block and remove only the empty duplicate.
-
-The execution-gate reporting regex was also simplified after Task 47 exposed a Python-regex
-FutureWarning from the earlier POSIX character class; this was a reporting-only issue and did
-not affect the kubeadm blocker detection.
-
-## Targeted kubeadm ConfigMap repair — Semaphore task 48
-
-The repair playbook was executed successfully:
-
-```text
-playbook=playbooks/62-wave3-kubeadm-config-repair.yml
-limit=k8s-master01
-```
-
-Task 48 proved the repair was exactly one line:
-
-```diff
--apiServer: {}
-```
-
-The populated Authentik OIDC `apiServer.extraArgs` block was preserved. Before mutation the
-playbook validated the exact expected malformed shape, created a protected backup, materialized
-current and corrected ClusterConfiguration files, proved that exactly one line would be removed,
-and validated the corrected file with kubeadm.
-
-The corrected configuration was then uploaded through kubeadm. Post-repair validation proved:
-
-- backup created at `/var/lib/homelab-backups/wave3-kubeadm-config-repair/kubeadm-config-before-20260911T143410Z.yaml`;
-- kube-apiserver static manifest checksum remained `4ca70108c6014942ea154df25bace7e73be5f35d7f0803968702e6448a8aa3fb` before and after the ConfigMap repair;
-- no API-server manifest rewrite or restart was triggered by this repair;
-- `kubeadm upgrade plan` now parses the ClusterConfiguration without the prior strict-decoding error;
-- cluster version remains `1.35.0`;
-- kubeadm remains `v1.35.1`;
-- current 1.35-series target remains `v1.35.8` until kubeadm itself is deliberately advanced for the 1.36 minor-upgrade path.
-
-Task 48 completed with `failed=0` and the explicit result:
+Task 48 completed with:
 
 ```text
 WAVE 3 KUBEADM CONFIG REPAIR: SUCCESS
 ```
 
-The duplicate configuration blocker is therefore resolved. The next required step is to rerun the
-read-only execution gate so Calico, Longhorn, Flux and all worker drain simulations can be evaluated
-without being short-circuited by the kubeadm parsing error:
+Post-repair `kubeadm upgrade plan` parses cleanly. Cluster version remains `1.35.0`, current
+kubeadm remains `v1.35.1`, and the current 1.35-series target remains `v1.35.8` until kubeadm is
+deliberately advanced for the 1.36 minor-upgrade path.
+
+## Execution gate — Semaphore task 50
+
+The rerun of `61-wave3-execution-gate.yml` proved:
+
+- kubeadm configuration parsing is clean;
+- Calico v3.32.1 baseline is healthy;
+- Longhorn v1.12.1 baseline and volume health are healthy;
+- Flux active resources have no blockers and no suspended exceptions;
+- all three worker drain simulations reach workload eviction planning but stop on Longhorn
+  `instance-manager-*` PodDisruptionBudgets with `Cannot evict pod as it would violate the pod's disruption budget`.
+
+The same pattern occurs on worker01, worker02 and worker03. No workload was actually evicted
+because the command used `--dry-run=server`.
+
+This is not treated as permission to bypass the PDBs. It is also not sufficient evidence by
+itself that a real maintenance cordon cannot succeed. Longhorn has controller behavior that is
+specifically tied to a node becoming cordoned/unschedulable, while `kubectl drain --dry-run=server`
+does not leave that node state persisted for controllers to reconcile against.
+
+Therefore Wave 3 remains blocked from real drain/upgrade mutation until Longhorn-aware drain
+readiness is understood.
+
+Run the new read-only evidence playbook:
 
 ```text
-playbook=playbooks/61-wave3-execution-gate.yml
+playbook=playbooks/63-wave3-longhorn-drain-readiness.yml
 limit=k8s-master01
 ```
 
-Only a clean execution gate may unlock preparation of the actual Wave 3 mutation playbooks.
+It records Longhorn drain-related settings, node scheduling/eviction state, volume and replica
+placement, instance-manager placement/state, PDB state and per-worker Longhorn pod placement.
+It performs no cordon, drain, eviction, patch, restart or reboot.
+
+If that evidence is healthy, the next step is a separately reviewed reversible live-cordon probe
+on one worker only. That future probe must cordon one worker, wait for Longhorn reconciliation,
+run a drain dry-run while the node is actually cordoned, perform no real workload eviction, and
+uncordon in an Ansible `always` path regardless of success/failure.
+
+Do not use `--disable-eviction`, forced pod deletion, or weaker Longhorn node-drain policy as a
+workaround.
 
 ## Target-selection rule
 
@@ -122,7 +101,7 @@ however, requires kubeadm/control-plane-first ordering for a minor upgrade and k
 be advanced ahead of the API server. Wave 3 must therefore keep these concerns explicit rather
 than running one blind `pacman -Syu` loop.
 
-Planned stages after the execution gate is clean:
+Planned stages after the Longhorn drain gate is clean:
 
 1. refresh/reconfirm package targets without creating a partial-upgrade state;
 2. perform worker-canary Arch host maintenance while holding Kubernetes packages at the current minor;
@@ -132,9 +111,6 @@ Planned stages after the execution gate is clean:
 6. upgrade/restart the control-plane kubelet/kubectl and validate API server, etcd, Calico, Longhorn and Flux;
 7. upgrade workers to the same Kubernetes patch one at a time using kubeadm node semantics, kubelet restart and full post-node health gates;
 8. rerun `50-maintenance-readiness.yml` against `k8s_homelab` before Wave 4.
-
-The exact mutating upgrade playbooks remain intentionally uncommitted until the execution/drain
-gate is clean.
 
 ## Safety properties
 
