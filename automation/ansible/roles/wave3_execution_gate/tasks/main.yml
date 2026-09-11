@@ -24,11 +24,11 @@
       - "ClusterConfiguration={{ wave3_gate_kubeadm_config_numbered.stdout_lines | default([]) }}"
       - "kubeadm upgrade plan={{ wave3_gate_upgrade_plan.stdout_lines | default([]) }}"
 
-- name: Highlight duplicate apiServer keys if present
+- name: Highlight apiServer key lines if present
   ansible.builtin.debug:
     msg: >-
       apiServer key lines={{ wave3_gate_kubeadm_config_numbered.stdout_lines
-      | select('search', '^[[:space:]]*[0-9]+[[:space:]]+apiServer:') | list }}
+      | select('search', 'apiServer:') | list }}
 
 - name: Block on malformed kubeadm configuration
   ansible.builtin.assert:
