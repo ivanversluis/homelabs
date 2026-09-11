@@ -1,6 +1,6 @@
 # Wave 3: coordinated Arch Linux + Kubernetes
 
-Status: **LIVE PREFLIGHT COMPLETE — KUBEADM CONFIG REPAIRED — LONGHORN DRAIN READINESS UNDER REVIEW**.
+Status: **LIVE PREFLIGHT COMPLETE — KUBEADM CONFIG REPAIRED — LONGHORN ENGINE AUDIT PENDING**.
 
 Wave 3 is the first lifecycle stage where host package state, reboot behavior, kubeadm ordering,
 CNI/storage health and disruption policy interact. Preparation and execution are therefore
@@ -16,12 +16,12 @@ Observed baseline:
 
 - `k8s-master01`: kernel `6.18.13-arch1-1`, kubeadm/kubelet/kubectl `1.35.1`, containerd `2.2.1`, runc `1.4.0`.
 - `k8s-worker01/02/03`: kernel `6.19.8-arch1-1`, kubeadm/kubelet/kubectl `1.35.2`, containerd `2.2.2`, runc `1.4.1`.
-- system Python is not merely broken: the `python` package and `/usr/bin/python3` are absent on all four nodes. The standalone control-tower Python remains the safe automation interpreter until a full Arch synchronization restores system Python.
+- system Python is absent on all four nodes; the standalone control-tower Python remains the safe automation interpreter until a full Arch synchronization restores system Python.
 - the existing pacman sync database reports a large pending Arch update set including glibc 2.44, kernel 7.2.4, systemd 261.x, containerd 2.3.5, runc 1.5.1 and Kubernetes 1.36.4. Because `checkupdates` is unavailable, this evidence may be stale and is not by itself approval to mutate.
 - Kubernetes reports four Ready nodes. Running control-plane and kube-proxy images remain `v1.35.0`; kubelet packages are newer (`1.35.1`/`1.35.2`).
 - `kubeadm upgrade plan` sees cluster version `1.35.0` and, with current kubeadm `1.35.1`, offers the latest patch in that minor (`v1.35.8`).
 - Calico `v3.32.1` is healthy and all TigeraStatus objects are Available, not Progressing or Degraded.
-- Longhorn manager `v1.12.1` is present; all listed V1 volumes are healthy. Node drain policy remains `block-if-contains-last-replica` and several instance-manager PDBs have `disruptionsAllowed=0`.
+- Longhorn manager `v1.12.1` is present; all listed V1 volumes are healthy. Node drain policy remains `block-if-contains-last-replica`.
 - Flux Kustomizations/HelmReleases reported Ready.
 
 ## Kubeadm ConfigMap repair — Semaphore tasks 47/48
@@ -48,40 +48,56 @@ The rerun of `61-wave3-execution-gate.yml` proved:
 
 - kubeadm configuration parsing is clean;
 - Calico v3.32.1 baseline is healthy;
-- Longhorn v1.12.1 baseline and volume health are healthy;
+- Longhorn v1.12.1 manager/volume health baseline is healthy;
 - Flux active resources have no blockers and no suspended exceptions;
 - all three worker drain simulations reach workload eviction planning but stop on Longhorn
   `instance-manager-*` PodDisruptionBudgets with `Cannot evict pod as it would violate the pod's disruption budget`.
 
-The same pattern occurs on worker01, worker02 and worker03. No workload was actually evicted
-because the command used `--dry-run=server`.
+No workload was actually evicted because the command used `--dry-run=server`.
 
-This is not treated as permission to bypass the PDBs. It is also not sufficient evidence by
-itself that a real maintenance cordon cannot succeed. Longhorn has controller behavior that is
-specifically tied to a node becoming cordoned/unschedulable, while `kubectl drain --dry-run=server`
-does not leave that node state persisted for controllers to reconcile against.
+## Longhorn-aware drain evidence — Semaphore task 51
 
-Therefore Wave 3 remains blocked from real drain/upgrade mutation until Longhorn-aware drain
-readiness is understood.
+`playbooks/63-wave3-longhorn-drain-readiness.yml` completed successfully and collected the
+storage-side evidence needed to interpret the Task 50 PDB blocker.
 
-Run the new read-only evidence playbook:
+Observed state:
+
+- all workers are Ready;
+- `node-drain-policy=block-if-contains-last-replica`;
+- `detach-manually-attached-volumes-when-cordoned=false`;
+- `disable-scheduling-on-cordoned-node=true`;
+- all Longhorn nodes currently allow scheduling and have no eviction requested;
+- all listed volumes are attached and healthy with two replicas;
+- replica placement is distributed across the worker set;
+- every instance-manager PDB currently has `minAvailable=1` and `disruptionsAllowed=0`;
+- importantly, each worker still runs two AIO instance managers: one using
+  `longhorn-instance-manager:v1.12.1` and one using `v1.11.0-hotfix-1`.
+
+The mixed instance-manager versions change the next decision. Longhorn v1.12.1 documents that
+old instance-manager pods can remain after a live engine upgrade while they still host an active
+engine process; they are removed only after no engine/replica processes remain, often after the
+relevant volume is detached. Therefore a temporary live-cordon probe is deferred until the
+remaining old instance-manager processes are mapped to their volumes/engines.
+
+Run the new read-only audit:
 
 ```text
-playbook=playbooks/63-wave3-longhorn-drain-readiness.yml
+playbook=playbooks/64-wave3-longhorn-engine-audit.yml
 limit=k8s-master01
 ```
 
-It records Longhorn drain-related settings, node scheduling/eviction state, volume and replica
-placement, instance-manager placement/state, PDB state and per-worker Longhorn pod placement.
-It performs no cordon, drain, eviction, patch, restart or reboot.
+It records:
 
-If that evidence is healthy, the next step is a separately reviewed reversible live-cordon probe
-on one worker only. That future probe must cordon one worker, wait for Longhorn reconciliation,
-run a drain dry-run while the node is actually cordoned, perform no real workload eviction, and
-uncordon in an Ansible `always` path regardless of success/failure.
+- volume desired/current engine image;
+- engine desired/current image and assigned instance manager;
+- replica desired image and assigned instance manager;
+- all instance-manager images;
+- engine-image objects/refcounts;
+- the default engine-image setting;
+- any volume, engine or replica references that still contain the v1.11 marker.
 
-Do not use `--disable-eviction`, forced pod deletion, or weaker Longhorn node-drain policy as a
-workaround.
+No cordon, drain, detach, engine upgrade, pod deletion, Longhorn mutation, package change or
+Kubernetes upgrade is allowed until that audit is reviewed.
 
 ## Target-selection rule
 
