@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - customresourcedefinition-apiservers.operator.tigera.io.yaml
+  - customresourcedefinition-gatewayapis.operator.tigera.io.yaml
+  - customresourcedefinition-goldmanes.operator.tigera.io.yaml
+  - customresourcedefinition-imagesets.operator.tigera.io.yaml
+  - customresourcedefinition-installations.operator.tigera.io.yaml
+  - customresourcedefinition-istios.operator.tigera.io.yaml
+  - customresourcedefinition-managementclusterconnections.operator.tigera.io.yaml
+  - customresourcedefinition-tigerastatuses.operator.tigera.io.yaml
+  - customresourcedefinition-whiskers.operator.tigera.io.yaml
+  - customresourcedefinition-bgpconfigurations.crd.projectcalico.org.yaml
+  - customresourcedefinition-bgpfilters.crd.projectcalico.org.yaml
+  - customresourcedefinition-bgppeers.crd.projectcalico.org.yaml
+  - customresourcedefinition-blockaffinities.crd.projectcalico.org.yaml
+  - customresourcedefinition-caliconodestatuses.crd.projectcalico.org.yaml
+  - customresourcedefinition-clusterinformations.crd.projectcalico.org.yaml
+  - customresourcedefinition-felixconfigurations.crd.projectcalico.org.yaml
+  - customresourcedefinition-globalnetworkpolicies.crd.projectcalico.org.yaml
+  - customresourcedefinition-globalnetworksets.crd.projectcalico.org.yaml
+  - customresourcedefinition-hostendpoints.crd.projectcalico.org.yaml
+  - customresourcedefinition-ipamblocks.crd.projectcalico.org.yaml
+  - customresourcedefinition-ipamconfigs.crd.projectcalico.org.yaml
+  - customresourcedefinition-ipamhandles.crd.projectcalico.org.yaml
+  - customresourcedefinition-ippools.crd.projectcalico.org.yaml
+  - customresourcedefinition-ipreservations.crd.projectcalico.org.yaml
+  - customresourcedefinition-kubecontrollersconfigurations.crd.projectcalico.org.yaml
+  - customresourcedefinition-networkpolicies.crd.projectcalico.org.yaml
+  - customresourcedefinition-networksets.crd.projectcalico.org.yaml
+  - customresourcedefinition-stagedglobalnetworkpolicies.crd.projectcalico.org.yaml
+  - customresourcedefinition-stagedkubernetesnetworkpolicies.crd.projectcalico.org.yaml
+  - customresourcedefinition-stagednetworkpolicies.crd.projectcalico.org.yaml
+  - customresourcedefinition-tiers.crd.projectcalico.org.yaml
+  - customresourcedefinition-clusternetworkpolicies.policy.networking.k8s.io.yaml

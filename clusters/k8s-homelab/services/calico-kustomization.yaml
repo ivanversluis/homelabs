@@ -6,6 +6,15 @@ metadata:
   name: calico
   namespace: flux-system
 spec:
+  dependsOn:
+    - name: calico-crds
+  force: false
+  timeout: 10m
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: tigera-operator
+      namespace: tigera-operator
   interval: 10m
   path: ./services/network/calico/k8s
   prune: false
