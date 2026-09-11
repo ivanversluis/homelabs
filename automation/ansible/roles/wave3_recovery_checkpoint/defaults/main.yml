@@ -1,0 +1,10 @@
+---
+wave3_checkpoint_kubeconfig: /etc/kubernetes/admin.conf
+wave3_checkpoint_longhorn_namespace: longhorn-system
+wave3_checkpoint_dir: /var/lib/homelab-backups/wave3-control-plane
+wave3_checkpoint_marker: "{{ wave3_checkpoint_dir }}/latest-checkpoint.env"
+wave3_checkpoint_systembackup_prefix: wave3-pre-control-plane
+wave3_checkpoint_systembackup_timeout_seconds: 1800
+wave3_checkpoint_poll_seconds: 10
+wave3_checkpoint_expected_longhorn_manager_image: docker.io/longhornio/longhorn-manager:v1.12.1
+wave3_checkpoint_expected_calico_version: v3.32.1
