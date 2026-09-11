@@ -44,12 +44,12 @@ spec:
               value: "10"
             - name: HBOX_OPTIONS_ALLOW_ANALYTICS
               value: "false"
-            # Required by Homebox >=0.26.0. The value is generated once by Terraform and stored
-            # in Vault at apps/homebox; External Secrets exposes it without committing it to Git.
+            # Required by Homebox >=0.26.0. Generated once by External Secrets Operator and
+            # persisted in a dedicated immutable Kubernetes Secret.
             - name: HBOX_AUTH_API_KEY_PEPPER
               valueFrom:
                 secretKeyRef:
-                  name: homebox-oidc
+                  name: homebox-api-key-pepper
                   key: api-key-pepper
             # OIDC integration via Authentik
             - name: HBOX_OIDC_ENABLED
