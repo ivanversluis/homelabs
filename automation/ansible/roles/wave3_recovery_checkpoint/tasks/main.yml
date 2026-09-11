@@ -43,16 +43,15 @@
       snapshot save "$inside"
 
     test -s "$inside"
+    if kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n kube-system exec "$pod" -- sh -c 'command -v etcdutl >/dev/null 2>&1'; then
+      kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n kube-system exec "$pod" -- \
+        etcdutl snapshot status "$inside"
+    fi
+
     install -m 0600 "$inside" "$outside"
     rm -f "$inside"
     sha256sum "$outside" > "${outside}.sha256"
     sha256sum -c "${outside}.sha256"
-
-    if kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n kube-system exec "$pod" -- command -v etcdutl >/dev/null 2>&1; then
-      kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n kube-system exec "$pod" -- \
-        etcdutl snapshot status "$outside" >/dev/null 2>&1 || true
-    fi
-
     printf 'ETCD_SNAPSHOT=%s\n' "$outside"
   changed_when: true
   register: wave3_checkpoint_etcd
