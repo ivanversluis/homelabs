@@ -1,6 +1,6 @@
 # Wave 3: coordinated Arch Linux + Kubernetes
 
-Status: **LIVE PREFLIGHT COMPLETE — KUBEADM CONFIG REPAIRED — LONGHORN ENGINE AUDIT COMPLETE — LIVE DRAIN CANARY PREPARED BUT NOT APPROVED**.
+Status: **LIVE PREFLIGHT COMPLETE — KUBEADM CONFIG REPAIRED — LONGHORN ENGINE AUDIT COMPLETE — WORKER DRAIN CANARY PROVEN**.
 
 Wave 3 is the first lifecycle stage where host package state, reboot behavior, kubeadm ordering,
 CNI/storage health and disruption policy interact. Preparation and execution are intentionally
@@ -67,7 +67,7 @@ No workload was actually evicted because the command used `--dry-run=server`.
 - all listed volumes are attached and healthy with two replicas;
 - replicas are distributed across the worker set;
 - every instance-manager PDB has `minAvailable=1` and `disruptionsAllowed=0`;
-- each worker runs two AIO instance managers: one `v1.12.1` and one `v1.11.0-hotfix-1`.
+- each worker initially ran two AIO instance managers: one `v1.12.1` and one `v1.11.0-hotfix-1`.
 
 The mixed instance-manager state required an engine/replica mapping audit before attempting any
 live cordon or drain.
@@ -87,67 +87,67 @@ Observed state:
   `OLD_REPLICAS`, with no resources below them;
 - the only EngineImage object is the deployed v1.12.1 image;
 - replicas run in the v1.12.1 instance managers;
-- active engines still run inside the old v1.11.0-hotfix-1 instance managers, one old instance
-  manager per worker.
+- active engines were still hosted by old v1.11.0-hotfix-1 instance managers for attached volumes.
 
-Therefore Wave 1 engine migration itself is complete. The remaining v1.11 instance managers are
-runtime leftovers hosting already-upgraded v1.12.1 engine processes for currently attached
-volumes. They cannot become empty during a server-side drain dry-run because workload pods are
-not actually evicted, so the attached volumes never detach or move. This explains why Task 50
-repeatedly hit those instance-manager PDBs despite all volume/engine/replica images being current.
+Therefore Wave 1 engine migration itself was complete. The remaining v1.11 instance managers were
+runtime leftovers rather than old volume/engine/replica image references.
 
-Do not delete the old instance-manager pods manually and do not weaken the Longhorn drain policy.
+## Live worker drain canary — Semaphore tasks 53/54
 
-## Prepared live worker drain canary — approval required
+The one-worker canary targeted only `k8s-worker02` and used normal Kubernetes eviction/PDB
+semantics. No `--disable-eviction`, `--force`, manual Longhorn pod deletion, weaker drain policy,
+host package change, or Kubernetes version change was used.
 
-A dedicated canary is now prepared as:
+Task 53 proved the first part of the behavior:
+
+- worker02 was cordoned successfully;
+- normal application workloads were evicted and rescheduled;
+- the old `v1.11.0-hotfix-1` instance manager on worker02 disappeared naturally after its active
+  engine workloads moved;
+- the drain remained blocked by the current `v1.12.1` instance-manager PDB and timed out;
+- the Ansible `always` cleanup uncordoned worker02 and verified it was Ready and schedulable.
+
+Task 54 then reran the same approved canary after the application workloads had already moved.
+The pre-canary workload list on worker02 contained only DaemonSet-managed pods plus the current
+v1.12.1 instance manager. The normal drain then evicted that instance manager successfully and
+reported:
 
 ```text
-playbook=playbooks/65-wave3-worker-drain-canary.yml
-limit=k8s-master01
+pod/instance-manager-5f7710522e9b0413393cb882b256db0b evicted
+node/k8s-worker02 drained
 ```
 
-It is committed with `wave3_canary_approved: false` and therefore stops before mutation. A later
-explicit operator approval must activate it in Git.
+Longhorn volumes temporarily transitioned away from healthy while storage reconciled, then all
+volumes returned to `healthy` within the configured five-minute stabilization window. The current
+v1.12.1 instance manager was recreated on worker02 while the node was still cordoned, and the
+canary finally uncordoned worker02 and verified `Ready=True` and `unschedulable=false`.
 
-The canary is intentionally restricted to `k8s-worker02`. Task 50 showed no Semaphore/Vault
-workload on that node, and the role re-checks that condition immediately before mutation.
+Together Tasks 53 and 54 prove the required maintenance behavior, but also show that a production
+node-maintenance playbook must model drain as a staged/retry operation rather than assuming that a
+fully loaded Longhorn worker always drains in one pass. The safe pattern is:
 
-Once explicitly activated, it will:
+1. cordon the worker once;
+2. run normal drain/evictions;
+3. if only Longhorn instance-manager PDBs remain, keep the node cordoned and wait for workload and
+   volume reconciliation instead of weakening PDB protection;
+4. retry the normal drain after Longhorn has reconciled;
+5. require all volumes healthy before host mutation or reboot;
+6. keep the node cordoned throughout host maintenance;
+7. uncordon only after the upgraded node and full cluster health checks pass.
 
-1. revalidate the worker, Longhorn policy, manager/default-engine image, volume health and absence
-   of v1.11 volume/engine/replica image references;
-2. refuse to continue if Semaphore or Vault workloads are on the target;
-3. record pre-drain instance-manager/PDB/workload evidence;
-4. persist a real cordon on `k8s-worker02`;
-5. perform a real Kubernetes drain with ordinary eviction/PDB semantics;
-6. never use `--disable-eviction`, `--force`, forced pod deletion, or a weaker Longhorn policy;
-7. wait for all Longhorn volumes to return healthy and record post-drain state;
-8. always uncordon the node in an Ansible `always` block.
-
-This is a disruptive canary: application pods on worker02 will be evicted and rescheduled. Merely
-cordoning without workload eviction would not empty the old instance manager because Task 52
-shows it is hosting active engines for attached volumes.
-
-If Semaphore itself is interrupted after the cordon and before the Ansible cleanup path, use the
-independent break-glass route and run:
-
-```bash
-kubectl uncordon k8s-worker02
-```
-
-Do not activate or execute this canary without explicit operator approval.
+The canary activation flag has been reset to `false` after the successful test so it cannot be
+rerun accidentally.
 
 ## Target-selection rule
 
-Kubernetes `v1.36.4` is the current Arch-repository candidate seen by the preflight and remains
-the intended minor target, but it is not yet approved for execution. The current kubeadm binary
-is still 1.35.x, so its plan correctly resolves only the 1.35 patch line. The supported kubeadm
-minor-upgrade sequence requires upgrading the kubeadm binary first, re-running `kubeadm upgrade
-plan`, then applying the control-plane upgrade before worker kubelets move to the new minor.
+Kubernetes `v1.36.4` was the Arch-repository candidate seen by the earlier preflight and remains
+the intended minor target only after a fresh package/version check immediately before mutation.
+The current kubeadm binary is still 1.35.x, so its current plan resolves only the 1.35 patch line.
+The supported kubeadm minor-upgrade sequence requires upgrading kubeadm first, re-running
+`kubeadm upgrade plan`, then applying the control-plane upgrade before kubelets move to the new
+minor.
 
-Do not jump to Kubernetes 1.37. Current Wave 1/2 add-on baselines were selected for the 1.36
-maintenance path.
+Do not jump to Kubernetes 1.37 without a new compatibility and target review.
 
 ## Arch/Kubernetes sequencing model
 
@@ -156,16 +156,13 @@ however, requires kubeadm/control-plane-first ordering for a minor upgrade and k
 be advanced ahead of the API server. Wave 3 must therefore keep these concerns explicit rather
 than running one blind `pacman -Syu` loop.
 
-Planned stages after the live drain canary proves ordinary eviction behavior:
+Before any host or Kubernetes mutation, take a fresh etcd snapshot and re-confirm current Longhorn
+backup/volume health, control-tower recovery, and the independent admin break-glass path.
 
-1. refresh/reconfirm package targets without creating a partial-upgrade state;
-2. perform worker-canary Arch host maintenance while holding Kubernetes packages at the current minor;
-3. validate/reboot that worker and repeat workers one at a time;
-4. perform equivalent Arch host maintenance on the single control-plane node with explicit downtime/recovery gate;
-5. upgrade kubeadm on the control plane to the approved 1.36 patch, re-run `kubeadm upgrade plan`, then `kubeadm upgrade apply`;
-6. upgrade/restart the control-plane kubelet/kubectl and validate API server, etcd, Calico, Longhorn and Flux;
-7. upgrade workers to the same Kubernetes patch one at a time using kubeadm node semantics, kubelet restart and full post-node health gates;
-8. rerun `50-maintenance-readiness.yml` against `k8s_homelab` before Wave 4.
+The actual mutation playbooks must now be built around the proven staged drain behavior and a
+freshly validated Kubernetes/Arch target. Do not reuse the earlier conceptual package-ordering
+sequence blindly; re-evaluate how to avoid advancing kubelet ahead of kube-apiserver while also
+respecting Arch's no-partial-upgrade rule.
 
 ## Safety properties
 
