@@ -1,7 +1,7 @@
 ---
 # Longhorn v1.12.1 homelab scheduling constraint.
 # v1.12.1 supplies its own release images/arguments; only the homelab scheduling constraint
-# from manager-hotfix.yaml remains necessary.
+# to keep Longhorn system-managed components on the homelab storage nodes.
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
