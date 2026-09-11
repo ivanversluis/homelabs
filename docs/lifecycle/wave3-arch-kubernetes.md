@@ -1,6 +1,6 @@
 # Wave 3: coordinated Arch Linux + Kubernetes
 
-Status: **LIVE PREFLIGHT COMPLETE — EXECUTION BLOCKED PENDING KUBEADM CONFIG REVIEW**.
+Status: **LIVE PREFLIGHT COMPLETE — TARGETED KUBEADM CONFIG REPAIR PREPARED**.
 
 Wave 3 is the first lifecycle stage where host package state, reboot behavior, kubeadm ordering,
 CNI/storage health and disruption policy interact. Preparation and execution are therefore
@@ -19,38 +19,78 @@ Observed baseline:
 - system Python is not merely broken: the `python` package and `/usr/bin/python3` are absent on all four nodes. The standalone control-tower Python remains the safe automation interpreter until a full Arch synchronization restores system Python.
 - the existing pacman sync database reports a large pending Arch update set including glibc 2.44, kernel 7.2.4, systemd 261.x, containerd 2.3.5, runc 1.5.1 and Kubernetes 1.36.4. Because `checkupdates` is unavailable, this evidence may be stale and is not by itself approval to mutate.
 - Kubernetes reports four Ready nodes. Running control-plane and kube-proxy images remain `v1.35.0`; kubelet packages are newer (`1.35.1`/`1.35.2`).
-- `kubeadm upgrade plan` sees cluster version `1.35.0` and, with current kubeadm `1.35.1`, offers the latest patch in that minor (`v1.35.8`). It also reports a strict YAML decode warning: duplicate `apiServer` in the live `kubeadm-config` ClusterConfiguration. This must be resolved before any kubeadm mutation.
+- `kubeadm upgrade plan` sees cluster version `1.35.0` and, with current kubeadm `1.35.1`, offers the latest patch in that minor (`v1.35.8`).
 - Calico `v3.32.1` is healthy and all TigeraStatus objects are Available, not Progressing or Degraded.
 - Longhorn manager `v1.12.1` is present; all listed V1 volumes are healthy. Node drain policy remains `block-if-contains-last-replica` and several instance-manager PDBs have `disruptionsAllowed=0`.
 - Flux Kustomizations/HelmReleases reported Ready.
 
-## Preparation playbook
+## Execution gate evidence — Semaphore task 47
 
-Run from Semaphore:
+`playbooks/61-wave3-execution-gate.yml` correctly blocked mutation and printed the exact live
+`ClusterConfiguration`. The malformed shape is now proven rather than inferred:
 
-```text
-playbook=playbooks/60-wave3-preflight.yml
-limit=k8s_homelab
+```yaml
+apiServer:
+  extraArgs:
+    - name: oidc-issuer-url
+      value: <existing live value>
+    - name: oidc-client-id
+      value: <existing live value>
+    - name: oidc-username-claim
+      value: preferred_username
+    - name: oidc-groups-claim
+      value: groups
+apiServer: {}
 ```
 
-The playbook is read-only and must inspect all four nodes.
+The empty second top-level `apiServer: {}` is line 11 in the live ConfigMap. kubeadm reports:
 
-## Execution gate
+```text
+strict decoding error: yaml: unmarshal errors:
+  line 11: key "apiServer" already set in map
+```
 
-Before any mutation, run the stricter control-plane gate:
+The first `apiServer` block is the valid one because it contains the active Authentik OIDC
+configuration. The repair must preserve that complete block and remove only the empty duplicate.
+
+The execution-gate reporting regex was also simplified after Task 47 exposed a Python-regex
+FutureWarning from the earlier POSIX character class; this was a reporting-only issue and did
+not affect the kubeadm blocker detection.
+
+## Targeted kubeadm ConfigMap repair
+
+The dedicated repair playbook is:
+
+```text
+playbook=playbooks/62-wave3-kubeadm-config-repair.yml
+limit=k8s-master01
+```
+
+It is intentionally narrow. Before changing the ConfigMap it:
+
+1. asserts exactly one populated `apiServer:` key and one exact `apiServer: {}` duplicate;
+2. asserts all four expected OIDC argument names exist exactly once;
+3. asserts the stored Kubernetes version is still `v1.35.0`;
+4. backs up the full `kubeadm-config` ConfigMap under `/var/lib/homelab-backups/wave3-kubeadm-config-repair/`;
+5. creates a corrected temporary ClusterConfiguration by deleting only `^apiServer: {}$`;
+6. proves exactly one line was removed and prints the diff;
+7. runs `kubeadm config validate` against the corrected v1beta4 file;
+8. uploads the corrected configuration with `kubeadm init phase upload-config kubeadm --config ...`;
+9. proves the kube-apiserver static Pod manifest checksum is unchanged;
+10. reruns `kubeadm upgrade plan` and blocks if any strict-decoding error remains.
+
+This repair changes stored kubeadm configuration only. It does not edit the kube-apiserver static
+Pod manifest, restart the API server, update packages, drain a node, reboot, or execute a
+Kubernetes version upgrade.
+
+After a successful repair, rerun:
 
 ```text
 playbook=playbooks/61-wave3-execution-gate.yml
 limit=k8s-master01
 ```
 
-This gate is also read-only. It prints the live kubeadm ClusterConfiguration with line numbers,
-blocks on strict-decoding/duplicate-key warnings, reconfirms Calico/Longhorn/Flux health, and
-uses server-side dry-run drain simulations for all workers. The expected first result is
-**BLOCKED** until the duplicate `apiServer` key is understood and corrected deliberately.
-
-Do not edit the kubeadm ConfigMap by guesswork. Capture the gate output first, then prepare the
-smallest explicit configuration repair and re-run `kubeadm upgrade plan` before proceeding.
+Only a clean execution gate may unlock preparation of the actual Wave 3 mutation playbooks.
 
 ## Target-selection rule
 
@@ -81,8 +121,8 @@ Planned stages after the execution gate is clean:
 7. upgrade workers to the same Kubernetes patch one at a time using kubeadm node semantics, kubelet restart and full post-node health gates;
 8. rerun `50-maintenance-readiness.yml` against `k8s_homelab` before Wave 4.
 
-The exact mutating playbooks are intentionally not committed until the kubeadm configuration
-and drain dry-run gate are clean.
+The exact mutating upgrade playbooks remain intentionally uncommitted until the kubeadm repair
+has succeeded and the execution/drain gate is clean.
 
 ## Safety properties
 
