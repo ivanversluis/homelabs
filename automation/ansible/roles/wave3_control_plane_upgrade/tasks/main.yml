@@ -1,0 +1,216 @@
+---
+- name: Require explicit approval and exact control-plane target
+  ansible.builtin.assert:
+    that:
+      - wave3_cp_upgrade_approved | bool
+      - inventory_hostname == wave3_cp_control_plane_node
+      - wave3_cp_target_version == 'v1.36.4'
+    fail_msg: >-
+      Wave 3 control-plane upgrade is not approved or the target is not the reviewed v1.36.4.
+      Do not substitute a newer Kubernetes version implicitly.
+
+- name: Require a fresh verified recovery checkpoint
+  ansible.builtin.raw: |
+    set -e
+    test -s '{{ wave3_cp_checkpoint_marker }}'
+    . '{{ wave3_cp_checkpoint_marker }}'
+    test -n "$CHECKPOINT_UTC"
+    test -n "$ETCD_SNAPSHOT"
+    test -n "$SYSTEMBACKUP"
+    test -s "$ETCD_SNAPSHOT"
+    test -s "${ETCD_SNAPSHOT}.sha256"
+    sha256sum -c "${ETCD_SNAPSHOT}.sha256"
+    now="$(date +%s)"
+    marker_mtime="$(stat -c %Y '{{ wave3_cp_checkpoint_marker }}')"
+    age=$((now - marker_mtime))
+    printf 'checkpoint=%s\nage_seconds=%s\netcd=%s\nsystembackup=%s\n' "$CHECKPOINT_UTC" "$age" "$ETCD_SNAPSHOT" "$SYSTEMBACKUP"
+    test "$age" -ge 0
+    test "$age" -le {{ wave3_cp_checkpoint_max_age_seconds }}
+    state="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n {{ wave3_cp_longhorn_namespace }} get systembackups.longhorn.io "$SYSTEMBACKUP" -o jsonpath='{.status.state}')"
+    policy="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n {{ wave3_cp_longhorn_namespace }} get systembackups.longhorn.io "$SYSTEMBACKUP" -o jsonpath='{.spec.volumeBackupPolicy}')"
+    printf 'systembackup_state=%s\nvolumeBackupPolicy=%s\n' "$state" "$policy"
+    test "$state" = Ready
+    test "$policy" = always
+  changed_when: false
+  register: wave3_cp_checkpoint_evidence
+
+- name: Verify current cluster state and supported source/target transition
+  ansible.builtin.raw: |
+    set -e
+    arch="$(uname -m)"
+    server="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} version -o json | jq -r '.serverVersion.gitVersion')"
+    nodes_not_ready="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get nodes -o json | jq -r '.items[] | select(([.status.conditions[] | select(.type=="Ready" and .status=="True")] | length) == 0) | .metadata.name')"
+    bad_volumes="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n {{ wave3_cp_longhorn_namespace }} get volumes.longhorn.io -o json | jq -r '.items[] | select(.status.robustness != "healthy") | .metadata.name')"
+    manager="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n {{ wave3_cp_longhorn_namespace }} get daemonset longhorn-manager -o jsonpath='{.spec.template.spec.containers[?(@.name=="longhorn-manager")].image}')"
+    calico="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get installation.operator.tigera.io default -o jsonpath='{.status.calicoVersion}')"
+    printf 'arch=%s\nserver=%s\nnodes_not_ready=%s\nbad_volumes=%s\nlonghorn=%s\ncalico=%s\n' "$arch" "$server" "$nodes_not_ready" "$bad_volumes" "$manager" "$calico"
+    test "$arch" = x86_64
+    test "$server" = '{{ wave3_cp_source_version }}' -o "$server" = '{{ wave3_cp_target_version }}'
+    test -z "$nodes_not_ready"
+    test -z "$bad_volumes"
+    test "$manager" = '{{ wave3_cp_expected_longhorn_manager_image }}'
+    test "$calico" = '{{ wave3_cp_expected_calico_version }}'
+  changed_when: false
+  register: wave3_cp_cluster_preflight
+
+- name: Verify kubeadm configuration and OIDC arguments before mutation
+  ansible.builtin.raw: |
+    set -e
+    config="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n kube-system get configmap kubeadm-config -o jsonpath='{.data.ClusterConfiguration}')"
+    printf '%s\n' "$config" | grep -F 'kubernetesVersion:'
+    for key in {{ wave3_cp_required_apiserver_args | join(' ') }}; do
+      count="$(printf '%s\n' "$config" | grep -c "^[[:space:]]*${key}:" || true)"
+      printf '%s_count=%s\n' "$key" "$count"
+      test "$count" -eq 1
+    done
+  changed_when: false
+  register: wave3_cp_config_pre
+
+- name: Create protected work and backup directories
+  ansible.builtin.raw: |
+    install -d -m 0700 '{{ wave3_cp_work_dir }}'
+    install -d -m 0700 '{{ wave3_cp_backup_dir }}'
+  changed_when: true
+
+- name: Download exact kubeadm v1.36.4 binary and published checksum
+  ansible.builtin.raw: |
+    set -e
+    curl -fL --retry 3 --retry-delay 2 '{{ wave3_cp_kubeadm_url }}' -o '{{ wave3_cp_work_dir }}/kubeadm-{{ wave3_cp_target_version }}'
+    curl -fL --retry 3 --retry-delay 2 '{{ wave3_cp_kubeadm_sha256_url }}' -o '{{ wave3_cp_work_dir }}/kubeadm-{{ wave3_cp_target_version }}.sha256'
+    digest="$(tr -d '[:space:]' < '{{ wave3_cp_work_dir }}/kubeadm-{{ wave3_cp_target_version }}.sha256')"
+    printf '%s\n' "$digest" | grep -Eq '^[0-9a-f]{64}$'
+    printf '%s  %s\n' "$digest" '{{ wave3_cp_work_dir }}/kubeadm-{{ wave3_cp_target_version }}' | sha256sum -c -
+    chmod 0755 '{{ wave3_cp_work_dir }}/kubeadm-{{ wave3_cp_target_version }}'
+    test "$('{{ wave3_cp_work_dir }}/kubeadm-{{ wave3_cp_target_version }}' version -o short)" = '{{ wave3_cp_target_version }}'
+    printf 'kubeadm=%s\nsha256=%s\n' "$('{{ wave3_cp_work_dir }}/kubeadm-{{ wave3_cp_target_version }}' version -o short)" "$digest"
+  changed_when: true
+  register: wave3_cp_kubeadm_binary
+
+- name: Run target kubeadm upgrade plan before any control-plane mutation
+  ansible.builtin.raw: >-
+    {{ wave3_cp_work_dir }}/kubeadm-{{ wave3_cp_target_version }} upgrade plan {{ wave3_cp_target_version }} 2>&1
+  changed_when: false
+  failed_when: false
+  register: wave3_cp_upgrade_plan
+
+- name: Show pinned target and kubeadm plan
+  ansible.builtin.debug:
+    msg:
+      - "Target={{ wave3_cp_target_version }}"
+      - "Checkpoint={{ wave3_cp_checkpoint_evidence.stdout_lines | default([]) }}"
+      - "Current={{ wave3_cp_cluster_preflight.stdout_lines | default([]) }}"
+      - "Binary={{ wave3_cp_kubeadm_binary.stdout_lines | default([]) }}"
+      - "Plan={{ wave3_cp_upgrade_plan.stdout_lines | default([]) }}"
+
+- name: Require clean target kubeadm plan
+  ansible.builtin.assert:
+    that:
+      - wave3_cp_upgrade_plan.rc == 0
+      - "'strict decoding error' not in (wave3_cp_upgrade_plan.stdout | lower)"
+      - "'already set in map' not in (wave3_cp_upgrade_plan.stdout | lower)"
+      - "'manual upgrade required' not in (wave3_cp_upgrade_plan.stdout | lower) or 'yes' not in (wave3_cp_upgrade_plan.stdout | lower)"
+    fail_msg: >-
+      kubeadm v1.36.4 did not produce a clean upgrade plan. Stop before control-plane mutation.
+
+- name: Archive current Kubernetes control-plane configuration immediately before apply
+  ansible.builtin.raw: |
+    set -e
+    stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+    archive='{{ wave3_cp_backup_dir }}'/kubernetes-config-before-{{ wave3_cp_target_version }}-${stamp}.tgz
+    tar -C / -czf "$archive" etc/kubernetes
+    chmod 0600 "$archive"
+    sha256sum "$archive" > "${archive}.sha256"
+    printf 'CONFIG_ARCHIVE=%s\n' "$archive"
+    printf '%s\n' 'STATIC_POD_SHA256_BEFORE'
+    sha256sum /etc/kubernetes/manifests/*.yaml
+  changed_when: true
+  register: wave3_cp_config_backup
+
+- name: Pre-pull pinned Kubernetes control-plane images
+  ansible.builtin.raw: >-
+    {{ wave3_cp_work_dir }}/kubeadm-{{ wave3_cp_target_version }} config images pull
+    --kubernetes-version {{ wave3_cp_target_version }}
+  changed_when: true
+  register: wave3_cp_image_pull
+
+- name: Read current API server version immediately before apply
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_cp_kubeconfig }} version -o json | jq -r '.serverVersion.gitVersion'
+  changed_when: false
+  register: wave3_cp_server_before_apply
+
+- name: Apply pinned Kubernetes control-plane upgrade
+  ansible.builtin.raw: >-
+    {{ wave3_cp_work_dir }}/kubeadm-{{ wave3_cp_target_version }} upgrade apply {{ wave3_cp_target_version }}
+    --yes
+  changed_when: true
+  register: wave3_cp_apply
+  when: (wave3_cp_server_before_apply.stdout | trim) != wave3_cp_target_version
+
+- name: Wait for Kubernetes API readiness after control-plane replacement
+  ansible.builtin.raw: |
+    set -e
+    elapsed=0
+    while [ "$elapsed" -lt 300 ]; do
+      if kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get --raw=/readyz 2>/dev/null | grep -qx ok; then
+        exit 0
+      fi
+      sleep 5
+      elapsed=$((elapsed + 5))
+    done
+    echo 'Kubernetes API did not return readyz=ok within 300 seconds'
+    exit 1
+  changed_when: false
+
+- name: Verify control-plane version, preserved OIDC configuration, and cluster health
+  ansible.builtin.raw: |
+    set -e
+    server="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} version -o json | jq -r '.serverVersion.gitVersion')"
+    printf 'server=%s\n' "$server"
+    test "$server" = '{{ wave3_cp_target_version }}'
+
+    for component in kube-apiserver kube-controller-manager kube-scheduler; do
+      image="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n kube-system get pod "${component}-{{ inventory_hostname }}" -o jsonpath='{.spec.containers[0].image}')"
+      printf '%s=%s\n' "$component" "$image"
+      printf '%s\n' "$image" | grep -q ':{{ wave3_cp_target_version }}$'
+    done
+
+    config="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n kube-system get configmap kubeadm-config -o jsonpath='{.data.ClusterConfiguration}')"
+    printf '%s\n' "$config" | grep -q 'kubernetesVersion: {{ wave3_cp_target_version }}'
+    for key in {{ wave3_cp_required_apiserver_args | join(' ') }}; do
+      cfg_count="$(printf '%s\n' "$config" | grep -c "^[[:space:]]*${key}:" || true)"
+      manifest_count="$(grep -c -- "--${key}=" /etc/kubernetes/manifests/kube-apiserver.yaml || true)"
+      printf '%s config=%s manifest=%s\n' "$key" "$cfg_count" "$manifest_count"
+      test "$cfg_count" -eq 1
+      test "$manifest_count" -eq 1
+    done
+
+    nodes_not_ready="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get nodes -o json | jq -r '.items[] | select(([.status.conditions[] | select(.type=="Ready" and .status=="True")] | length) == 0) | .metadata.name')"
+    bad_volumes="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n {{ wave3_cp_longhorn_namespace }} get volumes.longhorn.io -o json | jq -r '.items[] | select(.status.robustness != "healthy") | .metadata.name')"
+    bad_tigera="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get tigerastatus -o json | jq -r '.items[] | select(([.status.conditions[]? | select(.type=="Available" and .status=="True")] | length) == 0 or ([.status.conditions[]? | select((.type=="Progressing" or .type=="Degraded") and .status=="True")] | length) > 0) | .metadata.name')"
+    bad_ks="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get kustomizations.kustomize.toolkit.fluxcd.io -A -o json | jq -r '.items[] | select((.spec.suspend // false) == false) | select(([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | (.metadata.namespace + "/" + .metadata.name)')"
+    bad_hr="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get helmreleases.helm.toolkit.fluxcd.io -A -o json | jq -r '.items[] | select((.spec.suspend // false) == false) | select(([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | (.metadata.namespace + "/" + .metadata.name)')"
+    printf 'nodes_not_ready=%s\nbad_volumes=%s\nbad_tigera=%s\nbad_flux_kustomizations=%s\nbad_flux_helmreleases=%s\n' "$nodes_not_ready" "$bad_volumes" "$bad_tigera" "$bad_ks" "$bad_hr"
+    test -z "$nodes_not_ready"
+    test -z "$bad_volumes"
+    test -z "$bad_tigera"
+    test -z "$bad_ks"
+    test -z "$bad_hr"
+
+    printf '%s\n' 'NODE_VERSIONS'
+    kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get nodes -o custom-columns=NAME:.metadata.name,KUBELET:.status.nodeInfo.kubeletVersion
+    printf '%s\n' 'KUBE_PROXY_IMAGE'
+    kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n kube-system get daemonset kube-proxy -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+    printf '%s\n' 'STATIC_POD_SHA256_AFTER'
+    sha256sum /etc/kubernetes/manifests/*.yaml
+  changed_when: false
+  register: wave3_cp_postcheck
+
+- name: Show successful pinned control-plane upgrade evidence
+  ansible.builtin.debug:
+    msg:
+      - "WAVE 3 CONTROL PLANE: {{ wave3_cp_target_version }} READY"
+      - "No node was drained and no OS package or kubelet binary was upgraded by this playbook."
+      - "kubeadm apply={{ wave3_cp_apply.stdout_lines | default(['already at target']) }}"
+      - "Postcheck={{ wave3_cp_postcheck.stdout_lines | default([]) }}"
+      - "Next: worker02 remains the first host/kubelet upgrade canary."
