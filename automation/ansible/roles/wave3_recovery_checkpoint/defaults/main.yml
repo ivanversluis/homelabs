@@ -1,7 +1,6 @@
 ---
 wave3_checkpoint_kubeconfig: /etc/kubernetes/admin.conf
 wave3_checkpoint_longhorn_namespace: longhorn-system
-wave3_checkpoint_backup_target_name: default
 wave3_checkpoint_dir: /var/lib/homelab-backups/wave3-control-plane
 wave3_checkpoint_marker: "{{ wave3_checkpoint_dir }}/latest-checkpoint.env"
 wave3_checkpoint_systembackup_prefix: wave3-pre-control-plane
