@@ -56,8 +56,9 @@ flowchart LR
 - **Wave 1 — Longhorn:** complete at v1.12.1. See `wave1-longhorn.md`.
 - **Wave 2 — Calico:** complete at v3.32.1 with healthy Flux/TigeraStatus/node evidence and a
   post-upgrade readiness verdict with no blockers. See `wave2-calico.md`.
-- **Wave 3 — coordinated Arch Linux + Kubernetes:** preparation implemented in
-  `playbooks/60-wave3-preflight.yml`; mutation is not approved. See `wave3-arch-kubernetes.md`.
+- **Wave 3 — coordinated Arch Linux + Kubernetes:** worker drain behavior is proven. The first
+  mutating Kubernetes stage is now pinned to control-plane `v1.36.4` and explicitly gated by a
+  fresh etcd + Longhorn recovery checkpoint. See `wave3-arch-kubernetes.md`.
 - **Wave 4 — platform components:** pending.
 - **Wave 5 — applications:** pending.
 
@@ -86,14 +87,37 @@ playbook=playbooks/60-wave3-preflight.yml
 limit=k8s_homelab
 ```
 
-The current `v1.36.4` value is only a planning candidate. The live Arch repository and supported
-Kubernetes/Calico/Longhorn combination must be revalidated immediately before any operator
-approves mutation.
+The worker02 live-drain canary proved that workload and Longhorn reconciliation can complete
+without bypassing PDB protection. The next Kubernetes stage uses control-plane-first ordering but
+does **not** drain or reboot the single control-plane node.
+
+Immediately before the control-plane mutation, create the fresh recovery checkpoint:
+
+```text
+playbook=playbooks/66-wave3-recovery-checkpoint.yml
+limit=k8s-master01
+```
+
+Then, while that checkpoint is still within its two-hour gate, run the pinned control-plane upgrade:
+
+```text
+playbook=playbooks/67-wave3-control-plane-upgrade.yml
+limit=k8s-master01
+```
+
+The target is explicitly pinned to `v1.36.4`. The playbook downloads the exact upstream kubeadm
+binary plus published SHA-256, verifies the checksum, requires a clean target upgrade plan, archives
+`/etc/kubernetes`, pre-pulls the target images, and executes `kubeadm upgrade apply v1.36.4`.
+It does not run `pacman`, drain a node, reboot the host, or upgrade the kubelet binary.
+
+The intended intermediate state is a v1.36.4 API server/control plane with v1.35.x kubelets. That
+skew is temporary and intentional so the workers can then be upgraded one at a time, beginning
+with worker02, whose drain behavior has already been proven.
 
 For a combined Arch + Kubernetes window, do not collapse these into one generic node loop:
 
-- Arch-only ordering: worker canary -> remaining workers -> control plane.
-- kubeadm minor-version ordering: control plane -> workers one at a time.
+- Kubernetes minor-version ordering: control plane first, then workers one at a time.
+- Worker host maintenance: worker02 canary, then remaining workers, then control-plane host OS/kubelet.
 
-Before Wave 3 mutation, explicitly confirm current etcd recovery, Longhorn backups/volume health,
+Before every mutation, explicitly confirm current etcd recovery, Longhorn backups/volume health,
 Vault/Semaphore recovery and the independent admin break-glass path.
