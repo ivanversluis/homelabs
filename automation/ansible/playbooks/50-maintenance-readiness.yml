@@ -37,8 +37,22 @@
   become: false
   run_once: true
   vars:
+    # These connection variables outrank group_vars/all.yml. The play keywords above are
+    # intentionally duplicated because inventory variables otherwise leak the remote-node
+    # sudo configuration into this controller-local play.
+    ansible_connection: local
+    ansible_become: false
     maintenance_readiness_run_id: "{{ lookup('pipe', 'date -u +%Y%m%dT%H%M%SZ') }}"
   tasks:
+    - name: Verify report execution is local and unprivileged
+      ansible.builtin.assert:
+        that:
+          - ansible_connection == 'local'
+          - not (ansible_become | bool)
+        fail_msg: >-
+          Refusing to generate the Wave 0.5 report: controller-side execution must use
+          ansible_connection=local and ansible_become=false.
+
     - name: Aggregate findings and render the readiness report
       ansible.builtin.include_role:
         name: maintenance_readiness

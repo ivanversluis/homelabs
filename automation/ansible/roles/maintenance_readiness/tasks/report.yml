@@ -4,9 +4,22 @@
 # findings into each host's hostvars.maintenance_readiness_findings. Produces the explicit
 # READY / READY WITH ACCEPTED EXCEPTIONS / BLOCKED verdict required before Wave 1 may start.
 
+- name: Record expected and inspected cluster members
+  ansible.builtin.set_fact:
+    maintenance_readiness_expected_hosts: "{{ groups['k8s_homelab'] | unique | sort }}"
+    maintenance_readiness_inspected_hosts: "{{ ansible_play_hosts_all | unique | sort }}"
+
+- name: Determine whether this is an authoritative full-cluster run
+  ansible.builtin.set_fact:
+    maintenance_readiness_full_cluster: >-
+      {{ maintenance_readiness_inspected_hosts == maintenance_readiness_expected_hosts }}
+
 - name: Aggregate findings from every inspected node
   ansible.builtin.set_fact:
-    maintenance_readiness_all_findings: "{{ groups['k8s_homelab'] | map('extract', hostvars, 'maintenance_readiness_findings') | sum(start=[]) }}"
+    maintenance_readiness_all_findings: >-
+      {{ maintenance_readiness_inspected_hosts
+         | map('extract', hostvars, 'maintenance_readiness_findings')
+         | sum(start=[]) }}
 
 - name: Split findings by severity
   ansible.builtin.set_fact:
@@ -25,6 +38,29 @@
          else ('READY WITH ACCEPTED EXCEPTIONS' if ((maintenance_readiness_blockers | length > 0) or (maintenance_readiness_exceptions | length > 0))
          else 'READY') }}
 
+- name: Show the operator-visible readiness verdict and scope
+  ansible.builtin.debug:
+    msg:
+      - >-
+        Wave 0.5 maintenance-readiness verdict:
+        {{ maintenance_readiness_verdict if (maintenance_readiness_full_cluster | bool)
+           else 'NON-AUTHORITATIVE/PARTIAL (' ~ maintenance_readiness_verdict ~ ')' }}
+      - "Nodes inspected: {{ maintenance_readiness_inspected_hosts | join(', ') }}"
+      - "Expected cluster members: {{ maintenance_readiness_expected_hosts | join(', ') }}"
+      - "Blocker IDs: {{ maintenance_readiness_blockers | map(attribute='id') | list }}"
+      - "Exception IDs: {{ maintenance_readiness_exceptions | map(attribute='id') | list }}"
+      - "Informational findings: {{ maintenance_readiness_info | length }}"
+
+- name: Reject a partial result as the authoritative Wave 0.5 gate
+  ansible.builtin.assert:
+    that:
+      - maintenance_readiness_full_cluster | bool
+    fail_msg: >-
+      This was a NON-AUTHORITATIVE/PARTIAL readiness run. The authoritative Wave 0.5 gate
+      requires every member of k8s_homelab. Rerun with limit=k8s_homelab (or all).
+      Inspected={{ maintenance_readiness_inspected_hosts | join(',') }};
+      expected={{ maintenance_readiness_expected_hosts | join(',') }}.
+
 - name: Ensure the report directory exists on the controller
   ansible.builtin.file:
     path: "{{ maintenance_readiness_report_dir }}"
@@ -37,14 +73,9 @@
     dest: "{{ maintenance_readiness_report_dir }}/{{ maintenance_readiness_run_id }}.md"
     mode: "0644"
 
-- name: Show the readiness verdict
+- name: Show the controller report path
   ansible.builtin.debug:
-    msg:
-      - "Wave 0.5 maintenance-readiness verdict: {{ maintenance_readiness_verdict }}"
-      - "Blockers: {{ maintenance_readiness_blockers | length }} (unaccepted: {{ maintenance_readiness_unaccepted_blockers | length }})"
-      - "Exceptions: {{ maintenance_readiness_exceptions | length }}"
-      - "Info findings: {{ maintenance_readiness_info | length }}"
-      - "Full report: {{ maintenance_readiness_report_dir }}/{{ maintenance_readiness_run_id }}.md"
+    msg: "Controller report: {{ maintenance_readiness_report_dir }}/{{ maintenance_readiness_run_id }}.md"
 
 - name: Fail the run if the verdict is BLOCKED
   ansible.builtin.fail:
