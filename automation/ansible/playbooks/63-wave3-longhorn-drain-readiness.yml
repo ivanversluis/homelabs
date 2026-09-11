@@ -1,0 +1,13 @@
+---
+# Read-only Longhorn-aware drain analysis for Wave 3. The server-side dry-run used by the
+# generic execution gate cannot persist the node cordon, so Longhorn does not get the normal
+# unschedulable-node signal it uses while reconciling instance-manager PDBs. This playbook
+# gathers the storage state needed before an explicitly approved live cordon probe.
+- name: Wave 3 Longhorn-aware drain readiness
+  hosts: control_plane
+  gather_facts: false
+  serial: 1
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  roles:
+    - wave3_longhorn_drain_readiness
