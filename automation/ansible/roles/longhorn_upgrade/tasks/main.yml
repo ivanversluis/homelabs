@@ -92,17 +92,17 @@
 
 - name: Parse Wave 1 preparation objects
   ansible.builtin.set_fact:
-    longhorn_upgrade_daemonsets: "{{ (longhorn_upgrade_daemonsets_raw.stdout | from_json).items }}"
-    longhorn_upgrade_deployments: "{{ (longhorn_upgrade_deployments_raw.stdout | from_json).items }}"
-    longhorn_upgrade_volumes: "{{ (longhorn_upgrade_volumes_raw.stdout | from_json).items }}"
-    longhorn_upgrade_replicas: "{{ (longhorn_upgrade_replicas_raw.stdout | from_json).items }}"
-    longhorn_upgrade_engines: "{{ (longhorn_upgrade_engines_raw.stdout | from_json).items }}"
-    longhorn_upgrade_backing_images: "{{ (longhorn_upgrade_backing_images_raw.stdout | from_json).items }}"
-    longhorn_upgrade_backing_image_sources: "{{ (longhorn_upgrade_backing_image_sources_raw.stdout | from_json).items }}"
-    longhorn_upgrade_backup_targets: "{{ (longhorn_upgrade_backup_targets_raw.stdout | from_json).items }}"
-    longhorn_upgrade_system_backups: "{{ (longhorn_upgrade_system_backups_raw.stdout | from_json).items }}"
-    longhorn_upgrade_backups: "{{ (longhorn_upgrade_backups_raw.stdout | from_json).items }}"
-    longhorn_upgrade_storage_classes: "{{ (longhorn_upgrade_storage_classes_raw.stdout | from_json).items }}"
+    longhorn_upgrade_daemonsets: "{{ (longhorn_upgrade_daemonsets_raw.stdout | from_json)['items'] }}"
+    longhorn_upgrade_deployments: "{{ (longhorn_upgrade_deployments_raw.stdout | from_json)['items'] }}"
+    longhorn_upgrade_volumes: "{{ (longhorn_upgrade_volumes_raw.stdout | from_json)['items'] }}"
+    longhorn_upgrade_replicas: "{{ (longhorn_upgrade_replicas_raw.stdout | from_json)['items'] }}"
+    longhorn_upgrade_engines: "{{ (longhorn_upgrade_engines_raw.stdout | from_json)['items'] }}"
+    longhorn_upgrade_backing_images: "{{ (longhorn_upgrade_backing_images_raw.stdout | from_json)['items'] }}"
+    longhorn_upgrade_backing_image_sources: "{{ (longhorn_upgrade_backing_image_sources_raw.stdout | from_json)['items'] }}"
+    longhorn_upgrade_backup_targets: "{{ (longhorn_upgrade_backup_targets_raw.stdout | from_json)['items'] }}"
+    longhorn_upgrade_system_backups: "{{ (longhorn_upgrade_system_backups_raw.stdout | from_json)['items'] }}"
+    longhorn_upgrade_backups: "{{ (longhorn_upgrade_backups_raw.stdout | from_json)['items'] }}"
+    longhorn_upgrade_storage_classes: "{{ (longhorn_upgrade_storage_classes_raw.stdout | from_json)['items'] }}"
     longhorn_upgrade_blockers: []
     longhorn_upgrade_latest_system_backup:
       metadata:
