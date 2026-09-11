@@ -1,0 +1,130 @@
+---
+- name: Verify cluster and storage baseline before creating recovery checkpoint
+  ansible.builtin.raw: |
+    set -e
+    bad_nodes="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} get nodes -o json | jq -r '.items[] | select((.status.conditions[] | select(.type=="Ready") | .status) != "True") | .metadata.name')"
+    bad_volumes="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n {{ wave3_checkpoint_longhorn_namespace }} get volumes.longhorn.io -o json | jq -r '.items[] | select(.status.robustness != "healthy") | .metadata.name')"
+    manager="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n {{ wave3_checkpoint_longhorn_namespace }} get daemonset longhorn-manager -o jsonpath='{.spec.template.spec.containers[?(@.name=="longhorn-manager")].image}')"
+    calico="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} get installation.operator.tigera.io default -o jsonpath='{.status.calicoVersion}')"
+    backup_target="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n {{ wave3_checkpoint_longhorn_namespace }} get settings.longhorn.io backup-target -o jsonpath='{.value}')"
+    printf 'bad_nodes=%s\nbad_volumes=%s\nmanager=%s\ncalico=%s\nbackup_target_configured=%s\n' "$bad_nodes" "$bad_volumes" "$manager" "$calico" "$([ -n "$backup_target" ] && echo true || echo false)"
+    test -z "$bad_nodes"
+    test -z "$bad_volumes"
+    test "$manager" = '{{ wave3_checkpoint_expected_longhorn_manager_image }}'
+    test "$calico" = '{{ wave3_checkpoint_expected_calico_version }}'
+    test -n "$backup_target"
+  changed_when: false
+  register: wave3_checkpoint_preflight
+
+- name: Create protected checkpoint directory
+  ansible.builtin.raw: >-
+    install -d -m 0700 {{ wave3_checkpoint_dir }}
+  changed_when: true
+
+- name: Generate checkpoint identity
+  ansible.builtin.raw: date -u +%Y%m%dT%H%M%SZ
+  changed_when: false
+  register: wave3_checkpoint_timestamp
+
+- name: Create and verify fresh etcd snapshot
+  ansible.builtin.raw: |
+    set -e
+    stamp='{{ wave3_checkpoint_timestamp.stdout | trim }}'
+    pod='etcd-{{ inventory_hostname }}'
+    inside="/var/lib/etcd/wave3-pre-control-plane-${stamp}.db"
+    outside="{{ wave3_checkpoint_dir }}/etcd-${stamp}.db"
+
+    kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n kube-system get pod "$pod" >/dev/null
+    kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n kube-system exec "$pod" -- \
+      etcdctl --endpoints=https://127.0.0.1:2379 \
+      --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+      --cert=/etc/kubernetes/pki/etcd/server.crt \
+      --key=/etc/kubernetes/pki/etcd/server.key \
+      snapshot save "$inside"
+
+    test -s "$inside"
+    install -m 0600 "$inside" "$outside"
+    rm -f "$inside"
+    sha256sum "$outside" > "${outside}.sha256"
+    sha256sum -c "${outside}.sha256"
+
+    if kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n kube-system exec "$pod" -- command -v etcdutl >/dev/null 2>&1; then
+      kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n kube-system exec "$pod" -- \
+        etcdutl snapshot status "$outside" >/dev/null 2>&1 || true
+    fi
+
+    printf 'ETCD_SNAPSHOT=%s\n' "$outside"
+  changed_when: true
+  register: wave3_checkpoint_etcd
+
+- name: Create fresh Longhorn SystemBackup with volume backups
+  ansible.builtin.raw: |
+    set -e
+    stamp='{{ wave3_checkpoint_timestamp.stdout | trim | lower }}'
+    name='{{ wave3_checkpoint_systembackup_prefix }}-'"$(printf '%s' "$stamp" | tr '[:upper:]' '[:lower:]')"
+    cat <<EOF | kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} apply -f -
+    apiVersion: longhorn.io/v1beta2
+    kind: SystemBackup
+    metadata:
+      name: ${name}
+      namespace: {{ wave3_checkpoint_longhorn_namespace }}
+    spec:
+      volumeBackupPolicy: always
+    EOF
+    printf 'SYSTEMBACKUP=%s\n' "$name"
+  changed_when: true
+  register: wave3_checkpoint_systembackup_create
+
+- name: Wait for Longhorn SystemBackup to become Ready
+  ansible.builtin.raw: |
+    set -e
+    name="$(printf '%s\n' '{{ wave3_checkpoint_systembackup_create.stdout }}' | sed -n 's/^SYSTEMBACKUP=//p' | tail -1)"
+    test -n "$name"
+    elapsed=0
+    while [ "$elapsed" -lt {{ wave3_checkpoint_systembackup_timeout_seconds }} ]; do
+      state="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n {{ wave3_checkpoint_longhorn_namespace }} get systembackups.longhorn.io "$name" -o jsonpath='{.status.state}' 2>/dev/null || true)"
+      error="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n {{ wave3_checkpoint_longhorn_namespace }} get systembackups.longhorn.io "$name" -o jsonpath='{.status.error}' 2>/dev/null || true)"
+      printf 'systembackup=%s state=%s error=%s\n' "$name" "$state" "$error"
+      if [ "$state" = Ready ]; then
+        policy="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n {{ wave3_checkpoint_longhorn_namespace }} get systembackups.longhorn.io "$name" -o jsonpath='{.spec.volumeBackupPolicy}')"
+        test "$policy" = always
+        exit 0
+      fi
+      if [ "$state" = Error ] || [ -n "$error" ]; then
+        exit 1
+      fi
+      sleep {{ wave3_checkpoint_poll_seconds }}
+      elapsed=$((elapsed + {{ wave3_checkpoint_poll_seconds }}))
+    done
+    echo 'Longhorn SystemBackup did not become Ready before timeout'
+    exit 1
+  changed_when: false
+  register: wave3_checkpoint_systembackup_ready
+
+- name: Persist checkpoint marker for the control-plane upgrade gate
+  ansible.builtin.raw: |
+    set -e
+    stamp='{{ wave3_checkpoint_timestamp.stdout | trim }}'
+    etcd_path="$(printf '%s\n' '{{ wave3_checkpoint_etcd.stdout }}' | sed -n 's/^ETCD_SNAPSHOT=//p' | tail -1)"
+    systembackup="$(printf '%s\n' '{{ wave3_checkpoint_systembackup_create.stdout }}' | sed -n 's/^SYSTEMBACKUP=//p' | tail -1)"
+    test -s "$etcd_path"
+    test -n "$systembackup"
+    cat > {{ wave3_checkpoint_marker }} <<EOF
+    CHECKPOINT_UTC=${stamp}
+    ETCD_SNAPSHOT=${etcd_path}
+    SYSTEMBACKUP=${systembackup}
+    EOF
+    chmod 0600 {{ wave3_checkpoint_marker }}
+    cat {{ wave3_checkpoint_marker }}
+  changed_when: true
+  register: wave3_checkpoint_marker_result
+
+- name: Show fresh recovery checkpoint evidence
+  ansible.builtin.debug:
+    msg:
+      - "WAVE 3 RECOVERY CHECKPOINT: READY"
+      - "Preflight={{ wave3_checkpoint_preflight.stdout_lines | default([]) }}"
+      - "Etcd={{ wave3_checkpoint_etcd.stdout_lines | default([]) }}"
+      - "Longhorn={{ wave3_checkpoint_systembackup_ready.stdout_lines | default([]) }}"
+      - "Marker={{ wave3_checkpoint_marker_result.stdout_lines | default([]) }}"
+      - "No node was cordoned, drained, rebooted, or upgraded."
