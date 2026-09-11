@@ -1,0 +1,89 @@
+---
+- name: Confirm Longhorn manager baseline
+  ansible.builtin.raw: |
+    set -e
+    image="$(kubectl --kubeconfig={{ wave3_lh_engine_kubeconfig }} -n {{ wave3_lh_engine_namespace }} get daemonset longhorn-manager -o jsonpath='{.spec.template.spec.containers[?(@.name=="longhorn-manager")].image}')"
+    printf 'manager_image=%s\n' "$image"
+    test "$image" = "{{ wave3_lh_engine_expected_manager_image }}"
+  changed_when: false
+  register: wave3_lh_engine_manager
+
+- name: Record Longhorn volumes with desired/current engine image
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_lh_engine_kubeconfig }} -n {{ wave3_lh_engine_namespace }}
+    get volumes.longhorn.io
+    -o custom-columns=NAME:.metadata.name,STATE:.status.state,ROBUSTNESS:.status.robustness,CURRENT_NODE:.status.currentNodeID,SPEC_IMAGE:.spec.image,CURRENT_IMAGE:.status.currentImage
+  changed_when: false
+  register: wave3_lh_engine_volumes
+
+- name: Record Longhorn engines and instance-manager assignments
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_lh_engine_kubeconfig }} -n {{ wave3_lh_engine_namespace }}
+    get engines.longhorn.io
+    -o custom-columns=NAME:.metadata.name,VOLUME:.spec.volumeName,NODE:.spec.nodeID,SPEC_IMAGE:.spec.image,CURRENT_STATE:.status.currentState,CURRENT_IMAGE:.status.currentImage,INSTANCE_MANAGER:.status.instanceManagerName
+  changed_when: false
+  register: wave3_lh_engine_engines
+
+- name: Record Longhorn replicas and instance-manager assignments
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_lh_engine_kubeconfig }} -n {{ wave3_lh_engine_namespace }}
+    get replicas.longhorn.io
+    -o custom-columns=NAME:.metadata.name,VOLUME:.spec.volumeName,NODE:.spec.nodeID,SPEC_IMAGE:.spec.image,CURRENT_STATE:.status.currentState,INSTANCE_MANAGER:.status.instanceManagerName
+  changed_when: false
+  register: wave3_lh_engine_replicas
+
+- name: Record instance managers and images
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_lh_engine_kubeconfig }} -n {{ wave3_lh_engine_namespace }}
+    get instancemanagers.longhorn.io
+    -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeID,TYPE:.spec.type,STATE:.status.currentState,IMAGE:.spec.image
+  changed_when: false
+  register: wave3_lh_engine_instance_managers
+
+- name: Record engine images
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_lh_engine_kubeconfig }} -n {{ wave3_lh_engine_namespace }}
+    get engineimages.longhorn.io
+    -o custom-columns=NAME:.metadata.name,IMAGE:.spec.image,STATE:.status.state,REFCOUNT:.status.refCount,NOREFSINCE:.status.noRefSince
+  changed_when: false
+  register: wave3_lh_engine_images
+
+- name: Record default engine-image setting if present
+  ansible.builtin.raw: |
+    kubectl --kubeconfig={{ wave3_lh_engine_kubeconfig }} -n {{ wave3_lh_engine_namespace }} get settings.longhorn.io default-engine-image -o jsonpath='{.value}{"\n"}' 2>/dev/null || true
+  changed_when: false
+  register: wave3_lh_engine_default_setting
+
+- name: Record workloads still referencing old Longhorn engine images
+  ansible.builtin.raw: |
+    set -e
+    printf '%s\n' 'OLD_VOLUMES'
+    kubectl --kubeconfig={{ wave3_lh_engine_kubeconfig }} -n {{ wave3_lh_engine_namespace }} get volumes.longhorn.io -o json | \
+      jq -r '.items[] | select(((.spec.image // "") | contains("{{ wave3_lh_engine_old_version_marker }}")) or ((.status.currentImage // "") | contains("{{ wave3_lh_engine_old_version_marker }}"))) | [.metadata.name,.status.state,.status.robustness,.spec.image,.status.currentImage,.status.currentNodeID] | @tsv'
+    printf '%s\n' 'OLD_ENGINES'
+    kubectl --kubeconfig={{ wave3_lh_engine_kubeconfig }} -n {{ wave3_lh_engine_namespace }} get engines.longhorn.io -o json | \
+      jq -r '.items[] | select(((.spec.image // "") | contains("{{ wave3_lh_engine_old_version_marker }}")) or ((.status.currentImage // "") | contains("{{ wave3_lh_engine_old_version_marker }}"))) | [.metadata.name,.spec.volumeName,.spec.nodeID,.spec.image,.status.currentImage,.status.currentState,.status.instanceManagerName] | @tsv'
+    printf '%s\n' 'OLD_REPLICAS'
+    kubectl --kubeconfig={{ wave3_lh_engine_kubeconfig }} -n {{ wave3_lh_engine_namespace }} get replicas.longhorn.io -o json | \
+      jq -r '.items[] | select((.spec.image // "") | contains("{{ wave3_lh_engine_old_version_marker }}")) | [.metadata.name,.spec.volumeName,.spec.nodeID,.spec.image,.status.currentState,.status.instanceManagerName] | @tsv'
+  changed_when: false
+  register: wave3_lh_engine_old_refs
+
+- name: Show Longhorn engine-image audit evidence
+  ansible.builtin.debug:
+    msg:
+      - "Manager={{ wave3_lh_engine_manager.stdout_lines | default([]) }}"
+      - "Default engine image={{ wave3_lh_engine_default_setting.stdout_lines | default([]) }}"
+      - "Volumes={{ wave3_lh_engine_volumes.stdout_lines | default([]) }}"
+      - "Engines={{ wave3_lh_engine_engines.stdout_lines | default([]) }}"
+      - "Replicas={{ wave3_lh_engine_replicas.stdout_lines | default([]) }}"
+      - "Instance managers={{ wave3_lh_engine_instance_managers.stdout_lines | default([]) }}"
+      - "EngineImages={{ wave3_lh_engine_images.stdout_lines | default([]) }}"
+      - "Old image references={{ wave3_lh_engine_old_refs.stdout_lines | default([]) }}"
+
+- name: Show Wave 3 Longhorn engine-audit verdict
+  ansible.builtin.debug:
+    msg:
+      - "WAVE 3 LONGHORN ENGINE AUDIT: READ-ONLY EVIDENCE COLLECTED"
+      - "Mixed v1.11/v1.12.1 instance-manager images were observed in Task 51, so no live cordon probe is approved until the engine/replica mapping above is reviewed."
+      - "No Longhorn object, volume, node, workload, or Kubernetes node was modified by this playbook."
