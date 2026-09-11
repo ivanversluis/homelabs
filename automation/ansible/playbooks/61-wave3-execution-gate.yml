@@ -1,0 +1,13 @@
+---
+# Read-only pre-mutation gate for Wave 3. This playbook intentionally runs only on the
+# control-plane node and uses kubectl server-side dry-run for drain simulation. It does not
+# persist cordons/evictions, change kubeadm configuration, update packages, restart services,
+# or reboot nodes.
+- name: Wave 3 kubeadm configuration and drain execution gate
+  hosts: control_plane
+  gather_facts: false
+  serial: 1
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  roles:
+    - wave3_execution_gate
