@@ -1,10 +1,10 @@
 # Wave 3: coordinated Arch Linux + Kubernetes
 
-Status: **LIVE PREFLIGHT COMPLETE — KUBEADM CONFIG REPAIRED — LONGHORN ENGINE AUDIT PENDING**.
+Status: **LIVE PREFLIGHT COMPLETE — KUBEADM CONFIG REPAIRED — LONGHORN ENGINE AUDIT COMPLETE — LIVE DRAIN CANARY PREPARED BUT NOT APPROVED**.
 
 Wave 3 is the first lifecycle stage where host package state, reboot behavior, kubeadm ordering,
-CNI/storage health and disruption policy interact. Preparation and execution are therefore
-intentionally separated.
+CNI/storage health and disruption policy interact. Preparation and execution are intentionally
+separated.
 
 ## Live preflight evidence — Semaphore task 45
 
@@ -57,47 +57,86 @@ No workload was actually evicted because the command used `--dry-run=server`.
 
 ## Longhorn-aware drain evidence — Semaphore task 51
 
-`playbooks/63-wave3-longhorn-drain-readiness.yml` completed successfully and collected the
-storage-side evidence needed to interpret the Task 50 PDB blocker.
+`playbooks/63-wave3-longhorn-drain-readiness.yml` completed successfully and established:
 
-Observed state:
-
-- all workers are Ready;
+- all workers Ready;
 - `node-drain-policy=block-if-contains-last-replica`;
 - `detach-manually-attached-volumes-when-cordoned=false`;
 - `disable-scheduling-on-cordoned-node=true`;
-- all Longhorn nodes currently allow scheduling and have no eviction requested;
+- all Longhorn nodes allow scheduling and have no eviction requested;
 - all listed volumes are attached and healthy with two replicas;
-- replica placement is distributed across the worker set;
-- every instance-manager PDB currently has `minAvailable=1` and `disruptionsAllowed=0`;
-- importantly, each worker still runs two AIO instance managers: one using
-  `longhorn-instance-manager:v1.12.1` and one using `v1.11.0-hotfix-1`.
+- replicas are distributed across the worker set;
+- every instance-manager PDB has `minAvailable=1` and `disruptionsAllowed=0`;
+- each worker runs two AIO instance managers: one `v1.12.1` and one `v1.11.0-hotfix-1`.
 
-The mixed instance-manager versions change the next decision. Longhorn v1.12.1 documents that
-old instance-manager pods can remain after a live engine upgrade while they still host an active
-engine process; they are removed only after no engine/replica processes remain, often after the
-relevant volume is detached. Therefore a temporary live-cordon probe is deferred until the
-remaining old instance-manager processes are mapped to their volumes/engines.
+The mixed instance-manager state required an engine/replica mapping audit before attempting any
+live cordon or drain.
 
-Run the new read-only audit:
+## Longhorn engine-image audit — Semaphore task 52
+
+`playbooks/64-wave3-longhorn-engine-audit.yml` completed successfully and resolved the ambiguity.
+
+Observed state:
+
+- Longhorn manager image is `docker.io/longhornio/longhorn-manager:v1.12.1`;
+- default engine image is `docker.io/longhornio/longhorn-engine:v1.12.1`;
+- every listed volume has both desired and current engine image `v1.12.1`;
+- every listed engine has desired and current engine image `v1.12.1`;
+- every listed replica uses `v1.12.1`;
+- the old-image scan returned only the section headers `OLD_VOLUMES`, `OLD_ENGINES`, and
+  `OLD_REPLICAS`, with no resources below them;
+- the only EngineImage object is the deployed v1.12.1 image;
+- replicas run in the v1.12.1 instance managers;
+- active engines still run inside the old v1.11.0-hotfix-1 instance managers, one old instance
+  manager per worker.
+
+Therefore Wave 1 engine migration itself is complete. The remaining v1.11 instance managers are
+runtime leftovers hosting already-upgraded v1.12.1 engine processes for currently attached
+volumes. They cannot become empty during a server-side drain dry-run because workload pods are
+not actually evicted, so the attached volumes never detach or move. This explains why Task 50
+repeatedly hit those instance-manager PDBs despite all volume/engine/replica images being current.
+
+Do not delete the old instance-manager pods manually and do not weaken the Longhorn drain policy.
+
+## Prepared live worker drain canary — approval required
+
+A dedicated canary is now prepared as:
 
 ```text
-playbook=playbooks/64-wave3-longhorn-engine-audit.yml
+playbook=playbooks/65-wave3-worker-drain-canary.yml
 limit=k8s-master01
 ```
 
-It records:
+It is committed with `wave3_canary_approved: false` and therefore stops before mutation. A later
+explicit operator approval must activate it in Git.
 
-- volume desired/current engine image;
-- engine desired/current image and assigned instance manager;
-- replica desired image and assigned instance manager;
-- all instance-manager images;
-- engine-image objects/refcounts;
-- the default engine-image setting;
-- any volume, engine or replica references that still contain the v1.11 marker.
+The canary is intentionally restricted to `k8s-worker02`. Task 50 showed no Semaphore/Vault
+workload on that node, and the role re-checks that condition immediately before mutation.
 
-No cordon, drain, detach, engine upgrade, pod deletion, Longhorn mutation, package change or
-Kubernetes upgrade is allowed until that audit is reviewed.
+Once explicitly activated, it will:
+
+1. revalidate the worker, Longhorn policy, manager/default-engine image, volume health and absence
+   of v1.11 volume/engine/replica image references;
+2. refuse to continue if Semaphore or Vault workloads are on the target;
+3. record pre-drain instance-manager/PDB/workload evidence;
+4. persist a real cordon on `k8s-worker02`;
+5. perform a real Kubernetes drain with ordinary eviction/PDB semantics;
+6. never use `--disable-eviction`, `--force`, forced pod deletion, or a weaker Longhorn policy;
+7. wait for all Longhorn volumes to return healthy and record post-drain state;
+8. always uncordon the node in an Ansible `always` block.
+
+This is a disruptive canary: application pods on worker02 will be evicted and rescheduled. Merely
+cordoning without workload eviction would not empty the old instance manager because Task 52
+shows it is hosting active engines for attached volumes.
+
+If Semaphore itself is interrupted after the cordon and before the Ansible cleanup path, use the
+independent break-glass route and run:
+
+```bash
+kubectl uncordon k8s-worker02
+```
+
+Do not activate or execute this canary without explicit operator approval.
 
 ## Target-selection rule
 
@@ -117,7 +156,7 @@ however, requires kubeadm/control-plane-first ordering for a minor upgrade and k
 be advanced ahead of the API server. Wave 3 must therefore keep these concerns explicit rather
 than running one blind `pacman -Syu` loop.
 
-Planned stages after the Longhorn drain gate is clean:
+Planned stages after the live drain canary proves ordinary eviction behavior:
 
 1. refresh/reconfirm package targets without creating a partial-upgrade state;
 2. perform worker-canary Arch host maintenance while holding Kubernetes packages at the current minor;
@@ -141,6 +180,6 @@ max_fail_percentage: 0
 Never bypass PDBs by default, never use `kubectl drain --disable-eviction` as a routine option,
 never run `pacman -Syu` concurrently, and never use `pacman -Sy <package>`.
 
-The single control-plane node has no HA fallback. Before mutation re-confirm etcd recovery,
-Longhorn backups/volume health, Vault/Semaphore recovery and the independent admin break-glass
-route.
+The single control-plane node has no HA fallback. Before host/Kubernetes mutation re-confirm etcd
+recovery, Longhorn backups/volume health, Vault/Semaphore recovery and the independent admin
+break-glass route.

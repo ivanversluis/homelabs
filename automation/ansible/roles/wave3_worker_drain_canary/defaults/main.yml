@@ -1,0 +1,18 @@
+---
+wave3_canary_kubeconfig: /etc/kubernetes/admin.conf
+wave3_canary_longhorn_namespace: longhorn-system
+wave3_canary_target_node: k8s-worker02
+wave3_canary_allowed_nodes:
+  - k8s-worker02
+wave3_canary_expected_policy: block-if-contains-last-replica
+wave3_canary_expected_manager_image: docker.io/longhornio/longhorn-manager:v1.12.1
+wave3_canary_expected_engine_image: docker.io/longhornio/longhorn-engine:v1.12.1
+wave3_canary_old_instance_manager_marker: v1.11
+wave3_canary_control_tower_namespaces:
+  - semaphoreui
+  - vault
+wave3_canary_non_longhorn_selector: "!longhorn.io/component,app!=csi-attacher,app!=csi-provisioner,app!=csi-snapshotter,app!=csi-resizer,app!=longhorn-driver-deployer,app!=longhorn-ui"
+wave3_canary_workload_drain_timeout: 10m
+wave3_canary_full_dry_run_timeout: 2m
+wave3_canary_old_im_cleanup_timeout_seconds: 300
+wave3_canary_volume_stabilize_timeout_seconds: 300

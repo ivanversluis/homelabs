@@ -1,0 +1,189 @@
+---
+# This role is intentionally activation-gated. Preparing it in Git does not authorize a live
+# drain. A later, explicit operator approval must set wave3_canary_approved=true in Git before
+# Semaphore can perform the canary.
+
+- name: Require explicit activation of the disruptive worker-drain canary
+  ansible.builtin.assert:
+    that:
+      - wave3_canary_approved | default(false) | bool
+      - wave3_canary_target_node in wave3_canary_allowed_nodes
+    fail_msg: >-
+      WAVE 3 CANARY NOT APPROVED. This playbook performs real workload evictions on exactly one
+      worker. Keep wave3_canary_approved=false until the operator explicitly approves the live
+      canary and the activation is committed to Git.
+
+- name: Verify canary node is Ready and currently schedulable
+  ansible.builtin.raw: |
+    set -e
+    ready="$(kubectl --kubeconfig={{ wave3_canary_kubeconfig }} get node {{ wave3_canary_target_node }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')"
+    unsched="$(kubectl --kubeconfig={{ wave3_canary_kubeconfig }} get node {{ wave3_canary_target_node }} -o jsonpath='{.spec.unschedulable}')"
+    printf 'node=%s ready=%s unschedulable=%s\n' '{{ wave3_canary_target_node }}' "$ready" "${unsched:-false}"
+    test "$ready" = True
+    test "${unsched:-false}" != true
+  changed_when: false
+  register: wave3_canary_node_pre
+
+- name: Verify Longhorn safety baseline before canary
+  ansible.builtin.raw: |
+    set -e
+    policy="$(kubectl --kubeconfig={{ wave3_canary_kubeconfig }} -n {{ wave3_canary_longhorn_namespace }} get settings.longhorn.io node-drain-policy -o jsonpath='{.value}')"
+    manager="$(kubectl --kubeconfig={{ wave3_canary_kubeconfig }} -n {{ wave3_canary_longhorn_namespace }} get daemonset longhorn-manager -o jsonpath='{.spec.template.spec.containers[?(@.name=="longhorn-manager")].image}')"
+    default_engine="$(kubectl --kubeconfig={{ wave3_canary_kubeconfig }} -n {{ wave3_canary_longhorn_namespace }} get settings.longhorn.io default-engine-image -o jsonpath='{.value}')"
+    bad_volumes="$(kubectl --kubeconfig={{ wave3_canary_kubeconfig }} -n {{ wave3_canary_longhorn_namespace }} get volumes.longhorn.io -o json | jq -r '.items[] | select(.status.robustness != "healthy") | .metadata.name')"
+    old_refs="$(kubectl --kubeconfig={{ wave3_canary_kubeconfig }} -n {{ wave3_canary_longhorn_namespace }} get volumes.longhorn.io,engines.longhorn.io,replicas.longhorn.io -o json | jq -r --arg old '{{ wave3_canary_old_instance_manager_marker }}' '.items[] | select(((.spec.image // "") | contains($old)) or ((.status.currentImage // "") | contains($old))) | .metadata.name')"
+    printf 'policy=%s\nmanager=%s\ndefault_engine=%s\nbad_volumes=%s\nold_engine_refs=%s\n' "$policy" "$manager" "$default_engine" "$bad_volumes" "$old_refs"
+    test "$policy" = '{{ wave3_canary_expected_policy }}'
+    test "$manager" = '{{ wave3_canary_expected_manager_image }}'
+    test "$default_engine" = '{{ wave3_canary_expected_engine_image }}'
+    test -z "$bad_volumes"
+    test -z "$old_refs"
+  changed_when: false
+  register: wave3_canary_longhorn_pre
+
+- name: Verify control-tower workloads are not on the canary node
+  ansible.builtin.raw: |
+    set -e
+    found=""
+    for ns in {{ wave3_canary_control_tower_namespaces | join(' ') }}; do
+      names="$(kubectl --kubeconfig={{ wave3_canary_kubeconfig }} -n "$ns" get pods --field-selector spec.nodeName={{ wave3_canary_target_node }} -o json | jq -r '.items[].metadata.name')"
+      if [ -n "$names" ]; then
+        printf '%s\n' "$names" | sed "s#^#$ns/#"
+        found=1
+      fi
+    done
+    test -z "$found"
+  changed_when: false
+  register: wave3_canary_control_tower_pre
+
+- name: Record pre-canary instance-manager and PDB state
+  ansible.builtin.raw: |
+    printf '%s\n' 'INSTANCE_MANAGERS'
+    kubectl --kubeconfig={{ wave3_canary_kubeconfig }} -n {{ wave3_canary_longhorn_namespace }} get instancemanagers.longhorn.io \
+      -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeID,STATE:.status.currentState,IMAGE:.spec.image
+    printf '%s\n' 'PDBS'
+    kubectl --kubeconfig={{ wave3_canary_kubeconfig }} -n {{ wave3_canary_longhorn_namespace }} get poddisruptionbudgets.policy \
+      -o custom-columns=NAME:.metadata.name,CURRENT_HEALTHY:.status.currentHealthy,DESIRED_HEALTHY:.status.desiredHealthy,DISRUPTIONS_ALLOWED:.status.disruptionsAllowed
+    printf '%s\n' 'TARGET_WORKLOADS'
+    kubectl --kubeconfig={{ wave3_canary_kubeconfig }} get pods -A --field-selector spec.nodeName={{ wave3_canary_target_node }} -o wide
+  changed_when: false
+  register: wave3_canary_pre_evidence
+
+- name: Show canary preflight evidence
+  ansible.builtin.debug:
+    msg:
+      - "Node={{ wave3_canary_node_pre.stdout_lines | default([]) }}"
+      - "Longhorn={{ wave3_canary_longhorn_pre.stdout_lines | default([]) }}"
+      - "Control tower on target={{ wave3_canary_control_tower_pre.stdout_lines | default([]) }}"
+      - "Pre-canary evidence={{ wave3_canary_pre_evidence.stdout_lines | default([]) }}"
+
+- name: Execute reversible one-worker drain canary
+  block:
+    - name: Cordon the canary worker
+      ansible.builtin.raw: >-
+        kubectl --kubeconfig={{ wave3_canary_kubeconfig }} cordon {{ wave3_canary_target_node }}
+      changed_when: true
+
+    - name: Confirm Longhorn observes a persistently cordoned Kubernetes node
+      ansible.builtin.raw: |
+        set -e
+        unsched="$(kubectl --kubeconfig={{ wave3_canary_kubeconfig }} get node {{ wave3_canary_target_node }} -o jsonpath='{.spec.unschedulable}')"
+        printf 'node=%s unschedulable=%s\n' '{{ wave3_canary_target_node }}' "$unsched"
+        test "$unsched" = true
+        sleep 10
+      changed_when: false
+
+    # A real drain is required here. Task 52 proved that all volume/engine/replica images are
+    # v1.12.1 but active engines remain hosted by old v1.11 instance-manager pods. A dry-run
+    # never actually evicts workload pods, so their volumes never detach/move and the old
+    # instance managers never become empty. We therefore let Kubernetes perform normal
+    # eviction semantics and rely on the existing Longhorn/PDB protections. No bypass flags.
+    - name: Drain the canary worker using normal eviction semantics
+      ansible.builtin.raw: >-
+        kubectl --kubeconfig={{ wave3_canary_kubeconfig }} drain {{ wave3_canary_target_node }}
+        --ignore-daemonsets
+        --delete-emptydir-data
+        --timeout={{ wave3_canary_workload_drain_timeout }}
+      changed_when: true
+      failed_when: false
+      register: wave3_canary_drain
+
+    - name: Show live drain evidence before evaluating the result
+      ansible.builtin.debug:
+        msg: >-
+          rc={{ wave3_canary_drain.rc }} output={{ (wave3_canary_drain.stdout_lines | default([])) +
+          (wave3_canary_drain.stderr_lines | default([])) }}
+
+    - name: Require normal drain to complete without bypassing PDBs
+      ansible.builtin.assert:
+        that:
+          - wave3_canary_drain.rc == 0
+        fail_msg: >-
+          The canary drain did not complete using normal eviction semantics. The node will be
+          uncordoned by the always block. Do not add --disable-eviction, --force, delete an
+          instance-manager pod, or weaken the Longhorn node-drain policy.
+
+    - name: Wait for all Longhorn volumes to return healthy
+      ansible.builtin.raw: |
+        set -e
+        i=0
+        while [ "$i" -lt {{ wave3_canary_volume_stabilize_timeout_seconds }} ]; do
+          bad="$(kubectl --kubeconfig={{ wave3_canary_kubeconfig }} -n {{ wave3_canary_longhorn_namespace }} get volumes.longhorn.io -o json | jq -r '.items[] | select(.status.robustness != "healthy") | .metadata.name')"
+          if [ -z "$bad" ]; then
+            printf '%s\n' 'all Longhorn volumes healthy'
+            exit 0
+          fi
+          printf 'waiting for healthy volumes: %s\n' "$bad"
+          sleep 5
+          i=$((i + 5))
+        done
+        printf '%s\n' 'Longhorn volumes did not return healthy within the timeout'
+        exit 1
+      changed_when: false
+      register: wave3_canary_volume_health
+
+    - name: Record post-drain Longhorn instance-manager and PDB state
+      ansible.builtin.raw: |
+        printf '%s\n' 'INSTANCE_MANAGERS'
+        kubectl --kubeconfig={{ wave3_canary_kubeconfig }} -n {{ wave3_canary_longhorn_namespace }} get instancemanagers.longhorn.io \
+          -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeID,STATE:.status.currentState,IMAGE:.spec.image
+        printf '%s\n' 'PDBS'
+        kubectl --kubeconfig={{ wave3_canary_kubeconfig }} -n {{ wave3_canary_longhorn_namespace }} get poddisruptionbudgets.policy \
+          -o custom-columns=NAME:.metadata.name,CURRENT_HEALTHY:.status.currentHealthy,DESIRED_HEALTHY:.status.desiredHealthy,DISRUPTIONS_ALLOWED:.status.disruptionsAllowed
+        printf '%s\n' 'TARGET_REMAINING_PODS'
+        kubectl --kubeconfig={{ wave3_canary_kubeconfig }} get pods -A --field-selector spec.nodeName={{ wave3_canary_target_node }} -o wide
+      changed_when: false
+      register: wave3_canary_post_evidence
+
+    - name: Show successful canary evidence
+      ansible.builtin.debug:
+        msg:
+          - "WAVE 3 WORKER DRAIN CANARY: DRAIN COMPLETED WITH NORMAL EVICTIONS"
+          - "Longhorn={{ wave3_canary_volume_health.stdout_lines | default([]) }}"
+          - "Post-drain evidence={{ wave3_canary_post_evidence.stdout_lines | default([]) }}"
+
+  always:
+    - name: Always uncordon the canary worker
+      ansible.builtin.raw: >-
+        kubectl --kubeconfig={{ wave3_canary_kubeconfig }} uncordon {{ wave3_canary_target_node }}
+      changed_when: true
+      failed_when: false
+      register: wave3_canary_uncordon
+
+    - name: Verify canary worker is schedulable after cleanup
+      ansible.builtin.raw: |
+        set -e
+        unsched="$(kubectl --kubeconfig={{ wave3_canary_kubeconfig }} get node {{ wave3_canary_target_node }} -o jsonpath='{.spec.unschedulable}')"
+        ready="$(kubectl --kubeconfig={{ wave3_canary_kubeconfig }} get node {{ wave3_canary_target_node }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')"
+        printf 'node=%s ready=%s unschedulable=%s\n' '{{ wave3_canary_target_node }}' "$ready" "${unsched:-false}"
+        test "$ready" = True
+        test "${unsched:-false}" != true
+      changed_when: false
+      register: wave3_canary_cleanup_state
+
+    - name: Show canary cleanup state
+      ansible.builtin.debug:
+        msg:
+          - "uncordon rc={{ wave3_canary_uncordon.rc | default('unknown') }}"
+          - "cleanup={{ wave3_canary_cleanup_state.stdout_lines | default([]) }}"
+          - "If Semaphore itself was interrupted before the always block, break-glass recovery is: kubectl uncordon {{ wave3_canary_target_node }}"
