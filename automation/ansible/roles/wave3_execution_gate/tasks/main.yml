@@ -1,0 +1,100 @@
+---
+# Read-only Wave 3 execution gate. This is the last evidence-gathering step before any
+# package/kubeadm mutation is considered. A failure here is a hard stop.
+
+- name: Show kubeadm ClusterConfiguration with line numbers
+  ansible.builtin.raw: |
+    kubectl --kubeconfig={{ wave3_gate_kubeconfig }} -n kube-system \
+      get configmap kubeadm-config -o jsonpath='{.data.ClusterConfiguration}' | nl -ba
+  changed_when: false
+  register: wave3_gate_kubeadm_config_numbered
+
+- name: Run kubeadm upgrade plan and capture warnings
+  ansible.builtin.raw: kubeadm upgrade plan 2>&1
+  changed_when: false
+  failed_when: false
+  register: wave3_gate_upgrade_plan
+
+- name: Block on malformed kubeadm configuration
+  ansible.builtin.assert:
+    that:
+      - wave3_gate_upgrade_plan.rc == 0
+      - "'strict decoding error' not in (wave3_gate_upgrade_plan.stdout | lower)"
+      - "'already set in map' not in (wave3_gate_upgrade_plan.stdout | lower)"
+      - "'error unmarshaling configuration' not in (wave3_gate_upgrade_plan.stdout | lower)"
+    fail_msg: >-
+      Wave 3 is BLOCKED because kubeadm reports a malformed ClusterConfiguration. The
+      numbered live configuration is printed below. Do not run kubeadm upgrade apply or
+      package mutation until the duplicate/invalid key is corrected deliberately.
+
+- name: Show numbered kubeadm configuration and upgrade-plan evidence
+  ansible.builtin.debug:
+    msg:
+      - "ClusterConfiguration={{ wave3_gate_kubeadm_config_numbered.stdout_lines | default([]) }}"
+      - "kubeadm upgrade plan={{ wave3_gate_upgrade_plan.stdout_lines | default([]) }}"
+
+- name: Confirm current Calico baseline
+  ansible.builtin.raw: |
+    set -e
+    version="$(kubectl --kubeconfig={{ wave3_gate_kubeconfig }} get installation.operator.tigera.io default -o jsonpath='{.status.calicoVersion}')"
+    test "$version" = "{{ wave3_gate_expected_calico_version }}"
+    kubectl --kubeconfig={{ wave3_gate_kubeconfig }} get tigerastatus
+  changed_when: false
+  register: wave3_gate_calico
+
+- name: Confirm current Longhorn baseline and healthy volumes
+  ansible.builtin.raw: |
+    set -e
+    image="$(kubectl --kubeconfig={{ wave3_gate_kubeconfig }} -n longhorn-system get daemonset longhorn-manager -o jsonpath='{.spec.template.spec.containers[?(@.name=="longhorn-manager")].image}')"
+    test "$image" = "{{ wave3_gate_expected_longhorn_manager_image }}"
+    bad="$(kubectl --kubeconfig={{ wave3_gate_kubeconfig }} -n longhorn-system get volumes.longhorn.io -o jsonpath='{range .items[?(@.status.robustness!="healthy")]}{.metadata.name}{"\n"}{end}')"
+    test -z "$bad"
+    kubectl --kubeconfig={{ wave3_gate_kubeconfig }} -n longhorn-system get settings.longhorn.io node-drain-policy -o jsonpath='{.value}{"\n"}'
+  changed_when: false
+  register: wave3_gate_longhorn
+
+- name: Confirm Flux has no not-ready Kustomizations or HelmReleases
+  ansible.builtin.raw: |
+    set -e
+    bad="$(kubectl --kubeconfig={{ wave3_gate_kubeconfig }} -n flux-system get kustomizations,helmreleases -o jsonpath='{range .items[?(@.status.conditions[?(@.type=="Ready")].status!="True")]}{.kind}{"/"}{.metadata.name}{"\n"}{end}')"
+    test -z "$bad"
+  changed_when: false
+
+- name: Simulate worker drains with server-side dry-run
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_gate_kubeconfig }} drain {{ item }}
+    --ignore-daemonsets
+    --delete-emptydir-data
+    --dry-run=server
+    --timeout=60s
+  changed_when: false
+  failed_when: false
+  loop: "{{ wave3_gate_worker_nodes }}"
+  register: wave3_gate_drain_simulations
+
+- name: Report worker drain simulations
+  ansible.builtin.debug:
+    msg: >-
+      node={{ item.item }} rc={{ item.rc }} output={{ (item.stdout_lines | default([])) + (item.stderr_lines | default([])) }}
+  loop: "{{ wave3_gate_drain_simulations.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Block if any worker drain simulation fails
+  ansible.builtin.assert:
+    that:
+      - (wave3_gate_drain_simulations.results | selectattr('rc', 'ne', 0) | list | length) == 0
+    fail_msg: >-
+      Wave 3 worker maintenance is BLOCKED because at least one server-side drain dry-run
+      failed. Resolve the reported PDB/Longhorn/workload disruption constraint; do not use
+      --disable-eviction as a workaround.
+
+- name: Show Wave 3 execution-gate verdict
+  ansible.builtin.debug:
+    msg:
+      - "WAVE 3 EXECUTION GATE: READY FOR OPERATOR REVIEW"
+      - "Kubernetes target candidate={{ wave3_gate_target_patch }}; no upgrade executed"
+      - "Calico baseline={{ wave3_gate_expected_calico_version }} confirmed"
+      - "Longhorn baseline={{ wave3_gate_expected_longhorn_manager_image }} confirmed"
+      - "All worker drain simulations passed with server-side dry-run"
+      - "Next step remains an explicit operator approval before any package synchronization or kubeadm mutation"
