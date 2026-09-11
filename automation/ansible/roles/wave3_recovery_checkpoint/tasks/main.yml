@@ -6,13 +6,14 @@
     bad_volumes="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n {{ wave3_checkpoint_longhorn_namespace }} get volumes.longhorn.io -o json | jq -r '.items[] | select(.status.robustness != "healthy") | .metadata.name')"
     manager="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n {{ wave3_checkpoint_longhorn_namespace }} get daemonset longhorn-manager -o jsonpath='{.spec.template.spec.containers[?(@.name=="longhorn-manager")].image}')"
     calico="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} get installation.operator.tigera.io default -o jsonpath='{.status.calicoVersion}')"
-    backup_target="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n {{ wave3_checkpoint_longhorn_namespace }} get settings.longhorn.io backup-target -o jsonpath='{.value}')"
-    printf 'bad_nodes=%s\nbad_volumes=%s\nmanager=%s\ncalico=%s\nbackup_target_configured=%s\n' "$bad_nodes" "$bad_volumes" "$manager" "$calico" "$([ -n "$backup_target" ] && echo true || echo false)"
+    backup_targets="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n {{ wave3_checkpoint_longhorn_namespace }} get backuptargets.longhorn.io -o json)"
+    usable_backup_targets="$(printf '%s' "$backup_targets" | jq -r '.items[] | select((.spec.backupTargetURL // "") != "" and (.status.available // false) == true) | .metadata.name')"
+    printf 'bad_nodes=%s\nbad_volumes=%s\nmanager=%s\ncalico=%s\nusable_backup_targets=%s\n' "$bad_nodes" "$bad_volumes" "$manager" "$calico" "$usable_backup_targets"
     test -z "$bad_nodes"
     test -z "$bad_volumes"
     test "$manager" = '{{ wave3_checkpoint_expected_longhorn_manager_image }}'
     test "$calico" = '{{ wave3_checkpoint_expected_calico_version }}'
-    test -n "$backup_target"
+    test -n "$usable_backup_targets"
   changed_when: false
   register: wave3_checkpoint_preflight
 
