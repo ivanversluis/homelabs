@@ -1,53 +1,49 @@
 # Wave 2: Calico
 
+Status: **COMPLETE**.
+
 Baseline: Semaphore task 43 returned READY WITH ACCEPTED EXCEPTIONS, no blockers.
-Calico v3.29.1 / Tigera v1.36.2 was adopted into Flux at ba8f1ad; the operator
-and Installation already existed from bootstrap. User supplied healthy TigeraStatus
-after adoption. Target approved in this conversation: Calico v3.32.1 / Tigera v1.42.3.
+Calico v3.29.1 / Tigera v1.36.2 was adopted into Flux at ba8f1ad; the operator and
+Installation already existed from bootstrap. Wave 2 upgraded the cluster to Calico v3.32.1 /
+Tigera v1.42.3 using the vendored, checksum-recorded operator manifests and split CRD/runtime
+Flux ordering.
 
-The official OSS upgrade guide covers v3.15+ to v3.32. Use its operator procedure,
-not the Calico Enterprise upgrade policy. Kubernetes nodes currently run 1.35.x.
-Source, checksums, and split-file validation are documented in the vendor README.
+## Live acceptance evidence
 
-## Rollout and acceptance
+Operator-supplied evidence after rollout confirms:
 
-Flux first establishes the 32 CRDs in `calico-crds`, then updates `calico`.
-The existing Installation is unchanged; keep iptables, BGP, VXLANCrossSubnet,
-10.244.0.0/16, firstFound autodetection and maxUnavailable=1.
-Do not enable eBPF, native v3 migration, Goldmane or Whisker in this wave.
+- Flux Kustomization `calico-crds`: Ready=True, revision `714685bd64efa754f648a92a4e2bd85bc97dfc09`.
+- Flux Kustomization `calico`: Ready=True, same revision.
+- `Installation/default` reports `v3.32.1`.
+- TigeraStatus `apiserver`, `calico`, `ippools`, and `tiers`: Available=True,
+  Progressing=False, Degraded=False.
+- all four Kubernetes nodes are Ready.
+- `calico-node`, `calico-kube-controllers`, `calico-typha`, `calico-apiserver`, and CSI node
+  driver pods are Running/Ready across the cluster.
+- post-upgrade Semaphore `playbooks/50-maintenance-readiness.yml` with
+  `limit=k8s_homelab` completed successfully and returned `READY WITH ACCEPTED EXCEPTIONS`,
+  with `Blocker IDs: []`.
+- the readiness report confirmed the live Calico baseline as `v3.32.1` and Longhorn baseline
+  as `v1.12.1`.
 
-On k8s-master01, monitor:
+Running pods alone do not prove every dataplane policy. Representative DNS, cross-node
+pod/service, ingress/OIDC, tunnel/LAN, and existing Zero Trust NetworkPolicy validation should
+continue to be exercised as part of normal regression testing. No further Calico mutation is
+part of Wave 2.
 
-```bash
-kubectl -n flux-system get kustomizations calico-crds calico
-kubectl -n tigera-operator rollout status deployment/tigera-operator --timeout=10m
-kubectl -n calico-system rollout status daemonset/calico-node --timeout=10m
-kubectl get tigerastatus
-kubectl get installation.operator.tigera.io default -o jsonpath='{.status.calicoVersion}{"\n"}'
-kubectl -n calico-system get pods -o wide
-kubectl get nodes
-```
+## Preserved design
 
-Acceptance requires v3.32.1, Ready Flux resources, all TigeraStatus objects available,
-none progressing/degraded, four Ready nodes, and ready Calico/CSI/API-server pods.
-Test pod DNS, cross-node pod/service traffic, ingress/OIDC, Synology backup reachability,
-and representative applications. Run Semaphore `playbooks/50-maintenance-readiness.yml`
-with limit `k8s_homelab` and require a non-blocking verdict. Running pods alone do not
-prove network policy correctness. Use v3.32.1 calicoctl if needed; avoid older clients.
+The existing Installation remains on the established networking model: iptables dataplane,
+BGP/VXLAN cross-subnet behavior, `10.244.0.0/16`, first-found node address autodetection and
+controlled rolling availability. Wave 2 did not intentionally enable eBPF, native v3 migration,
+Goldmane, or Whisker.
 
-If rollout fails, stop further maintenance and collect the failing Flux resource,
-TigeraStatus and operator logs. Do not delete CRDs or force a CNI reinstall. A Git
-revert does not guarantee a safe downgrade after schemas or controllers have changed.
-Keep admin SSH/console access available while investigating.
+## Next lifecycle stage
 
-## Remaining lifecycle work
+Wave 3 is coordinated Arch Linux + Kubernetes maintenance. It must first repair/understand the
+system-Python partial-upgrade state, reconcile package and running Kubernetes versions, inspect
+Longhorn drain/PDB constraints, confirm backups/recovery, and determine a supported target.
 
-Wave 2 is not marked complete until live acceptance evidence is supplied.
-Then prepare Wave 3 Arch/Kubernetes: repair system Python, review package/kernel and
-Kubernetes compatibility, confirm recoverable etcd/volume backups, inspect active
-Longhorn instance-manager references and PDBs, and plan one node at a time. Old
-instance-manager images may still host live processes despite upgraded engine images;
-never classify them as disposable solely by age or engine version.
-Ordinary OS maintenance begins with a worker canary; kubeadm minor upgrades require
-control-plane-first ordering. Avoid partial Arch upgrades (`pacman -Sy package`).
-Wave 4 platform and Wave 5 applications follow separate preparation/approval gates.
+Ordinary Arch-only maintenance uses a worker canary. A kubeadm minor-version upgrade uses
+control-plane-first ordering and workers one at a time. Never use partial Arch upgrades such as
+`pacman -Sy <package>`.

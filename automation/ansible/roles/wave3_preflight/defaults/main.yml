@@ -1,0 +1,26 @@
+---
+# Wave 3 preparation defaults. The target is a candidate, not an automatic action.
+# Re-confirm the live Arch repository and kubeadm upgrade plan immediately before
+# any mutating Wave 3 playbook is approved.
+wave3_kubeconfig: /etc/kubernetes/admin.conf
+wave3_control_plane_node: k8s-master01
+wave3_target_minor: "1.36"
+wave3_target_patch_candidate: "v1.36.4"
+wave3_expected_calico_version: "v3.32.1"
+wave3_expected_longhorn_manager_image: "docker.io/longhornio/longhorn-manager:v1.12.1"
+wave3_calico_namespace: calico-system
+wave3_longhorn_namespace: longhorn-system
+
+# Packages whose repository candidates materially affect the coordinated OS/Kubernetes plan.
+wave3_relevant_packages:
+  - linux
+  - glibc
+  - python
+  - pacman
+  - systemd
+  - openssh
+  - containerd
+  - runc
+  - kubeadm
+  - kubelet
+  - kubectl
