@@ -63,12 +63,87 @@
   changed_when: false
   register: wave3_gate_longhorn
 
-- name: Confirm Flux has no not-ready Kustomizations or HelmReleases
-  ansible.builtin.raw: |
-    set -e
-    bad="$(kubectl --kubeconfig={{ wave3_gate_kubeconfig }} -n flux-system get kustomizations,helmreleases -o jsonpath='{range .items[?(@.status.conditions[?(@.type=="Ready")].status!="True")]}{.kind}{"/"}{.metadata.name}{"\n"}{end}')"
-    test -z "$bad"
+# Task 49 exposed that kubectl JSONPath does not support the nested filter expression used by
+# the previous implementation (`unterminated filter`). Reuse the already-proven Wave 0.5
+# pattern: fetch JSON, parse it with Ansible/Jinja, and evaluate the Ready condition there.
+- name: Fetch Flux Kustomizations for the execution gate
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_gate_kubeconfig }}
+    get kustomizations.kustomize.toolkit.fluxcd.io -A -o json
   changed_when: false
+  register: wave3_gate_flux_ks_raw
+
+- name: Fetch Flux HelmReleases for the execution gate
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_gate_kubeconfig }}
+    get helmreleases.helm.toolkit.fluxcd.io -A -o json
+  changed_when: false
+  register: wave3_gate_flux_hr_raw
+
+- name: Parse Flux objects for the execution gate
+  ansible.builtin.set_fact:
+    wave3_gate_flux_kustomizations: "{{ (wave3_gate_flux_ks_raw.stdout | from_json)['items'] }}"
+    wave3_gate_flux_helmreleases: "{{ (wave3_gate_flux_hr_raw.stdout | from_json)['items'] }}"
+    wave3_gate_flux_blockers: []
+    wave3_gate_flux_suspended: []
+
+- name: Record suspended Flux Kustomizations
+  ansible.builtin.set_fact:
+    wave3_gate_flux_suspended: >-
+      {{ wave3_gate_flux_suspended + ['Kustomization/' + item.metadata.namespace + '/' + item.metadata.name] }}
+  loop: "{{ wave3_gate_flux_kustomizations }}"
+  loop_control:
+    label: "{{ item.metadata.namespace }}/{{ item.metadata.name }}"
+  when: item.spec.suspend | default(false)
+
+- name: Record non-suspended Flux Kustomizations that are not Ready
+  ansible.builtin.set_fact:
+    wave3_gate_flux_blockers: >-
+      {{ wave3_gate_flux_blockers + ['Kustomization/' + item.metadata.namespace + '/' + item.metadata.name] }}
+  loop: "{{ wave3_gate_flux_kustomizations }}"
+  loop_control:
+    label: "{{ item.metadata.namespace }}/{{ item.metadata.name }}"
+  vars:
+    ready_cond: "{{ item.status.conditions | default([]) | selectattr('type', 'equalto', 'Ready') | list | first | default({'status': 'Unknown'}) }}"
+  when:
+    - not (item.spec.suspend | default(false))
+    - ready_cond.status != 'True'
+
+- name: Record suspended Flux HelmReleases
+  ansible.builtin.set_fact:
+    wave3_gate_flux_suspended: >-
+      {{ wave3_gate_flux_suspended + ['HelmRelease/' + item.metadata.namespace + '/' + item.metadata.name] }}
+  loop: "{{ wave3_gate_flux_helmreleases }}"
+  loop_control:
+    label: "{{ item.metadata.namespace }}/{{ item.metadata.name }}"
+  when: item.spec.suspend | default(false)
+
+- name: Record non-suspended Flux HelmReleases that are not Ready
+  ansible.builtin.set_fact:
+    wave3_gate_flux_blockers: >-
+      {{ wave3_gate_flux_blockers + ['HelmRelease/' + item.metadata.namespace + '/' + item.metadata.name] }}
+  loop: "{{ wave3_gate_flux_helmreleases }}"
+  loop_control:
+    label: "{{ item.metadata.namespace }}/{{ item.metadata.name }}"
+  vars:
+    ready_cond: "{{ item.status.conditions | default([]) | selectattr('type', 'equalto', 'Ready') | list | first | default({'status': 'Unknown'}) }}"
+  when:
+    - not (item.spec.suspend | default(false))
+    - ready_cond.status != 'True'
+
+- name: Show Flux execution-gate evidence
+  ansible.builtin.debug:
+    msg:
+      - "Flux blockers={{ wave3_gate_flux_blockers }}"
+      - "Flux suspended accepted exceptions={{ wave3_gate_flux_suspended }}"
+
+- name: Confirm Flux has no active reconciliation blockers
+  ansible.builtin.assert:
+    that:
+      - wave3_gate_flux_blockers | length == 0
+    fail_msg: >-
+      Wave 3 is BLOCKED because one or more non-suspended Flux Kustomizations or HelmReleases
+      are not Ready. Resolve the resources listed above before host or Kubernetes mutation.
 
 - name: Simulate worker drains with server-side dry-run
   ansible.builtin.raw: >-
@@ -106,5 +181,6 @@
       - "Kubernetes target candidate={{ wave3_gate_target_patch }}; no upgrade executed"
       - "Calico baseline={{ wave3_gate_expected_calico_version }} confirmed"
       - "Longhorn baseline={{ wave3_gate_expected_longhorn_manager_image }} confirmed"
+      - "Flux active resources Ready; suspended resources={{ wave3_gate_flux_suspended }}"
       - "All worker drain simulations passed with server-side dry-run"
       - "Next step remains an explicit operator approval before any package synchronization or kubeadm mutation"
