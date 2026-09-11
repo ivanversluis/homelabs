@@ -15,6 +15,21 @@
   failed_when: false
   register: wave3_gate_upgrade_plan
 
+# Evidence must be printed before a fail-fast assertion. The previous ordering placed this
+# debug task after the assertion, so the exact malformed live ClusterConfiguration was hidden
+# whenever kubeadm correctly blocked the gate.
+- name: Show numbered kubeadm configuration and upgrade-plan evidence
+  ansible.builtin.debug:
+    msg:
+      - "ClusterConfiguration={{ wave3_gate_kubeadm_config_numbered.stdout_lines | default([]) }}"
+      - "kubeadm upgrade plan={{ wave3_gate_upgrade_plan.stdout_lines | default([]) }}"
+
+- name: Highlight duplicate apiServer keys if present
+  ansible.builtin.debug:
+    msg: >-
+      apiServer key lines={{ wave3_gate_kubeadm_config_numbered.stdout_lines
+      | select('search', '^[[:space:]]*[0-9]+[[:space:]]+apiServer:') | list }}
+
 - name: Block on malformed kubeadm configuration
   ansible.builtin.assert:
     that:
@@ -24,14 +39,9 @@
       - "'error unmarshaling configuration' not in (wave3_gate_upgrade_plan.stdout | lower)"
     fail_msg: >-
       Wave 3 is BLOCKED because kubeadm reports a malformed ClusterConfiguration. The
-      numbered live configuration is printed below. Do not run kubeadm upgrade apply or
-      package mutation until the duplicate/invalid key is corrected deliberately.
-
-- name: Show numbered kubeadm configuration and upgrade-plan evidence
-  ansible.builtin.debug:
-    msg:
-      - "ClusterConfiguration={{ wave3_gate_kubeadm_config_numbered.stdout_lines | default([]) }}"
-      - "kubeadm upgrade plan={{ wave3_gate_upgrade_plan.stdout_lines | default([]) }}"
+      numbered live configuration and upgrade-plan evidence are printed above. Do not run
+      kubeadm upgrade apply or package mutation until the duplicate/invalid key is corrected
+      deliberately.
 
 - name: Confirm current Calico baseline
   ansible.builtin.raw: |
