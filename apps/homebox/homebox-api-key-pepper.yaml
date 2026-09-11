@@ -1,0 +1,31 @@
+apiVersion: generators.external-secrets.io/v1alpha1
+kind: Password
+metadata:
+  name: homebox-api-key-pepper
+  namespace: homebox
+spec:
+  length: 48
+  digits: 12
+  symbols: 0
+  noUpper: false
+  allowRepeat: true
+  secretKeys:
+    - api-key-pepper
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: homebox-api-key-pepper
+  namespace: homebox
+spec:
+  refreshPolicy: CreatedOnce
+  target:
+    name: homebox-api-key-pepper
+    creationPolicy: Orphan
+    immutable: true
+  dataFrom:
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: Password
+          name: homebox-api-key-pepper
