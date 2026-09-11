@@ -44,14 +44,22 @@
     ansible_become: false
     maintenance_readiness_run_id: "{{ lookup('pipe', 'date -u +%Y%m%dT%H%M%SZ') }}"
   tasks:
-    - name: Verify report execution is local and unprivileged
+    # bootstrap-python.yml sets this as a high-precedence host fact when a node needs the
+    # standalone interpreter. Because this play deliberately reuses that inventory host as
+    # its local context, reset the fact to the Python running Ansible in the controller.
+    - name: Bind report modules to the controller's Ansible Python
+      ansible.builtin.set_fact:
+        ansible_python_interpreter: "{{ ansible_playbook_python }}"
+
+    - name: Verify report execution is local and uses the controller Python
       ansible.builtin.assert:
         that:
           - ansible_connection == 'local'
           - not (ansible_become | bool)
+          - ansible_python_interpreter == ansible_playbook_python
         fail_msg: >-
           Refusing to generate the Wave 0.5 report: controller-side execution must use
-          ansible_connection=local and ansible_become=false.
+          ansible_connection=local, ansible_become=false, and Ansible's controller Python.
 
     - name: Aggregate findings and render the readiness report
       ansible.builtin.include_role:
