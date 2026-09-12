@@ -28,7 +28,7 @@ spec:
 
     image:
       repository: semaphoreui/semaphore
-      tag: "v2.19.8"
+      tag: "v2.19.14"
 
     # Dedicated identity for Vault Kubernetes-auth (control-tower SSH certificate issuance).
     # Bound only to a Vault role scoped to namespace semaphoreui — see
