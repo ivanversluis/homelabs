@@ -16,7 +16,7 @@ spec:
       name: tigera-operator
       namespace: tigera-operator
   interval: 10m
-  path: ./services/network/calico/k8s
+  path: ./platform/networking/calico/k8s
   prune: false
   sourceRef:
     kind: GitRepository

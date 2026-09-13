@@ -4,7 +4,7 @@
 # The healthChecks block ensures cert-manager pods (including the webhook)
 # are Running before this Kustomization reports Ready — which allows
 # cert-manager-config to proceed with ClusterIssuers.
-# No postBuild needed: infra/cert-manager has no ${VAR} references.
+# No postBuild needed: platform/security/cert-manager has no ${VAR} references.
 # Variable substitution is on cert-manager-config (ClusterIssuers need ${ACME_EMAIL} / ${DOMAIN}).
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
@@ -13,7 +13,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: ./infra/cert-manager
+  path: ./platform/security/cert-manager
   prune: true
   sourceRef:
     kind: GitRepository

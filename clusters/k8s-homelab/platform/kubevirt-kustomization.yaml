@@ -15,7 +15,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: ./infra/kubevirt
+  path: ./platform/virtualization/kubevirt
   prune: true
   sourceRef:
     kind: GitRepository

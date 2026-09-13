@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  # Platform resources that are intentionally reconciled by the root Flux path.
+  # Components with dedicated Flux Kustomizations are not listed here.
+  - security/external-secrets/
+  - networking/network-policies/
+
+# local-path-provisioner is a pre-existing cluster deployment and remains
+# declarative/reference-only. See platform/storage/README.md and KubeVirt docs.

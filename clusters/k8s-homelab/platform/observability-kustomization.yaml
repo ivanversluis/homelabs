@@ -1,6 +1,6 @@
 ---
 # Flux Kustomization for the observability namespace (Prometheus/Grafana/Loki).
-# Separate from the main infra path so ${DOMAIN} in Grafana OIDC env vars
+# Separate from the root platform path so ${DOMAIN} in Grafana OIDC env vars
 # is substituted by Flux before Kubernetes applies the manifest — preventing
 # Kubernetes' own env-var expansion from resolving ${DOMAIN} to empty string.
 # Depends on: kong (Grafana OIDC redirect goes through Kong → Authentik).
@@ -11,7 +11,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: ./infra/observability
+  path: ./platform/observability
   prune: true
   sourceRef:
     kind: GitRepository

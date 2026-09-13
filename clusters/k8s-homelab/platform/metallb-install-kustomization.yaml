@@ -8,7 +8,7 @@ spec:
   prune: true
   wait: true
   timeout: 5m
-  path: ./services/lb/metallb/k8s
+  path: ./platform/networking/metallb/k8s
   sourceRef:
     kind: GitRepository
     name: flux-system

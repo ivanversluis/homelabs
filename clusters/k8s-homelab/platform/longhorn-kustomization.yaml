@@ -1,0 +1,17 @@
+---
+# Flux Kustomization for Longhorn (platform storage layer).
+# Longhorn underlies persistent workloads in the cluster, so it remains isolated
+# from the root force-enabled reconciliation path and must never be subject to a
+# forced delete+recreate.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: longhorn
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./platform/storage/longhorn/k8s
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

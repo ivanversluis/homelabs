@@ -17,7 +17,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: ./infra/coredns
+  path: ./platform/networking/coredns
   prune: false
   sourceRef:
     kind: GitRepository

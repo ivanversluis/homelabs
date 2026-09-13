@@ -15,7 +15,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: ./infra/cdi
+  path: ./platform/virtualization/cdi
   prune: true
   sourceRef:
     kind: GitRepository

@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  # Platform resources reconciled directly by the root Flux Kustomization.
+  - ../../../platform
+
+  # Dedicated platform reconciliation boundaries.
+  - calico-crds-kustomization.yaml
+  - calico-kustomization.yaml
+  - longhorn-kustomization.yaml
+  - metallb-install-kustomization.yaml
+  - metallb-config-kustomization.yaml
+  - cert-manager-kustomization.yaml
+  - cert-manager-config-kustomization.yaml
+  - coredns-kustomization.yaml
+  - kubevirt-kustomization.yaml
+  - cdi-kustomization.yaml
+  - observability-kustomization.yaml
+  - monitoring-kustomization.yaml
+  - monitoring-kong-consumers-kustomization.yaml
