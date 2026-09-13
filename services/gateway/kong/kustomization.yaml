@@ -15,6 +15,7 @@ resources:
   - kong-plugin-ai-proxy.yaml
   - kong-anthropic-ai-externalsecret.yaml
   - kong-plugin-ai-proxy-anthropic.yaml
+  - kong-ai-gateway-client-auth.yaml
   - kong-plugin-ai-prompt-guard.yaml
   - kong-plugin-rate-limit.yaml
   - kong-plugin-normalize-model-name.yaml
