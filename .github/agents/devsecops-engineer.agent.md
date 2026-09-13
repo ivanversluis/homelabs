@@ -39,15 +39,15 @@ Primary mission:
 ## Canonical References In This Repo
 
 Use these folders as source-of-truth patterns:
-- `apps/termix` (simple workload)
+- `workloads/apps/termix` (simple workload)
 - `services/identity/authentik/k8s` (complex service with postgres + redis)
 - `infra/semaphoreui` (Helm-based infra with postgres + ExternalSecrets)
 
 Use these wiring points for registration checks:
-- `apps/kustomization.yaml`
+- `workloads/apps/kustomization.yaml`
 - `services/kustomization.yaml`
 - `infra/kustomization.yaml`
-- `clusters/k8s-homelab/apps/kustomization.yaml`
+- `clusters/k8s-homelab/workloads/kustomization.yaml`
 - `clusters/k8s-homelab/services/kustomization.yaml`
 - `clusters/k8s-homelab/infra/kustomization.yaml`
 
@@ -133,7 +133,7 @@ For the new workload, determine and document:
 
 #### 6b. Network Policy File Generation
 Create the network policy file **co-located** with the component it belongs to:
-- Apps: `apps/<name>/<name>-netpol.yaml`
+- Apps: `workloads/apps/<name>/<name>-netpol.yaml`
 - Infra: `infra/<name>/<name>-netpol.yaml`
 - Services: `services/<category>/<name>/k8s/<name>-netpol.yaml`
 
@@ -166,9 +166,9 @@ Create the network policy file **co-located** with the component it belongs to:
 
 #### 6d. Reference Patterns
 Use these existing policies as templates:
-- **Isolated app (no internet)**: `apps/linkding/linkding-netpol.yaml`
-- **App with internet HTTPS+HTTP**: `apps/n8n/n8n-netpol.yaml`
-- **App with SSH egress**: `apps/termix/termix-netpol.yaml`
+- **Isolated app (no internet)**: `workloads/apps/linkding/linkding-netpol.yaml`
+- **App with internet HTTPS+HTTP**: `workloads/apps/n8n/n8n-netpol.yaml`
+- **App with SSH egress**: `workloads/apps/termix/termix-netpol.yaml`
 - **Service with API server + vault egress**: `infra/external-secrets/external-secrets-netpol.yaml`
 - **Service with webhook ingress**: `infra/monitoring/monitoring-netpol.yaml`
 - **DNS with DoT-only egress**: `services/dns/unbound/k8s/dns-netpol.yaml`
@@ -181,15 +181,15 @@ Use these existing policies as templates:
 ## A) apps (simple workload baseline)
 
 Target shape (default):
-- `apps/<name>/kustomization.yaml`
-- `apps/<name>/<name>-namespace.yaml`
-- `apps/<name>/<name>-netpol.yaml` (Zero Trust — always required, co-located)
-- `apps/<name>/<name>-pvc.yaml` (when persistence is needed)
-- `apps/<name>/<name>-deployment.yaml`
-- `apps/<name>/<name>-service.yaml`
+- `workloads/apps/<name>/kustomization.yaml`
+- `workloads/apps/<name>/<name>-namespace.yaml`
+- `workloads/apps/<name>/<name>-netpol.yaml` (Zero Trust — always required, co-located)
+- `workloads/apps/<name>/<name>-pvc.yaml` (when persistence is needed)
+- `workloads/apps/<name>/<name>-deployment.yaml`
+- `workloads/apps/<name>/<name>-service.yaml`
 
 Parent registration:
-- add `- <name>/` to `apps/kustomization.yaml`
+- add `- <name>/` to `workloads/apps/kustomization.yaml`
 - add test cases to `scripts/zero-trust-validate.sh`
 
 Notes:
@@ -317,7 +317,7 @@ infra/network-policies/
               matchLabels:
                 kubernetes.io/metadata.name: kong
   ```
-  Reference implementations: `infra/vault/vault-netpol.yaml`, `infra/headlamp/headlamp-netpol.yaml`, `apps/homebox/homebox-netpol.yaml`.
+  Reference implementations: `infra/vault/vault-netpol.yaml`, `infra/headlamp/headlamp-netpol.yaml`, `workloads/apps/homebox/homebox-netpol.yaml`.
 - **Staging TLS certs break OIDC**: Go-based OIDC clients (Homebox, Vault, Headlamp) and other strict TLS clients reject self-signed or Let's Encrypt staging certificates. Always use the `letsencrypt-prod` issuer for any cluster-wide wildcard cert used by Kong. Staging certs silently fail OIDC discovery (no error shown to user, provider reported as "not available").
 - **cert-manager IncorrectIssuer re-issuance loop**: When the same `secretName` was previously issued by a staging ClusterIssuer and the Certificate spec is later changed to prod, cert-manager detects the `cert-manager.io/issuer-name` annotation mismatch on the Secret and triggers a full re-issuance. If Let's Encrypt rate limits are hit (5 prod certs per 7 days for the same exact domain set), the Secret is deleted and TLS breaks cluster-wide. **Prevention**: always set `secretTemplate.annotations` with `cert-manager.io/issuer-name: letsencrypt-prod` and `cert-manager.io/issuer-kind: ClusterIssuer` in the Certificate spec, and set `privateKey.rotationPolicy: Never` explicitly. **Recovery**: (1) get prod cert from the successful CertificateRequest's `.status.certificate`, (2) verify private key matches (cert-manager reuses key with `rotationPolicy: Never`), (3) patch the Secret with prod cert + set `cert-manager.io/certificate-revision` annotation to the prod CR revision, (4) delete all staging CertificateRequests.
 - **cert-manager DNS01 + CoreDNS split-brain**: When CoreDNS has an internal split-brain zone (e.g., `*.${DOMAIN} → Kong ClusterIP`), cert-manager's DNS01 solver cannot follow the ACME NS record chain using the cluster's default resolver. Fix: add `--dns01-recursive-nameservers=1.1.1.1:53,8.8.8.8:53` and `--dns01-recursive-nameservers-only` to the cert-manager controller args (or in `cert-manager-values.yaml` as `dns01RecursiveNameservers` / `dns01RecursiveNameserversOnly`). Without this, `_acme-challenge` TXT lookups fail and certificates never become Ready.
@@ -405,7 +405,7 @@ Pod (needs OIDC) → CoreDNS resolves auth.${DOMAIN} → Kong ClusterIP
 8. Restart the pod with `kubectl rollout restart` after policy changes
 9. Check pod logs for TLS/OIDC errors — Go clients log TLS failures to stderr
 
-**Reference implementations**: `infra/vault/vault-netpol.yaml`, `infra/headlamp/headlamp-netpol.yaml`, `apps/homebox/homebox-netpol.yaml`
+**Reference implementations**: `infra/vault/vault-netpol.yaml`, `infra/headlamp/headlamp-netpol.yaml`, `workloads/apps/homebox/homebox-netpol.yaml`
 
 ### Validation Script
 `scripts/zero-trust-validate.sh` must be updated for every new namespace:
