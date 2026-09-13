@@ -208,7 +208,7 @@ fi
 echo ""
 echo -e "${BOLD}[6/7] Applying VM workloads${NC}"
 echo -e "  Applying vms namespace, network policies, and VM definition..."
-apply "${REPO_ROOT}/vms/"
+apply "${REPO_ROOT}/workloads/vms/"
 echo -e "  ${GREEN}✓${NC} VM manifests applied"
 
 if ! $DRY_RUN; then
@@ -256,6 +256,6 @@ echo -e "${BOLD}═════════════════════�
 echo -e "${BOLD}  Bootstrap complete! Flux is still suspended.${NC}"
 echo -e "${BOLD}  After testing, resume Flux:${NC}"
 echo -e "${BOLD}    flux resume kustomization --all${NC}"
-echo -e "${BOLD}  Flux will then manage KubeVirt CRs + vms manifests going forward.${NC}"
+echo -e "${BOLD}  Flux will then manage KubeVirt CRs + workloads/vms manifests going forward.${NC}"
 echo -e "${BOLD}═══════════════════════════════════════════════════════════════${NC}"
 echo ""

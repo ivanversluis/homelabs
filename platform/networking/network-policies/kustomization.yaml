@@ -6,7 +6,8 @@
 #   - flux-system-netpol    Flux CD controllers (no dedicated component dir)
 #
 # All other policies live alongside their component manifests:
-#   apps/<name>/<name>-netpol.yaml
+#   workloads/apps/<name>/<name>-netpol.yaml
+#   workloads/vms/vms-netpol.yaml
 #   infra/<name>/<name>-netpol.yaml
 #   services/<path>/<name>-netpol.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1

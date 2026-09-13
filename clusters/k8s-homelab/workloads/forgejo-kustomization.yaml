@@ -9,7 +9,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: ./apps/forgejo
+  path: ./workloads/apps/forgejo
   prune: true
   sourceRef:
     kind: GitRepository

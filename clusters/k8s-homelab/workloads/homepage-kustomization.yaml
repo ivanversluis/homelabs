@@ -1,16 +1,15 @@
 ---
-# Flux Kustomization for Linkding (bookmarks).
-# Separate from the main apps path because linkding-deployment.yaml uses ${DOMAIN}
-# for OIDC issuer endpoints and the bookmarks.${DOMAIN} public URL.
-# Depends on: kong (ingress + OIDC callback routes through Kong).
+# Flux Kustomization for Homepage dashboard.
+# Depends on: kong (IngressClass + wildcard cert must be ready) and flux-domain-vars Secret.
+# The postBuild substituteFrom replaces ${DOMAIN} in manifests and ConfigMap data.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: linkding
+  name: homepage
   namespace: flux-system
 spec:
   interval: 10m
-  path: ./apps/linkding
+  path: ./workloads/apps/homepage
   prune: true
   sourceRef:
     kind: GitRepository

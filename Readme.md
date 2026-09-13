@@ -101,14 +101,14 @@ flowchart LR
 
 The repository is organized by architectural responsibility rather than by installation mechanism.
 
-> **`platform/` makes Kubernetes work. `services/`, `apps/`, and `vms/` consume the platform.**
+> **`platform/` makes Kubernetes work. `infra/`, `services/`, and `workloads/` run on or consume the platform.**
 
-- `clusters/k8s-homelab` - cluster entrypoint and Flux reconciliation wiring.
+- `clusters/k8s-homelab` - cluster entrypoint and reconciliation wiring.
 - `platform` - Kubernetes system capabilities: networking, storage, virtualization, observability, and cluster security controllers.
 - `infra` - shared infrastructure and management components that run on the platform, such as Vault, Kong, Headlamp, Portainer, SemaphoreUI, OpenClaw, and AI tooling.
 - `services` - shared runtime services consumed by clients or workloads, currently DNS, identity, and tunnel services.
-- `apps` - application workloads.
-- `vms` - KubeVirt virtual-machine workloads. These remain a separate workload area; moving workloads is a later restructuring wave.
+- `workloads/apps` - application workloads.
+- `workloads/vms` - KubeVirt virtual-machine workloads.
 - `automation` - Ansible, Terraform, and operational automation.
 - `scripts` - host/bootstrap and validation helpers.
 - `docs` - architecture, lifecycle, and operating documentation.

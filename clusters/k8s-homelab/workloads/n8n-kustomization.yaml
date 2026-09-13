@@ -1,8 +1,7 @@
 ---
 # Flux Kustomization for n8n workflow automation.
-# Split out of the flat apps/ aggregator (applied by the root flux-system
-# Kustomization, which has force: true) so a forced re-apply can no longer
-# delete+recreate n8n-pvc / n8n-postgres-pvc and silently wipe data.
+# n8n remains isolated from the root flux-system inventory so a forced re-apply
+# cannot delete+recreate n8n-pvc / n8n-postgres-pvc and silently wipe data.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
@@ -10,7 +9,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: ./apps/n8n
+  path: ./workloads/apps/n8n
   prune: true
   sourceRef:
     kind: GitRepository

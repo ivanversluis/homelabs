@@ -2,7 +2,7 @@
 
 This directory contains Kubernetes system and platform capabilities that workloads depend on.
 
-> **Rule:** `platform/` makes Kubernetes work. `services/`, `apps/`, and `vms/` consume the platform.
+> **Rule:** `platform/` makes Kubernetes work. `services/`, `infra/`, and `workloads/` consume the platform.
 
 ## Structure
 
@@ -14,6 +14,6 @@ This directory contains Kubernetes system and platform capabilities that workloa
 
 ## GitOps model
 
-Critical or stateful platform components keep their existing dedicated Flux `Kustomization` boundaries under `clusters/k8s-homelab/platform/`. This refactor changes repository ownership and paths, not the intended reconciliation or persistence behavior.
+Critical or stateful platform components keep their existing dedicated Flux `Kustomization` boundaries under `clusters/k8s-homelab/platform/`. Repository restructuring must not change their ownership or persistence behavior unless an explicit staged migration is planned.
 
-Application and VM workload restructuring is deliberately out of scope for this wave.
+Application and VM workloads live under `workloads/apps/` and `workloads/vms/`.
