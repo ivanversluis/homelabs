@@ -1,0 +1,26 @@
+# Static OpenAI-compatible model discovery for the parallel Anthropic route.
+# Open WebUI requires a /models endpoint when this route becomes the active base URL.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: anthropic-openai-compat-models
+  namespace: kong
+  annotations:
+    konghq.com/plugins: "normalize-model-claude,ai-gateway-key-auth,ai-models-static-response,rate-limit-global"
+    konghq.com/methods: "GET"
+    konghq.com/strip-path: "false"
+spec:
+  ingressClassName: kong
+  # No tls stanza: reuse the ai.${DOMAIN} SNI/certificate already owned by the
+  # existing ai-gateway Ingress.
+  rules:
+    - host: ai.${DOMAIN}
+      http:
+        paths:
+          - path: /openai/v1/models
+            pathType: Exact
+            backend:
+              service:
+                name: ai-gateway
+                port:
+                  number: 80
