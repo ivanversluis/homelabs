@@ -27,12 +27,10 @@ metadata:
     konghq.com/strip-path: "false"
 spec:
   ingressClassName: kong
-  tls:
-    - hosts:
-        - ai.${DOMAIN}
-        - mcp.${DOMAIN}
-        - ai-chat.${DOMAIN}
-      secretName: kong-tls-wildcard
+  # No tls: section here — ai.${DOMAIN} (and mcp/ai-chat) are already registered
+  # by the ai-gateway Ingress's tls stanza. Kong serves the same wildcard cert
+  # for all matching SNI hosts; declaring the same secret+hosts here too made
+  # KIC's certificate config sync fail (see git history for this comment).
   rules:
     - host: ai.${DOMAIN}
       http:
