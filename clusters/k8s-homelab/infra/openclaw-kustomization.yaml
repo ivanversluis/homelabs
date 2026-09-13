@@ -1,11 +1,13 @@
 ---
 # Flux Kustomization for OpenClaw.
-# Split out of the flat infra/ aggregator (applied by the root flux-system
-# Kustomization, which has force: true) so a forced re-apply can no longer
-# delete+recreate openclaw-data and silently wipe data.
+# Split out of the flat infra/ aggregator so OpenClaw has a dedicated owner and
+# its persistent state is not exposed to root-level force/prune behavior.
 #
-# OpenClaw now uses Kong as its LLM egress path. The DOMAIN substitution is
-# required for the Kong AI base URL in openclaw-kong-model-patch.yaml.
+# Runtime configuration is Git/Vault authoritative:
+# - Git defines the OpenClaw config template and deployment behavior.
+# - Vault/External Secrets provide credentials and deployment-specific IDs.
+# - The PVC stores mutable state only; openclaw.json is rendered outside it.
+# DOMAIN substitution is required for the Kong AI base URL.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
