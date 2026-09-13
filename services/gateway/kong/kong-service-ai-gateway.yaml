@@ -1,9 +1,11 @@
 # Service + Ingress: exposes the AI Gateway endpoint inside the cluster.
 # Internal services call https://ai.${DOMAIN}/v1/chat/completions
-# which resolves to Kong via split-brain DNS (see CoreDNS ConfigMap below).
-# External access is via Cloudflare Tunnel → Kong → this route.
+# which resolves to Kong via split-brain DNS.
 #
-# Kong handles auth (add oidc or key-auth plugin annotations as needed).
+# Kong accepts the OpenAI-compatible chat request, validates the client API key,
+# normalizes the model name, translates the request to Anthropic, and injects
+# the upstream x-api-key from Vault. Open WebUI and OpenClaw never receive the
+# Anthropic credential.
 apiVersion: v1
 kind: Service
 metadata:
@@ -30,18 +32,14 @@ metadata:
   name: ai-gateway
   namespace: kong
   annotations:
-    # normalize-model-name MUST run first: Open WebUI sends custom preset names
-    # (e.g. "k8s-assistant") as the model field; Kong ai-proxy rejects anything
-    # that doesn't match its configured model.name (gpt-4o-mini).
-    konghq.com/plugins: "normalize-model-name,ai-proxy-azure,ai-prompt-guard,rate-limit-global"
+    # normalize-model-claude converts Authorization: Bearer to apikey and
+    # normalizes client model aliases before key-auth and AI Proxy execute.
+    konghq.com/plugins: "normalize-model-claude,ai-gateway-key-auth,ai-proxy-anthropic,ai-prompt-guard,rate-limit-global"
     konghq.com/strip-path: "false"
 spec:
   ingressClassName: kong
   tls:
     # All subdomains share the wildcard cert. KIC registers each host as a Kong SNI.
-    # Without a TLS entry here, Kong falls back to its internal self-signed cert
-    # for that hostname, causing SSLCertVerificationError in server-side connections
-    # (e.g. Open WebUI Admin tool server check, server-side OpenAI verify).
     - hosts:
         - ai.${DOMAIN}
         - mcp.${DOMAIN}

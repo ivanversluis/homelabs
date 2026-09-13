@@ -1,0 +1,17 @@
+# KongPlugin: AI Proxy -> Anthropic.
+#
+# Kong translates OpenAI-compatible chat requests to Anthropic and injects the
+# real upstream x-api-key from the Secret rendered by External Secrets.
+# Clients never receive the Anthropic credential.
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-proxy-anthropic
+  namespace: kong
+  annotations:
+    kubernetes.io/description: "Routes OpenAI-compatible chat requests to Anthropic Claude"
+plugin: ai-proxy
+configFrom:
+  secretKeyRef:
+    name: kong-anthropic-ai-proxy-config
+    key: config

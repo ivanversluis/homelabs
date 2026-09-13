@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openclaw
+  namespace: openclaw
+spec:
+  template:
+    spec:
+      containers:
+        - name: openclaw
+          # The base Deployment's install-skills init container currently resets
+          # the default model to openai/gpt-5.5. Configure Kong here, after ALL
+          # init containers have completed, so startup ordering is deterministic.
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+
+              PROVIDER=$(node -e '
+                console.log(JSON.stringify({
+                  baseUrl: process.env.KONG_AI_BASE_URL,
+                  apiKey: { source: "env", provider: "default", id: "KONG_AI_GATEWAY_KEY" },
+                  api: "openai-completions",
+                  models: [{
+                    id: "claude-sonnet-4-6",
+                    name: "Claude Sonnet 4.6 via Kong",
+                    input: ["text"],
+                    contextWindow: 200000,
+                    maxTokens: 4096
+                  }]
+                }))
+              ')
+
+              # These are required for a valid startup. Do not swallow errors and
+              # accidentally fall back to the previous broken OpenAI/Codex route.
+              node /app/dist/index.js config set models.mode merge
+              node /app/dist/index.js config set models.providers.kong "$PROVIDER" --strict-json --replace
+              node /app/dist/index.js models set kong/claude-sonnet-4-6
+
+              # The OpenClaw PVC persists per-agent/session model overrides.
+              # Remove non-Kong overrides so resumed sessions inherit the new
+              # Kong-backed default instead of the previous OpenAI/Codex route.
+              node -e '
+              const fs = require("fs"), path = require("path");
+              const agentsDir = "/home/node/.openclaw/.openclaw/agents";
+              function stale(model) {
+                return typeof model === "string" && model.length > 0 && !model.startsWith("kong/");
+              }
+              function clean(dir) {
+                if (!fs.existsSync(dir)) return;
+                for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+                  const file = path.join(dir, entry.name);
+                  if (entry.isDirectory()) {
+                    clean(file);
+                  } else if (entry.name === "config.json") {
+                    try {
+                      const cfg = JSON.parse(fs.readFileSync(file, "utf8"));
+                      if (stale(cfg.model)) {
+                        delete cfg.model;
+                        fs.writeFileSync(file, JSON.stringify(cfg, null, 2));
+                      }
+                    } catch (_) {}
+                  }
+                }
+              }
+              clean(agentsDir);
+
+              const sessionsFile = agentsDir + "/main/sessions/sessions.json";
+              if (fs.existsSync(sessionsFile)) {
+                try {
+                  const sessions = JSON.parse(fs.readFileSync(sessionsFile, "utf8"));
+                  let changed = false;
+                  if (Array.isArray(sessions.sessions)) {
+                    sessions.sessions = sessions.sessions.map(session => {
+                      if (stale(session.model)) {
+                        delete session.model;
+                        changed = true;
+                      }
+                      return session;
+                    });
+                  }
+                  if (changed) fs.writeFileSync(sessionsFile, JSON.stringify(sessions, null, 2));
+                } catch (_) {}
+              }
+              ' 2>/dev/null || true
+
+              exec node /app/dist/index.js gateway run --allow-unconfigured --bind lan
+          env:
+            - name: KONG_AI_BASE_URL
+              value: "https://ai.${DOMAIN}/v1"
