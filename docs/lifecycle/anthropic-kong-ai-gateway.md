@@ -67,7 +67,7 @@ API: openai-completions
 
 The provider API key is a SecretRef to `KONG_AI_GATEWAY_KEY`, sourced from the same internal Kong client credential.
 
-A startup init container removes persisted non-Kong per-agent/session model overrides so existing sessions fall back to `kong/claude-sonnet-4-5` instead of the previous OpenAI/Codex route.
+The OpenClaw container startup wrapper applies the Kong provider after the existing init containers have completed. It also removes persisted non-Kong per-agent/session model overrides so existing sessions fall back to `kong/claude-sonnet-4-5` instead of the previous OpenAI/Codex route.
 
 ### Kong
 
