@@ -61,13 +61,13 @@ OpenClaw configures a custom OpenAI-compatible provider:
 ```text
 provider: kong
 base URL: https://ai.${DOMAIN}/v1
-model: kong/claude-sonnet-4-5
+model: kong/claude-sonnet-4-6
 API: openai-completions
 ```
 
 The provider API key is a SecretRef to `KONG_AI_GATEWAY_KEY`, sourced from the same internal Kong client credential.
 
-The OpenClaw container startup wrapper applies the Kong provider after the existing init containers have completed. It also removes persisted non-Kong per-agent/session model overrides so existing sessions fall back to `kong/claude-sonnet-4-5` instead of the previous OpenAI/Codex route.
+The OpenClaw container startup wrapper applies the Kong provider after the existing init containers have completed. It also removes persisted non-Kong per-agent/session model overrides so existing sessions fall back to `kong/claude-sonnet-4-6` instead of the previous OpenAI/Codex route.
 
 ### Kong
 
@@ -75,7 +75,7 @@ Kong performs four relevant operations on the chat route:
 
 1. Convert `Authorization: Bearer <client-key>` into the `apikey` header expected by Kong key-auth.
 2. Validate the internal `ai-gateway-client-key`.
-3. Normalize the request model to `claude-sonnet-4-5`.
+3. Normalize the request model to `claude-sonnet-4-6`.
 4. Use `ai-proxy` to translate the OpenAI-compatible request to Anthropic and inject the upstream `x-api-key` from Vault.
 
 The existing Azure AI configuration remains in Git/Vault for rollback but is no longer attached to the active `/v1` route.
@@ -125,7 +125,7 @@ curl -fsS "https://ai.${DOMAIN}/v1/models" \
 Expected model:
 
 ```text
-claude-sonnet-4-5
+claude-sonnet-4-6
 ```
 
 Chat completion:
@@ -135,7 +135,7 @@ curl -fsS "https://ai.${DOMAIN}/v1/chat/completions" \
   -H "Authorization: Bearer ${AI_GATEWAY_CLIENT_KEY}" \
   -H "Content-Type: application/json" \
   -d '{
-    "model":"claude-sonnet-4-5",
+    "model":"claude-sonnet-4-6",
     "messages":[{"role":"user","content":"Reply with exactly: kong-anthropic-ok"}],
     "max_tokens":32
   }' | jq
@@ -147,7 +147,7 @@ curl -fsS "https://ai.${DOMAIN}/v1/chat/completions" \
 
 1. Confirm the OpenAI-compatible connection remains `https://ai.${DOMAIN}/v1`.
 2. Refresh models.
-3. Confirm `claude-sonnet-4-5` is visible.
+3. Confirm `claude-sonnet-4-6` is visible.
 4. Start a new chat and verify a completion succeeds.
 
 ### OpenClaw
@@ -155,7 +155,7 @@ curl -fsS "https://ai.${DOMAIN}/v1/chat/completions" \
 Check the configured/default model using the OpenClaw CLI available in the pod, then start a fresh interaction. The effective default must be:
 
 ```text
-kong/claude-sonnet-4-5
+kong/claude-sonnet-4-6
 ```
 
 If an old conversation still behaves unexpectedly, inspect the persisted session configuration for a stale `model` property before changing anything else.
