@@ -1,7 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - kong-namespace.yaml
+  # Namespace + ExternalSecrets live in bootstrap/ (separate wait:true Kustomization)
+  # so Secrets they generate exist before Kong's admission webhook validates
+  # objects here that reference them by name (e.g. KongConsumer, configFrom).
   - kong-netpol.yaml
   # Wildcard cert lives here because it references the kong namespace.
   # cert-manager CRDs and ClusterIssuers are ready before this reconciles
@@ -10,10 +12,7 @@ resources:
   - kong-helmrepository.yaml
   - kong-helmrelease.yaml
   - kong-ingressclass.yaml
-  - kong-azure-ai-externalsecret.yaml
-  - kong-azure-ai-plugin-config-externalsecret.yaml
   - kong-plugin-ai-proxy.yaml
-  - kong-anthropic-ai-externalsecret.yaml
   - kong-plugin-ai-proxy-anthropic.yaml
   - kong-ai-gateway-client-auth.yaml
   - kong-plugin-ai-prompt-guard.yaml

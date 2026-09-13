@@ -1,0 +1,25 @@
+---
+# Flux Kustomization: Kong namespace + all ExternalSecrets consumed by the kong
+# Kustomization (Azure AI + Anthropic AI proxy config, AI Gateway client key).
+#
+# Split out from the main kong Kustomization to break a circular dependency:
+# KongConsumer/homelab-ai-clients (in kong) references Secret kong-ai-gateway-client-key
+# by name, and Kong's admission webhook rejects it at dry-run if that Secret doesn't
+# already exist. Flux validates an entire Kustomization's manifests in one dry-run
+# pass, so if that Secret's ExternalSecret lived in the same Kustomization, neither
+# object could ever apply. `wait: true` here makes Flux block until the ExternalSecrets
+# report Ready (i.e. their Secrets are actually synced) before this Kustomization
+# itself is Ready, which the main kong Kustomization depends on.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: kong-bootstrap
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./services/gateway/kong/bootstrap
+  prune: true
+  wait: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

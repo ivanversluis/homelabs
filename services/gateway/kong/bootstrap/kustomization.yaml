@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - kong-namespace.yaml
+  - kong-azure-ai-externalsecret.yaml
+  - kong-azure-ai-plugin-config-externalsecret.yaml
+  - kong-anthropic-ai-externalsecret.yaml
+  - kong-ai-gateway-client-key-externalsecret.yaml

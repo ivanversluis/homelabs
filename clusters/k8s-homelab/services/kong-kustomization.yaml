@@ -18,6 +18,7 @@ spec:
     name: flux-system
   dependsOn:
     - name: cert-manager-config
+    - name: kong-bootstrap
   postBuild:
     substituteFrom:
       - kind: Secret

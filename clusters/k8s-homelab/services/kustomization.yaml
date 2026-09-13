@@ -7,6 +7,7 @@ resources:
   - cloudflare-tunnel-kustomization.yaml
   - pihole-kustomization.yaml
   - unbound-kustomization.yaml
+  - kong-bootstrap-kustomization.yaml
   - kong-kustomization.yaml
   - identity-ingress-kustomization.yaml
   - home-exporters-kustomization.yaml
