@@ -32,9 +32,11 @@ spec:
                 }))
               ')
 
-              node /app/dist/index.js config set models.mode merge 2>/dev/null || true
-              node /app/dist/index.js config set models.providers.kong "$PROVIDER" --strict-json --replace 2>/dev/null || true
-              node /app/dist/index.js config set agents.defaults.model '{"primary":"kong/claude-sonnet-4-6"}' --strict-json 2>/dev/null || true
+              # These are required for a valid startup. Do not swallow errors and
+              # accidentally fall back to the previous broken OpenAI/Codex route.
+              node /app/dist/index.js config set models.mode merge
+              node /app/dist/index.js config set models.providers.kong "$PROVIDER" --strict-json --replace
+              node /app/dist/index.js models set kong/claude-sonnet-4-6
 
               # The OpenClaw PVC persists per-agent/session model overrides.
               # Remove non-Kong overrides so resumed sessions inherit the new
