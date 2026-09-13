@@ -26,7 +26,7 @@ spec:
               PROVIDER=$(node -e '
                 console.log(JSON.stringify({
                   baseUrl: process.env.KONG_AI_BASE_URL,
-                  apiKey: "kong-managed",
+                  apiKey: { source: "env", provider: "default", id: "KONG_AI_GATEWAY_KEY" },
                   api: "openai-completions",
                   models: [{
                     id: "claude-sonnet-4-5",
@@ -44,6 +44,11 @@ spec:
           env:
             - name: KONG_AI_BASE_URL
               value: "https://ai.${DOMAIN}/v1"
+            - name: KONG_AI_GATEWAY_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: KONG_AI_GATEWAY_KEY
           securityContext:
             runAsUser: 1000
             runAsGroup: 1000
