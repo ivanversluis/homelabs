@@ -40,6 +40,38 @@ A filesystem move is not automatically a safe GitOps ownership move.
 5. For Wave 2 validation follow `docs/lifecycle/wave2-workloads.md`.
 6. For Wave 3 validation follow `docs/lifecycle/wave3-classification.md`. Do not recommend merge until its static and live read-only checks are complete.
 
+## Admission-Webhook Bootstrap Safety — NON-NEGOTIABLE
+
+Flux/Kustomize reconciliation must never rely on creation order inside one rendered Kustomization when admission validation requires a referenced object to already exist.
+
+Flux performs server-side dry-run/admission validation before applying the rendered resource set. Therefore a producer and a webhook-validated consumer can deadlock if they are introduced in the same Flux `Kustomization`.
+
+Canonical failure pattern:
+
+```text
+ExternalSecret -> creates Secret later
+KongConsumer   -> validating webhook requires that Secret now
+```
+
+If both are rendered by the same Flux `Kustomization`, the KongConsumer dry-run is rejected because the Secret does not exist. The reconcile then aborts before the ExternalSecret is applied, so retrying cannot bootstrap the dependency.
+
+Rules for every change:
+
+1. Before adding any CR that references another resource, determine whether an admission webhook validates that reference at CREATE/UPDATE time.
+2. Do not assume file order, Kustomize resource order, server-side apply order, or a later retry will satisfy such a dependency.
+3. If resource B must already exist for resource A to pass admission, B must be materialized in an earlier reconciliation boundary or already exist before A is introduced.
+4. Use separate Flux `Kustomization` objects with explicit `dependsOn` for bootstrap prerequisites versus webhook-validated consumers when required.
+5. For generated prerequisites such as ExternalSecret -> Secret, verify that the producing reconciliation is actually Ready and the generated object exists before allowing the consuming reconciliation to run.
+6. Treat these as bootstrap-sensitive resources and review them explicitly: `ExternalSecret`, Secret-backed `KongConsumer` credentials, `KongPlugin.configFrom`, webhook-validated CR references, CRD/controller dependencies, certificates/secrets, and operator-generated resources.
+7. Validation must include a **clean-cluster/bootstrap thought experiment**: ask whether the manifests succeed when none of the newly introduced generated resources exist yet. A design that only works because a Secret/resource already exists in the current cluster is invalid.
+8. Any same-reconciliation producer/consumer cycle involving an admission webhook is a merge blocker.
+
+Required review question before merge:
+
+> Does any resource in this Flux Kustomization require another resource from the same Kustomization to exist before server-side dry-run/admission can succeed?
+
+If the answer is yes or uncertain, stop and split/stage the reconciliation before merge.
+
 ## Wave 3 Non-Negotiable Invariants
 
 - Flux object names remain `kong`, `home-exporters`, `identity-ingress`, and `ai`.
