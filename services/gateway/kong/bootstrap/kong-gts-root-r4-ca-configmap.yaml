@@ -1,0 +1,35 @@
+# Public root CA used by api.anthropic.com.
+#
+# KIC converts ConfigMaps with label konghq.com/ca-cert=true into Kong
+# CA Certificate entities. Keep this prerequisite in kong-bootstrap so the
+# CA exists before the main kong reconciliation creates the Service that
+# references it via konghq.com/ca-certificates-configmaps.
+#
+# Source: Google Trust Services GTS Root R4.
+# SHA-256 fingerprint:
+#   34:9D:FA:40:58:C5:E2:63:12:3B:39:8A:E7:95:57:3C:4E:13:13:C8:3F:E6:8F:93:55:6C:D5:E8:03:1B:3C:7D
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: anthropic-gts-root-r4
+  namespace: kong
+  labels:
+    konghq.com/ca-cert: "true"
+  annotations:
+    kubernetes.io/ingress.class: kong
+data:
+  id: "5a3d10b8-885e-4c68-9ce7-c43a4954ad44"
+  ca.crt: |
+    -----BEGIN CERTIFICATE-----
+    MIICCTCCAY6gAwIBAgINAgPlwGjvYxqccpBQUjAKBggqhkjOPQQDAzBHMQswCQYD
+    VQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExMQzEUMBIG
+    A1UEAxMLR1RTIFJvb3QgUjQwHhcNMTYwNjIyMDAwMDAwWhcNMzYwNjIyMDAwMDAw
+    WjBHMQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2Vz
+    IExMQzEUMBIGA1UEAxMLR1RTIFJvb3QgUjQwdjAQBgcqhkjOPQIBBgUrgQQAIgNi
+    AATzdHOnaItgrkO4NcWBMHtLSZ37wWHO5t5GvWvVYRg1rkDdc/eJkTBa6zzuhXyi
+    QHY7qca4R9gq55KRanPpsXI5nymfopjTX15YhmUPoYRlBtHci8nHc8iMai/lxKvR
+    HYqjQjBAMA4GA1UdDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQW
+    BBSATNbrdP9JNqPV2Py1PsVq8JQdjDAKBggqhkjOPQQDAwNpADBmAjEA6ED/g94D
+    9J+uHXqnLrmvT/aDHQ4thQEd0dlq7A/Cr8deVl5c1RxYIigL9zC2L7F8AjEA8GE8
+    p/SgguMh1YQdc4acLa/KNJvxn7kjNuK8YAOdgLOaVsjh4rsUecrNIdSUtUlD
+    -----END CERTIFICATE-----
