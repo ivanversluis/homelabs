@@ -4,10 +4,6 @@ resources:
   - ../../../infra
 
   # Dedicated infrastructure reconciliation boundaries.
-  - kong-kustomization.yaml
-  - ai-kustomization.yaml
-  - identity-ingress-kustomization.yaml
-  - home-exporters-kustomization.yaml
   - argocd-kustomization.yaml
   - semaphoreui-kustomization.yaml
   - openclaw-kustomization.yaml

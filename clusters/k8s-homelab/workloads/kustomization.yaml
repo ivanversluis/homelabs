@@ -2,7 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   # Workloads remain owned by their existing dedicated Flux Kustomizations.
-  # Wave 2 changes source paths only; it does not move live resource ownership.
+  # Wave 2 and Wave 3 change source paths only; they do not move live resource ownership.
   - homepage-kustomization.yaml
   - homebox-kustomization.yaml
   - forgejo-kustomization.yaml
@@ -11,3 +11,4 @@ resources:
   - vms-kustomization.yaml
   - linkding-kustomization.yaml
   - termix-kustomization.yaml
+  - ai-kustomization.yaml

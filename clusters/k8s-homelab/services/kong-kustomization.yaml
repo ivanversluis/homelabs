@@ -1,5 +1,6 @@
 ---
 # Flux Kustomization for Kong Gateway (Helm + KongPlugin CRDs + Ingresses).
+# Wave 3 classifies Kong as a shared runtime gateway service.
 # Depends on: cert-manager-config (ClusterIssuers + wildcard cert must be ready)
 # and flux-domain-vars Secret.
 # The postBuild substituteFrom replaces ${DOMAIN}, ${KONG_LB_IP} in manifests.
@@ -10,7 +11,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: ./infra/kong
+  path: ./services/gateway/kong
   prune: true
   sourceRef:
     kind: GitRepository
