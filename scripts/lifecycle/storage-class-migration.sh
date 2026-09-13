@@ -7,14 +7,14 @@
 #   - The PVC manifest file path is known (see --manifest flag)
 #
 # Usage:
-#   plan/sc-migration.sh \
+#   scripts/lifecycle/storage-class-migration.sh \
 #     --namespace <ns> \
 #     --pvc <pvc-name> \
 #     --deployment <deploy-name> \
 #     --manifest <relative/path/to/pvc.yaml>
 #
 # Example:
-#   plan/sc-migration.sh \
+#   scripts/lifecycle/storage-class-migration.sh \
 #     --namespace forgejo \
 #     --pvc forgejo-pvc \
 #     --deployment forgejo \
