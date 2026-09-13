@@ -23,8 +23,8 @@ spec:
                   apiKey: { source: "env", provider: "default", id: "KONG_AI_GATEWAY_KEY" },
                   api: "openai-completions",
                   models: [{
-                    id: "claude-sonnet-4-5",
-                    name: "Claude Sonnet 4.5 via Kong",
+                    id: "claude-sonnet-4-6",
+                    name: "Claude Sonnet 4.6 via Kong",
                     input: ["text"],
                     contextWindow: 200000,
                     maxTokens: 4096
@@ -34,7 +34,7 @@ spec:
 
               node /app/dist/index.js config set models.mode merge 2>/dev/null || true
               node /app/dist/index.js config set models.providers.kong "$PROVIDER" --strict-json --replace 2>/dev/null || true
-              node /app/dist/index.js config set agents.defaults.model '{"primary":"kong/claude-sonnet-4-5"}' --strict-json 2>/dev/null || true
+              node /app/dist/index.js config set agents.defaults.model '{"primary":"kong/claude-sonnet-4-6"}' --strict-json 2>/dev/null || true
 
               # The OpenClaw PVC persists per-agent/session model overrides.
               # Remove non-Kong overrides so resumed sessions inherit the new
