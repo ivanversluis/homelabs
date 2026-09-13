@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openclaw
+  namespace: openclaw
+spec:
+  template:
+    spec:
+      # Runs after the existing install-skills init container. The first init
+      # container seeds/repairs openclaw.json; this one makes Kong the active
+      # LLM provider on every pod start, including when the PVC already exists.
+      initContainers:
+        - name: configure-kong-ai
+          image: ghcr.io/openclaw/openclaw:2026.7.1
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              export HOME=/home/node
+              export OPENCLAW_HOME=/home/node/.openclaw
+              export OPENCLAW_CONFIG_DIR=/home/node/.openclaw/.openclaw
+              export NPM_CONFIG_CACHE=/tmp/.npm
+
+              PROVIDER=$(node -e '
+                console.log(JSON.stringify({
+                  baseUrl: process.env.KONG_AI_BASE_URL,
+                  apiKey: "kong-managed",
+                  api: "openai-completions",
+                  models: [{
+                    id: "claude-sonnet-4-5",
+                    name: "Claude Sonnet 4.5 via Kong",
+                    input: ["text"],
+                    contextWindow: 200000,
+                    maxTokens: 4096
+                  }]
+                }))
+              ')
+
+              node /app/dist/index.js config set models.mode merge 2>/dev/null || true
+              node /app/dist/index.js config set models.providers.kong "$PROVIDER" --strict-json --replace 2>/dev/null || true
+              node /app/dist/index.js config set agents.defaults.model '{"primary":"kong/claude-sonnet-4-5"}' --strict-json 2>/dev/null || true
+          env:
+            - name: KONG_AI_BASE_URL
+              value: "https://ai.${DOMAIN}/v1"
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /home/node/.openclaw
+            - name: tmp-volume
+              mountPath: /tmp
