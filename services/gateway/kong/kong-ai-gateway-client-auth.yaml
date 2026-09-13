@@ -1,0 +1,56 @@
+---
+# Internal client credential for the AI Gateway.
+#
+# This is NOT the Anthropic key. It authenticates Open WebUI/OpenClaw to Kong.
+# Store a random value in Vault at:
+#   secret/infra/kong -> ai-gateway-client-key
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: kong-ai-gateway-client-key
+  namespace: kong
+spec:
+  refreshInterval: "1h"
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: kong-ai-gateway-client-key
+    creationPolicy: Owner
+    template:
+      metadata:
+        labels:
+          konghq.com/credential: key-auth
+      data:
+        key: "{{ .client_key }}"
+  data:
+    - secretKey: client_key
+      remoteRef:
+        key: infra/kong
+        property: ai-gateway-client-key
+---
+# Kong consumer representing trusted homelab AI clients.
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: homelab-ai-clients
+  namespace: kong
+  annotations:
+    kubernetes.io/ingress.class: kong
+username: homelab-ai-clients
+credentials:
+  - kong-ai-gateway-client-key
+---
+# Standard key-auth runs after the pre-function has converted
+# Authorization: Bearer <key> into apikey: <key>.
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-gateway-key-auth
+  namespace: kong
+plugin: key-auth
+config:
+  key_names:
+    - apikey
+  key_in_header: true
+  hide_credentials: true
