@@ -1,0 +1,23 @@
+---
+# Flux Kustomization for the Tigera operator and Calico Installation.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: calico
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: calico-crds
+  force: false
+  timeout: 10m
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: tigera-operator
+      namespace: tigera-operator
+  interval: 10m
+  path: ./platform/networking/calico/k8s
+  prune: false
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

@@ -1,0 +1,34 @@
+---
+# Flux Kustomization for the monitoring stack (kps, metrics-server, gatus, mikrotik-proxy).
+# Separate from the root platform path because several manifests require postBuild substitution:
+#   - platform/observability/monitoring/gatus/gatus-configmap-config.yaml → ${DOMAIN}
+#   - platform/observability/monitoring/mikrotik-proxy/mikrotik-service-endpointslice.yaml → ${MIKROTIK_IP}
+# Depends on: kong (Gatus ingress uses Kong IngressClass + wildcard cert).
+#
+# healthChecks: wait for the mikrotik-proxy-key-auth ExternalSecret to be Ready (i.e. the
+# Secret has been created by ESO from Vault) before this Kustomization reports Ready.
+# This allows monitoring-kong-consumers (which depends on this Kustomization) to safely
+# apply the KongConsumer that references that Secret.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: monitoring
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./platform/observability/monitoring
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  dependsOn:
+    - name: kong
+  postBuild:
+    substituteFrom:
+      - kind: Secret
+        name: flux-domain-vars
+  healthChecks:
+    - apiVersion: external-secrets.io/v1
+      kind: ExternalSecret
+      name: mikrotik-proxy-key-auth
+      namespace: monitoring
