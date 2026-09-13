@@ -1,0 +1,128 @@
+---
+# Wave 0.5 Task 1 (Host/Arch): read-only disk, inode, kernel, package-version, and Python
+# state per node. Every command here is safe to run on a live node (no writes).
+
+- name: Report root filesystem capacity usage
+  ansible.builtin.shell: set -o pipefail && df -P / | tail -n1 | awk '{ gsub("%","",$5); print $5 }'
+  args:
+    executable: /bin/bash
+  register: root_disk_pct
+  changed_when: false
+
+- name: Report root filesystem inode usage
+  ansible.builtin.shell: set -o pipefail && df -iP / | tail -n1 | awk '{ gsub("%","",$5); print $5 }'
+  args:
+    executable: /bin/bash
+  register: root_inode_pct
+  changed_when: false
+
+- name: Record disk-space finding if over threshold
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'HOST-DISK-' + inventory_hostname,
+      'component': 'host',
+      'severity': 'blocker',
+      'observed': 'Root filesystem is ' + root_disk_pct.stdout | trim + '% full on ' + inventory_hostname,
+      'evidence': 'df -P / -> ' + root_disk_pct.stdout | trim + '%',
+      'impact': 'Package installs, container image pulls, or etcd/Longhorn writes during maintenance could fail or corrupt state if disk fills up mid-operation',
+      'remediation': 'Free up disk space on ' + inventory_hostname + ' before starting maintenance (check /var/lib/containerd, journal logs, old kernels)',
+      'blocks_next_wave': true,
+    }] }}"
+  when: (root_disk_pct.stdout | trim | int) > maintenance_readiness_max_disk_pct
+
+- name: Record inode-usage finding if over threshold
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'HOST-INODE-' + inventory_hostname,
+      'component': 'host',
+      'severity': 'blocker',
+      'observed': 'Root filesystem inode usage is ' + root_inode_pct.stdout | trim + '% on ' + inventory_hostname,
+      'evidence': 'df -iP / -> ' + root_inode_pct.stdout | trim + '%',
+      'impact': 'Running out of inodes can silently break package installs/container operations even with free byte capacity',
+      'remediation': 'Investigate excessive small-file growth on ' + inventory_hostname + ' (e.g. container layers, logs) before maintenance',
+      'blocks_next_wave': true,
+    }] }}"
+  when: (root_inode_pct.stdout | trim | int) > maintenance_readiness_max_inode_pct
+
+- name: Determine currently running kernel
+  ansible.builtin.command: uname -r
+  register: running_kernel
+  changed_when: false
+
+- name: Determine newest installed kernel module directory
+  ansible.builtin.shell: set -o pipefail && (ls -1 /usr/lib/modules 2>/dev/null | sort -V | tail -n1)
+  args:
+    executable: /bin/bash
+  register: latest_kernel_modules_dir
+  changed_when: false
+  failed_when: false
+
+- name: Record reboot-indicator finding if a newer kernel is installed but not running
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'HOST-REBOOT-' + inventory_hostname,
+      'component': 'host',
+      'severity': 'exception',
+      'observed': 'Running kernel ' + running_kernel.stdout | trim + ' differs from newest installed kernel modules ' + latest_kernel_modules_dir.stdout | trim + ' on ' + inventory_hostname,
+      'evidence': 'uname -r=' + running_kernel.stdout | trim + '; newest /usr/lib/modules entry=' + latest_kernel_modules_dir.stdout | trim,
+      'impact': 'Node is running an older kernel than what is installed; a reboot is pending from a prior package update (does not block read-only preflight, but a coordinated OS-maintenance wave should account for it)',
+      'remediation': 'Plan a reboot for ' + inventory_hostname + ' during Wave 3 (coordinated Arch Linux + Kubernetes maintenance)',
+      'blocks_next_wave': false,
+    }] }}"
+  when:
+    - latest_kernel_modules_dir.stdout | trim | length > 0
+    - (latest_kernel_modules_dir.stdout | trim) != (running_kernel.stdout | trim)
+
+- name: Gather relevant Arch package versions (best-effort, missing packages are not an error)
+  ansible.builtin.shell: |
+    set -o pipefail
+    for pkg in linux kubelet kubeadm kubectl containerd cri-o; do
+      version="$(pacman -Q "$pkg" 2>/dev/null | awk '{print $2}')"
+      if [ -n "$version" ]; then
+        echo "$pkg=$version"
+      fi
+    done
+  args:
+    executable: /bin/bash
+  register: arch_package_versions
+  changed_when: false
+  failed_when: false
+
+- name: Gather live kubelet/kubeadm/kubectl binary versions (best-effort, not all nodes have all three)
+  ansible.builtin.shell: |
+    set -o pipefail
+    command -v kubelet >/dev/null 2>&1 && echo "kubelet-binary=$(kubelet --version 2>/dev/null)"
+    command -v kubeadm >/dev/null 2>&1 && echo "kubeadm-binary=$(kubeadm version -o short 2>/dev/null)"
+    command -v kubectl >/dev/null 2>&1 && echo "kubectl-binary=$(kubectl version --client -o json 2>/dev/null | grep -o '\"gitVersion\":\"[^\"]*\"' | head -n1)"
+    exit 0
+  args:
+    executable: /bin/bash
+  register: kube_binary_versions
+  changed_when: false
+  failed_when: false
+
+- name: Record host/Arch/Kubernetes package-version report finding (informational)
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'HOST-VERSIONS-' + inventory_hostname,
+      'component': 'host',
+      'severity': 'info',
+      'observed': 'Package/binary versions on ' + inventory_hostname,
+      'evidence': (arch_package_versions.stdout_lines | default([])) + (kube_binary_versions.stdout_lines | default([])),
+      'impact': 'none (informational baseline for Wave 3 planning)',
+      'remediation': 'none',
+      'blocks_next_wave': false,
+    }] }}"
+
+- name: Record system-vs-standalone Python state finding (informational)
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'HOST-PYTHON-' + inventory_hostname,
+      'component': 'host',
+      'severity': ('exception' if not control_tower_system_python_ok else 'info'),
+      'observed': ('Node depends on the standalone control-tower Python interpreter (system Python is broken)' if not control_tower_system_python_ok else 'System Python 3 is functional'),
+      'evidence': 'control_tower_system_python_ok=' + (control_tower_system_python_ok | string),
+      'impact': ('Ansible automation on this node depends on ' + standalone_python_bin + ' until system Python is repaired; a coordinated OS-maintenance wave should restore it' if not control_tower_system_python_ok else 'none'),
+      'remediation': ('Repair system Python (see docs/lifecycle/ Wave -1c live-activation notes) during Wave 3' if not control_tower_system_python_ok else 'none'),
+      'blocks_next_wave': false,
+    }] }}"

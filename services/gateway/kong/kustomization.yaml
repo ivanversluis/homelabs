@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  # Namespace + ExternalSecrets live in bootstrap/ (separate wait:true Kustomization)
+  # so Secrets they generate exist before Kong's admission webhook validates
+  # objects here that reference them by name (e.g. KongConsumer, configFrom).
+  - kong-netpol.yaml
+  # Wildcard cert lives here because it references the kong namespace.
+  # cert-manager CRDs and ClusterIssuers are ready before this reconciles
+  # because this Kustomization dependsOn cert-manager.
+  - cert-manager-wildcard-certificate.yaml
+  - kong-helmrepository.yaml
+  - kong-helmrelease.yaml
+  - kong-ingressclass.yaml
+  - kong-plugin-ai-proxy.yaml
+  - kong-plugin-ai-proxy-anthropic.yaml
+  - kong-ai-gateway-client-auth.yaml
+  - kong-plugin-ai-prompt-guard.yaml
+  - kong-plugin-rate-limit.yaml
+  - kong-plugin-normalize-model-name.yaml
+  - kong-plugin-normalize-model-claude.yaml
+  - kong-service-ai-gateway.yaml
+  - kong-ai-gateway-models-ingress.yaml
+  # Parallel pass-through path used to bypass the Kong 3.9.3 Anthropic ai-proxy
+  # response decoder. It deliberately does not modify Ingress/ai-gateway.
+  - kong-plugin-anthropic-openai-auth.yaml
+  - kong-service-anthropic-openai-compat.yaml
+  - kong-anthropic-openai-models-ingress.yaml

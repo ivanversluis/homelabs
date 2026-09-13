@@ -44,7 +44,7 @@ spec:
       source:
         repoURL: https://github.com/ivanversluis/homelabs.git
         targetRevision: main
-        path: apps/firewall-manager/overlays/{{.env}}
+        path: workloads/apps/firewall-manager/overlays/{{.env}}
       destination:
         server: https://kubernetes.default.svc
         namespace: "{{.namespace}}"

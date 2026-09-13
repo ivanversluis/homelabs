@@ -1,0 +1,111 @@
+---
+# Wave 0.5 Task 3 (Calico): read-only health/version checks. Runs only on the control-plane
+# node. Does not change any Calico configuration (Tigera-operator managed).
+
+- name: Fetch Calico DaemonSet objects
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ maintenance_readiness_kubeconfig }}
+    get daemonsets -n {{ maintenance_readiness_calico_namespace }} -o json
+  become: true
+  changed_when: false
+  register: calico_ds_raw
+
+- name: Fetch Calico Deployment objects
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ maintenance_readiness_kubeconfig }}
+    get deployments -n {{ maintenance_readiness_calico_namespace }} -o json
+  become: true
+  changed_when: false
+  register: calico_deploy_raw
+
+- name: Fetch TigeraStatus objects (operator-reported component health)
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ maintenance_readiness_kubeconfig }} get tigerastatus -o json
+  become: true
+  changed_when: false
+  register: calico_tigerastatus_raw
+
+- name: Fetch the Tigera Installation object (Calico version, config relevant to future upgrade)
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ maintenance_readiness_kubeconfig }} get installation default -o json
+  become: true
+  changed_when: false
+  failed_when: false
+  register: calico_installation_raw
+
+- name: Parse Calico objects
+  ansible.builtin.set_fact:
+    calico_daemonsets: "{{ (calico_ds_raw.stdout | from_json)['items'] }}"
+    calico_deployments: "{{ (calico_deploy_raw.stdout | from_json)['items'] }}"
+    calico_tigerastatuses: "{{ (calico_tigerastatus_raw.stdout | from_json)['items'] }}"
+
+- name: Record Calico DaemonSet health findings
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'CALICO-DS-' + item.metadata.name,
+      'component': 'calico',
+      'severity': 'blocker',
+      'observed': 'DaemonSet ' + item.metadata.name + ' has ' + (item.status.numberReady | string) + '/' + (item.status.desiredNumberScheduled | string) + ' pods Ready',
+      'evidence': 'desiredNumberScheduled=' + (item.status.desiredNumberScheduled | string) + ', numberReady=' + (item.status.numberReady | string) + ', numberUnavailable=' + (item.status.numberUnavailable | default(0) | string),
+      'impact': 'Degraded Calico dataplane coverage risks pod networking failures on affected nodes, which maintenance actions (cordon/drain) would make worse to diagnose',
+      'remediation': 'Investigate ' + item.metadata.name + ' pods in ' + maintenance_readiness_calico_namespace + ' before starting maintenance',
+      'blocks_next_wave': true,
+    }] }}"
+  loop: "{{ calico_daemonsets }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when: item.metadata.name in maintenance_readiness_calico_daemonsets and item.status.numberReady != item.status.desiredNumberScheduled
+
+- name: Record Calico controller/apiserver Deployment health findings
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'CALICO-DEPLOY-' + item.metadata.name,
+      'component': 'calico',
+      'severity': 'blocker',
+      'observed': 'Deployment ' + item.metadata.name + ' has ' + (item.status.readyReplicas | default(0) | string) + '/' + (item.spec.replicas | string) + ' replicas Ready',
+      'evidence': 'spec.replicas=' + (item.spec.replicas | string) + ', status.readyReplicas=' + (item.status.readyReplicas | default(0) | string),
+      'impact': 'A degraded Calico controller/Typha reduces resilience of policy/IPAM reconciliation during any maintenance window',
+      'remediation': 'Investigate ' + item.metadata.name + ' in ' + maintenance_readiness_calico_namespace + ' before starting maintenance',
+      'blocks_next_wave': true,
+    }] }}"
+  loop: "{{ calico_deployments }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when: item.metadata.name in maintenance_readiness_calico_deployments and (item.status.readyReplicas | default(0)) != item.spec.replicas
+
+- name: Record Tigera operator component-status findings
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'CALICO-TIGERASTATUS-' + item.metadata.name,
+      'component': 'calico',
+      'severity': 'blocker',
+      'observed': 'TigeraStatus ' + item.metadata.name + ' is degraded or not available',
+      'evidence': item.status.conditions | default([]),
+      'impact': 'The Tigera operator itself reports this Calico component as unhealthy',
+      'remediation': 'Investigate TigeraStatus/' + item.metadata.name + ' before starting maintenance',
+      'blocks_next_wave': true,
+    }] }}"
+  loop: "{{ calico_tigerastatuses }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  vars:
+    available_cond: "{{ item.status.conditions | selectattr('type', 'equalto', 'Available') | list | first | default({'status': 'Unknown'}) }}"
+    degraded_cond: "{{ item.status.conditions | selectattr('type', 'equalto', 'Degraded') | list | first | default({'status': 'Unknown'}) }}"
+  when: available_cond.status != 'True' or degraded_cond.status == 'True'
+
+- name: Record Calico version/config report finding (informational, relevant to future Wave 2)
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'CALICO-VERSION',
+      'component': 'calico',
+      'severity': 'info',
+      'observed': 'Installed Calico version and CNI/IP pool configuration',
+      'evidence': {
+        'calicoVersion': (calico_installation_raw.stdout | from_json).status.calicoVersion if (calico_installation_raw.rc | default(1)) == 0 else 'unavailable',
+        'variant': (calico_installation_raw.stdout | from_json).spec.variant if (calico_installation_raw.rc | default(1)) == 0 else 'unavailable',
+        'cni': (calico_installation_raw.stdout | from_json).spec.cni.type if (calico_installation_raw.rc | default(1)) == 0 else 'unavailable',
+      },
+      'impact': 'none (baseline for Wave 2 Calico upgrade planning)',
+      'remediation': 'none',
+      'blocks_next_wave': false,
+    }] }}"

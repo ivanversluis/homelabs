@@ -1,0 +1,16 @@
+---
+wave3_repair_kubeconfig: /etc/kubernetes/admin.conf
+wave3_repair_namespace: kube-system
+wave3_repair_configmap: kubeadm-config
+wave3_repair_expected_kubernetes_version: v1.35.0
+wave3_repair_backup_dir: /var/lib/homelab-backups/wave3-kubeadm-config-repair
+wave3_repair_work_dir: /var/tmp/wave3-kubeadm-config-repair
+
+# Exact OIDC keys expected in the valid apiServer block. These are deliberately checked by
+# key name only; client-id and other values are read from the live ConfigMap and never copied
+# into repo state.
+wave3_repair_required_apiserver_args:
+  - oidc-issuer-url
+  - oidc-client-id
+  - oidc-username-claim
+  - oidc-groups-claim

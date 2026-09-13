@@ -1,0 +1,21 @@
+---
+wave3_cp_upgrade_approved: true
+wave3_cp_kubeconfig: /etc/kubernetes/admin.conf
+wave3_cp_control_plane_node: k8s-master01
+wave3_cp_source_version: v1.35.0
+wave3_cp_target_version: v1.36.4
+wave3_cp_target_minor: "1.36"
+wave3_cp_kubeadm_url: "https://dl.k8s.io/release/{{ wave3_cp_target_version }}/bin/linux/amd64/kubeadm"
+wave3_cp_kubeadm_sha256_url: "{{ wave3_cp_kubeadm_url }}.sha256"
+wave3_cp_work_dir: /var/tmp/wave3-control-plane-upgrade
+wave3_cp_backup_dir: /var/lib/homelab-backups/wave3-control-plane
+wave3_cp_checkpoint_marker: "{{ wave3_cp_backup_dir }}/latest-checkpoint.env"
+wave3_cp_checkpoint_max_age_seconds: 7200
+wave3_cp_longhorn_namespace: longhorn-system
+wave3_cp_expected_longhorn_manager_image: docker.io/longhornio/longhorn-manager:v1.12.1
+wave3_cp_expected_calico_version: v3.32.1
+wave3_cp_required_apiserver_args:
+  - oidc-issuer-url
+  - oidc-client-id
+  - oidc-username-claim
+  - oidc-groups-claim

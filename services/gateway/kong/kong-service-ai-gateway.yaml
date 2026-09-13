@@ -1,0 +1,61 @@
+# Service + Ingress: exposes the AI Gateway endpoint inside the cluster.
+# Internal services call https://ai.${DOMAIN}/v1/chat/completions
+# which resolves to Kong via split-brain DNS.
+#
+# Kong accepts the OpenAI-compatible chat request, validates the client API key,
+# normalizes the model name, translates the request to Anthropic, and injects
+# the upstream x-api-key from Vault. Open WebUI and OpenClaw never receive the
+# Anthropic credential.
+apiVersion: v1
+kind: Service
+metadata:
+  # Headless placeholder — Kong AI gateway is the proxy itself (no separate backend).
+  # This Service exists so the Ingress can reference a valid backend.
+  name: ai-gateway
+  namespace: kong
+  labels:
+    app.kubernetes.io/name: ai-gateway
+    app.kubernetes.io/part-of: kong
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: app
+  ports:
+    - name: proxy
+      port: 80
+      targetPort: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-gateway
+  namespace: kong
+  annotations:
+    # normalize-model-claude converts Authorization: Bearer to apikey and
+    # normalizes client model aliases before key-auth and AI Proxy execute.
+    konghq.com/plugins: "normalize-model-claude,ai-gateway-key-auth,ai-proxy-anthropic,ai-prompt-guard,rate-limit-global"
+    konghq.com/strip-path: "false"
+spec:
+  ingressClassName: kong
+  tls:
+    # All subdomains share the wildcard cert. KIC registers each host as a Kong SNI.
+    - hosts:
+        - ai.${DOMAIN}
+        - mcp.${DOMAIN}
+        - ai-chat.${DOMAIN}
+        - auth.${DOMAIN}
+        - homepage.${DOMAIN}
+        - homebox.${DOMAIN}
+      secretName: kong-tls-wildcard
+  rules:
+    - host: ai.${DOMAIN}
+      http:
+        paths:
+          - path: /v1
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-gateway
+                port:
+                  number: 80

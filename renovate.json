@@ -25,14 +25,18 @@
 
   "flux": {
     "managerFilePatterns": [
+      "/(^|/)platform/.+\\.ya?ml$/",
       "/(^|/)infra/.+\\.ya?ml$/",
+      "/(^|/)services/.+\\.ya?ml$/",
+      "/(^|/)workloads/.+\\.ya?ml$/",
       "/(^|/)clusters/.+\\.ya?ml$/"
     ]
   },
 
   "kubernetes": {
     "managerFilePatterns": [
-      "/(^|/)apps/.+\\.ya?ml$/",
+      "/(^|/)platform/.+\\.ya?ml$/",
+      "/(^|/)workloads/.+\\.ya?ml$/",
       "/(^|/)services/.+\\.ya?ml$/",
       "/(^|/)infra/.+\\.ya?ml$/",
       "/(^|/)clusters/.+\\.ya?ml$/"
@@ -64,7 +68,7 @@
       "customType": "regex",
       "description": "Track split repository+tag image references in HelmRelease values blocks",
       "managerFilePatterns": [
-        "/(^|/)infra/[^/]+/[^/]*helmrelease\\.ya?ml$/"
+        "/(^|/)(platform|infra|services|workloads)/.+helmrelease\\.ya?ml$/"
       ],
       "matchStrings": [
         "repository:\\s+(?<depName>\\S+)\\n\\s+tag:\\s+[\"']?(?<currentValue>[\\w][\\w.\\-]*)[\"']?"

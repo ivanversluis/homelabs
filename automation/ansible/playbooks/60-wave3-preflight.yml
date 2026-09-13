@@ -1,0 +1,12 @@
+---
+# Wave 3 is intentionally split into preparation and mutation.
+# This playbook is the read-only preparation gate. It performs no cordon, drain,
+# package synchronization, kubeadm upgrade, reboot, service restart, or uncordon.
+- name: Wave 3 Arch Linux and Kubernetes preparation
+  hosts: k8s_homelab
+  gather_facts: false
+  serial: 1
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  roles:
+    - wave3_preflight

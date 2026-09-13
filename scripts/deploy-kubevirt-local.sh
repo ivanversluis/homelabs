@@ -144,7 +144,7 @@ fi
 echo -e "  ${GREEN}✓${NC} virt-operator ready"
 
 echo -e "  Applying KubeVirt CR from repo..."
-apply "${REPO_ROOT}/infra/kubevirt/kubevirt-cr.yaml"
+apply "${REPO_ROOT}/platform/virtualization/kubevirt/kubevirt-cr.yaml"
 echo -e "  Waiting for KubeVirt to become Available (may take 2-3 minutes)..."
 if ! $DRY_RUN; then
   kubectl wait kubevirt/kubevirt -n kubevirt --for=condition=Available --timeout=300s
@@ -162,7 +162,7 @@ fi
 echo -e "  ${GREEN}✓${NC} cdi-operator ready"
 
 echo -e "  Applying CDI CR from repo..."
-apply "${REPO_ROOT}/infra/cdi/cdi-cr.yaml"
+apply "${REPO_ROOT}/platform/virtualization/cdi/cdi-cr.yaml"
 echo -e "  Waiting for CDI to become Available..."
 if ! $DRY_RUN; then
   kubectl wait cdi/cdi -n cdi --for=condition=Available --timeout=300s
@@ -187,7 +187,7 @@ if ! $DRY_RUN; then
 fi
 
 echo -e "  Applying local-path-provisioner manifests from repo..."
-apply "${REPO_ROOT}/infra/local-path-provisioner/"
+apply "${REPO_ROOT}/platform/storage/local-path-provisioner/"
 if ! $DRY_RUN; then
   kubectl -n local-path-storage wait deployment/local-path-provisioner \
     --for=condition=Available --timeout=120s
@@ -208,7 +208,7 @@ fi
 echo ""
 echo -e "${BOLD}[6/7] Applying VM workloads${NC}"
 echo -e "  Applying vms namespace, network policies, and VM definition..."
-apply "${REPO_ROOT}/vms/"
+apply "${REPO_ROOT}/workloads/vms/"
 echo -e "  ${GREEN}✓${NC} VM manifests applied"
 
 if ! $DRY_RUN; then
@@ -256,6 +256,6 @@ echo -e "${BOLD}═════════════════════�
 echo -e "${BOLD}  Bootstrap complete! Flux is still suspended.${NC}"
 echo -e "${BOLD}  After testing, resume Flux:${NC}"
 echo -e "${BOLD}    flux resume kustomization --all${NC}"
-echo -e "${BOLD}  Flux will then manage KubeVirt CRs + vms manifests going forward.${NC}"
+echo -e "${BOLD}  Flux will then manage KubeVirt CRs + workloads/vms manifests going forward.${NC}"
 echo -e "${BOLD}═══════════════════════════════════════════════════════════════${NC}"
 echo ""

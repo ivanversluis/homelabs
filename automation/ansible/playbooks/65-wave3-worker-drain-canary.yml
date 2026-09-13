@@ -1,0 +1,14 @@
+---
+# Controlled Wave 3 canary. This playbook performs a real cordon and real eviction of
+# non-Longhorn workload pods on one worker so attached Longhorn volumes can move and old
+# v1.11 instance-manager pods can drain naturally. It never bypasses PDBs, never forces pod
+# deletion, never changes Longhorn drain policy, and never changes host packages or Kubernetes
+# versions. The target node is always uncordoned in an Ansible always block.
+- name: Wave 3 staged worker drain canary
+  hosts: control_plane
+  gather_facts: false
+  serial: 1
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  roles:
+    - wave3_worker_drain_canary

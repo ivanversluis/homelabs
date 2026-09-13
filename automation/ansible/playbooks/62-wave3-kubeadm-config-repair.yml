@@ -1,0 +1,14 @@
+---
+# Narrow Wave 3 repair for the malformed kubeadm ClusterConfiguration discovered by the
+# read-only execution gate. This playbook only removes one exact, empty duplicate top-level
+# `apiServer: {}` key from kube-system/kubeadm-config after validating all preconditions.
+# It does not update packages, rewrite static Pod manifests, drain/reboot nodes, or run a
+# Kubernetes version upgrade.
+- name: Wave 3 repair malformed kubeadm ClusterConfiguration
+  hosts: control_plane
+  gather_facts: false
+  serial: 1
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  roles:
+    - wave3_kubeadm_config_repair

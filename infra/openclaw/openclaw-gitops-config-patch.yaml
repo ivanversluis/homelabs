@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openclaw
+  namespace: openclaw
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: install-skills
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              mkdir -p /home/node/.openclaw/skills
+              mkdir -p /home/node/.openclaw/workspace
+              mkdir -p /runtime/openclaw
+
+              # Git-owned bootstrap content is refreshed on every start.
+              cp /config/k8s-monitor.js /home/node/.openclaw/skills/k8s-monitor.js
+              cp /config/AGENTS.md /home/node/.openclaw/workspace/AGENTS.md
+
+              # Render the immutable runtime config from Git + Vault-backed env vars.
+              # No `openclaw config set` calls and no config is stored on the PVC.
+              node <<'NODE'
+              const fs = require("fs");
+              const cfg = JSON.parse(fs.readFileSync("/runtime-source/openclaw.json.template", "utf8"));
+              const csv = (v) => String(v || "").split(",").map(s => s.trim()).filter(Boolean);
+
+              cfg.gateway.controlUi.allowedOrigins = csv(process.env.OPENCLAW_ALLOWED_ORIGINS);
+              if (process.env.OPENCLAW_TRUSTED_PROXIES) {
+                cfg.gateway.trustedProxies = csv(process.env.OPENCLAW_TRUSTED_PROXIES);
+              }
+
+              cfg.channels.discord.allowFrom = csv(process.env.DISCORD_USER_ID);
+              if (process.env.DISCORD_GUILD_ID) {
+                cfg.channels.discord.guilds = {
+                  [process.env.DISCORD_GUILD_ID]: { requireMention: false }
+                };
+              }
+
+              fs.writeFileSync("/runtime/openclaw/openclaw.json", JSON.stringify(cfg, null, 2));
+              NODE
+          volumeMounts:
+            - name: runtime-config-source
+              mountPath: /runtime-source
+              readOnly: true
+            - name: runtime-config
+              mountPath: /runtime/openclaw
+      containers:
+        - name: openclaw
+          # Use the image's normal gateway command from the base Deployment.
+          # Configuration is read from the Git/Vault rendered regular file below.
+          env:
+            - name: OPENCLAW_STATE_DIR
+              value: /home/node/.openclaw
+            - name: OPENCLAW_CONFIG_PATH
+              value: /runtime/openclaw/openclaw.json
+            - name: OPENCLAW_WORKSPACE_DIR
+              value: /home/node/.openclaw/workspace
+          volumeMounts:
+            - name: runtime-config
+              mountPath: /runtime/openclaw
+              readOnly: true
+      volumes:
+        - name: runtime-config-source
+          configMap:
+            name: openclaw-runtime-config
+        - name: runtime-config
+          emptyDir: {}

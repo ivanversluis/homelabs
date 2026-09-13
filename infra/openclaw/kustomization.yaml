@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - openclaw-namespace.yaml
   - openclaw-netpol.yaml
+  - openclaw-kong-netpol.yaml
   - openclaw-pvc.yaml
   - openclaw-serviceaccount.yaml
   - openclaw-clusterrole.yaml
@@ -12,3 +13,24 @@ resources:
   - openclaw-k8s-monitor-cronjob.yaml
   - openclaw-deployment.yaml
   - openclaw-service.yaml
+
+# Generate the runtime config with Kustomize's content hash. The Deployment
+# references this ConfigMap by name, so any Git config change updates the Pod
+# template reference and triggers a deterministic rollout. The init container
+# then renders the template into the read-only runtime emptyDir.
+configMapGenerator:
+  - name: openclaw-runtime-config
+    files:
+      - openclaw.json.template=openclaw.json.template
+
+patches:
+  - path: openclaw-gitops-config-patch.yaml
+  # openclaw-config keeps AGENTS.md and k8s-monitor.js. Its historical
+  # openclaw.json is deliberately removed from the rendered object so there is
+  # exactly one active Git-owned runtime config source.
+  - target:
+      kind: ConfigMap
+      name: openclaw-config
+    patch: |-
+      - op: remove
+        path: /data/openclaw.json

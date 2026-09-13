@@ -1,179 +1,134 @@
-# DNS Observability Implementation
+# Observability Architecture
 
-This page documents the DNS visibility implementation in Grafana, Prometheus, and Loki.
+This page documents the metrics, logs, dashboards, and DNS visibility implementation.
 
-## Architecture
+## Platform location
 
-The DNS observability layer connects three exporters to Prometheus via **static scrape configs** in the `prometheus-config` ConfigMap. Grafana dashboards are provisioned from ConfigMaps. ServiceMonitor resources also exist in `infra/observability/dns/` but are picked up by the separate kube-prometheus-stack Prometheus in `monitoring` — not the observability-namespace Prometheus.
+Observability is a Kubernetes platform capability and is stored under:
 
-> **Important**: This stack uses plain Prometheus (not Prometheus Operator). ServiceMonitors are ignored by the observability Prometheus. All scrape targets must be in `infra/observability/prometheus/configmap.yaml`.
+```text
+platform/observability/
+├── prometheus/           # standalone Prometheus and static scrape config
+├── grafana/              # dashboards, datasource, OIDC configuration
+├── loki/                 # log aggregation
+├── promtail/             # node log shipping
+├── dns/                  # ServiceMonitors for DNS components
+├── vault/                # ExternalSecret consumers for observability secrets
+└── monitoring/           # kube-prometheus-stack, metrics-server, Gatus, MikroTik proxy
+```
+
+The two Prometheus planes are intentionally distinct:
+
+- `observability` namespace: a **plain Prometheus** deployment using static `scrape_configs` from `platform/observability/prometheus/configmap.yaml`.
+- `monitoring` namespace: kube-prometheus-stack/Prometheus Operator, which consumes `ServiceMonitor` CRDs.
+
+Moving both deployment units below `platform/observability/` changes repository ownership only; it does not merge their runtime behavior.
+
+## DNS observability
+
+The DNS layer connects CoreDNS, Pi-hole, and Unbound exporters to Prometheus.
 
 ```mermaid
 flowchart TD
   subgraph kube-system
-    CD[CoreDNS :9153\ncoredns-metrics Service]
+    CD[CoreDNS :9153]
   end
-  subgraph pihole namespace
-    PE[pihole-exporter :9617\ndocker.io/ekofr/pihole-exporter:v1.2.0]
+  subgraph pihole
+    PE[pihole-exporter :9617]
   end
-  subgraph dns namespace
-    UB[unbound pod]
-    UB -->|unix socket\n/var/run/unbound/unbound.ctl| UE[unbound-exporter sidecar :9167\nghcr.io/cyb3r-jak3/unbound-exporter:0.6.0]
+  subgraph dns
+    UB[Unbound]
+    UB --> UE[unbound-exporter :9167]
   end
-  subgraph observability namespace
-    CM[prometheus-config ConfigMap\nstatic_configs]
+  subgraph observability
+    CM[prometheus-config\nstatic_configs]
     P[Prometheus]
     G[Grafana]
-    CM -->|volume mount| P
+    CM --> P
   end
-  CD -->|static scrape| P
-  PE -->|static scrape| P
-  UE -->|static scrape| P
+  CD --> P
+  PE --> P
+  UE --> P
   P --> G
 ```
 
-## Components
+### CoreDNS
 
-### CoreDNS metrics
+- Metrics Service: `platform/networking/coredns/coredns-metrics-service.yaml`
+- ServiceMonitor: `platform/observability/dns/coredns-servicemonitor.yaml`
+- Static target: `coredns-metrics.kube-system.svc.cluster.local:9153`
 
-CoreDNS already exposes Prometheus metrics on `:9153`. A ClusterIP Service `coredns-metrics` in `kube-system` makes the endpoint discoverable and acts as the static scrape target.
+### Pi-hole
 
-Manifests:
-- `infra/coredns/coredns-metrics-service.yaml` — ClusterIP service targeting `k8s-app: kube-dns` on port 9153
-- `infra/observability/dns/coredns-servicemonitor.yaml` — ServiceMonitor (consumed by kube-prometheus-stack only)
-- Prometheus static job: `coredns-metrics.kube-system.svc.cluster.local:9153`
+- Exporter deployment/service remain with the shared service under `services/dns/pihole/k8s/`.
+- ServiceMonitor: `platform/observability/dns/pihole-servicemonitor.yaml`
+- Static target: `pihole-exporter.pihole.svc.cluster.local:9617`
 
-Key metrics:
-- `coredns_dns_requests_total` — total query rate
-- `coredns_dns_responses_total` — responses by rcode (NOERROR, NXDOMAIN, SERVFAIL)
-- `coredns_dns_request_duration_seconds` — latency histogram
-- `coredns_cache_hits_total` / `coredns_cache_misses_total` — cache performance
+### Unbound
 
-### Pi-hole exporter
+- Exporter remains a sidecar in `services/dns/unbound/k8s/unbound-deployment.yaml`.
+- The sidecar uses `unix:///var/run/unbound/unbound.ctl` and runs as uid 1000 to match the Unbound control socket ownership.
+- ServiceMonitor: `platform/observability/dns/unbound-servicemonitor.yaml`
+- Static target: `unbound-exporter.dns.svc.cluster.local:9167`
 
-The `pihole-exporter` deployment runs in the `pihole` namespace and scrapes the Pi-hole API to expose metrics on port `9617`.
+## Standalone Prometheus
 
-Image: `docker.io/ekofr/pihole-exporter:v1.2.0` (Docker Hub, no registry auth required)
+Static scrape jobs are defined in:
 
-> **Note**: The image at `ghcr.io/eko/pihole-exporter` is the same author but has **non-public GHCR visibility** — anonymous pulls return `403 Forbidden`. Use Docker Hub. Requires pihole-exporter v1.x for the Pi-hole v6 API.
+```text
+platform/observability/prometheus/configmap.yaml
+```
 
-Manifests:
-- `services/dns/pihole/k8s/pihole-exporter-deployment.yaml`
-- `services/dns/pihole/k8s/pihole-exporter-service.yaml`
-- `services/dns/pihole/k8s/pihole-netpol.yaml` — `allow-prometheus-scrape` ingress on 9617 from `observability`
-- `infra/observability/dns/pihole-servicemonitor.yaml` — ServiceMonitor (kube-prometheus-stack only)
-- Prometheus static job: `pihole-exporter.pihole.svc.cluster.local:9617`
+`ServiceMonitor` resources do not configure this Prometheus instance. They are consumed by the separate kube-prometheus-stack instance under `platform/observability/monitoring/`.
 
-Key metrics:
-- `pihole_dns_queries_total` — total queries handled
-- `pihole_ads_blocked_today` — blocked count
-- `pihole_ads_percentage_today` — block percentage
-- `pihole_top_queries` — top queried domains
-- `pihole_top_ads` — top blocked domains
-- `pihole_query_by_type` — query type distribution (A, AAAA, etc.)
-
-### Unbound exporter
-
-The `unbound-exporter` runs as a **sidecar container** inside the `unbound` deployment in the `dns` namespace. It connects to Unbound via a **unix socket** (not TCP) and exposes metrics on port `9167`.
-
-Image: `ghcr.io/cyb3r-jak3/unbound-exporter:0.6.0` (public GHCR mirror, requires `ghcr-secret` imagePullSecret)
-
-> **TODO**: Replace with `ghcr.io/ivanversluis/unbound-exporter` once own image is built.
-
-> **Why unix socket**: The exporter binary defaults to loading TLS certs (`/etc/unbound/*.pem`). When `control-use-cert: no` is set in unbound, those certs are never generated. TCP mode fails with "cert file not found". The unix socket avoids TLS entirely: `--unbound.host=unix:///var/run/unbound/unbound.ctl`.
-
-> **Why uid 1000**: Unbound creates the socket as uid 1000 mode 0600. The exporter must run as the same uid or it gets `permission denied`.
-
-Manifests:
-- `services/dns/unbound/k8s/unbound-deployment.yaml` — unbound + sidecar, shared `socket` emptyDir volume, both containers uid 1000
-- `services/dns/unbound/k8s/unbound-configmap.yaml` — includes `control-interface: /var/run/unbound/unbound.ctl`
-- `services/dns/unbound/k8s/unbound-ghcr-externalsecret.yaml` — `ghcr-secret` in `dns` namespace from Vault `infra/argocd`
-- `services/dns/unbound/k8s/dns-netpol.yaml` — `allow-prometheus-scrape` ingress on 9167 from `observability`
-- `infra/observability/dns/unbound-servicemonitor.yaml` — ServiceMonitor (kube-prometheus-stack only)
-- Prometheus static job: `unbound-exporter.dns.svc.cluster.local:9167`
-
-Key metrics:
-- `unbound_up` — exporter connectivity check (must be 1)
-- `unbound_queries_total` — total recursive queries
-- `unbound_cache_hits_total` / `unbound_cache_misses_total` — cache performance
-- `unbound_response_time_seconds` — upstream resolution latency
-- `unbound_answer_rcode_total` — response codes including SERVFAIL
-- `unbound_recursion_time_seconds_total` — time spent recursing
-
-## Prometheus Configuration
-
-Scrape targets are defined as static jobs in `infra/observability/prometheus/configmap.yaml`. After changing this ConfigMap, trigger a reload:
+After changing the standalone Prometheus ConfigMap, reload or restart Prometheus:
 
 ```bash
-# Immediate reload (no pod restart needed)
-kubectl exec -n observability deploy/prometheus -- wget -qO- http://localhost:9090/-/reload --post-data=
+kubectl exec -n observability deploy/prometheus -- \
+  wget -qO- http://localhost:9090/-/reload --post-data=
 
-# Or restart the pod (also works)
+# or
 kubectl rollout restart deployment/prometheus -n observability
 ```
 
-If the ConfigMap was recently updated by Flux but data is still missing, the Prometheus pod may have started before the ConfigMap was applied (e.g. due to the `kong` dependency blocking observability reconciliation). Restarting the pod is the safe fix.
+## Dashboards and alerting
 
-## Dashboards
+DNS dashboards are provisioned from ConfigMaps under `platform/observability/grafana/`:
 
-Four DNS-specific Grafana dashboards are provisioned:
+- DNS Overview
+- CoreDNS Health
+- Pi-hole Client Visibility
+- Unbound Recursive Resolver
 
-| Dashboard | ConfigMap | Purpose |
-|-----------|-----------|---------|
-| DNS Overview | `grafana-dashboard-dns-overview` | Unified view of all components |
-| CoreDNS Health | `grafana-dashboard-coredns` | CoreDNS-specific deep-dive |
-| Pi-hole Client Visibility | `grafana-dashboard-pihole` | Client queries, blocked domains |
-| Unbound Resolver | `grafana-dashboard-unbound` | Recursive resolution health |
+Alert rules are stored in `platform/observability/prometheus/alerts-configmap.yaml` and cover CoreDNS error/latency conditions plus Pi-hole and Unbound exporter/upstream failures.
 
-## Alerting
+## Network-policy requirements
 
-DNS alert rules (in `infra/observability/prometheus/alerts-configmap.yaml`):
+The observability data plane depends on explicit policy allows:
 
-| Alert | Condition | Severity |
-|-------|-----------|----------|
-| CoreDNSErrorRateHigh | SERVFAIL rate >5% for 5m | warning |
-| CoreDNSLatencyHigh | p99 latency >500ms for 5m | warning |
-| UnboundUpstreamFailures | SERVFAIL rate >1% for 5m | critical |
-| PiholeExporterDown | Target absent for 5m | critical |
+- `observability` -> `pihole` TCP/9617;
+- `observability` -> `dns` TCP/9167;
+- `observability` -> `kube-system` TCP/9153;
+- required egress from the monitoring/observability components according to their manifests.
 
-## Network policy requirements
+The cluster-wide policy baseline is in `platform/networking/network-policies/`.
 
-The observability Prometheus has `allow-all` egress (`egress: [{}]`). The target namespaces need ingress rules:
+## Flux reconciliation
 
-- `pihole` namespace: `allow-prometheus-scrape` allows ingress from `observability` on TCP/9617 to `app.kubernetes.io/name: pihole-exporter`
-- `dns` namespace: `allow-prometheus-scrape` allows ingress from `observability` on TCP/9167 to `app.kubernetes.io/name: unbound`
-- `kube-system`: excluded from the Calico GlobalNetworkPolicy default-deny — no extra policy needed for CoreDNS :9153
+The standalone observability stack is reconciled through:
 
-## Repo file layout
-
-```
-infra/observability/
-├── prometheus/
-│   ├── configmap.yaml              # static_configs for ALL scrape targets — edit this to add new targets
-│   └── alerts-configmap.yaml       # alerting rules
-├── grafana/
-│   ├── dashboard-dns-overview-configmap.yaml
-│   ├── dashboard-coredns-configmap.yaml
-│   ├── dashboard-pihole-configmap.yaml
-│   └── dashboard-unbound-configmap.yaml
-└── dns/
-    ├── coredns-servicemonitor.yaml    # consumed by kube-prometheus-stack (monitoring ns) only
-    ├── pihole-servicemonitor.yaml     # consumed by kube-prometheus-stack (monitoring ns) only
-    └── unbound-servicemonitor.yaml    # consumed by kube-prometheus-stack (monitoring ns) only
-
-infra/coredns/
-└── coredns-metrics-service.yaml       # ClusterIP svc in kube-system on :9153
-
-services/dns/
-├── pihole/k8s/
-│   ├── pihole-exporter-deployment.yaml  # docker.io/ekofr/pihole-exporter:v1.2.0
-│   ├── pihole-exporter-service.yaml     # ClusterIP on :9617
-│   └── pihole-netpol.yaml               # includes allow-prometheus-scrape
-└── unbound/k8s/
-    ├── unbound-deployment.yaml          # unbound + sidecar ghcr.io/cyb3r-jak3/unbound-exporter:0.6.0
-    ├── unbound-configmap.yaml           # includes unix socket remote-control
-    ├── unbound-exporter-service.yaml    # ClusterIP on :9167
-    ├── unbound-ghcr-externalsecret.yaml # ghcr-secret from Vault infra/argocd
-    └── dns-netpol.yaml                  # includes allow-prometheus-scrape
+```text
+clusters/k8s-homelab/platform/observability-kustomization.yaml
 ```
 
+The kube-prometheus-stack monitoring plane is reconciled through:
+
+```text
+clusters/k8s-homelab/platform/monitoring-kustomization.yaml
+```
+
+`monitoring-kong-consumers-kustomization.yaml` remains a separate dependency boundary so Kong consumer resources are not applied before their ExternalSecret-generated credential exists.
+
+## Operational rule
+
+When adding a platform-wide telemetry capability, place its manifests under `platform/observability/`. Exporters that are tightly coupled to a service remain with that service; their scrape/discovery configuration belongs to the observability platform.

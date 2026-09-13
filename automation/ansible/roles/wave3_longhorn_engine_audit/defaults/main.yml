@@ -1,0 +1,6 @@
+---
+wave3_lh_engine_namespace: longhorn-system
+wave3_lh_engine_kubeconfig: /etc/kubernetes/admin.conf
+wave3_lh_engine_expected_manager_image: docker.io/longhornio/longhorn-manager:v1.12.1
+wave3_lh_engine_expected_engine_image: docker.io/longhornio/longhorn-engine:v1.12.1
+wave3_lh_engine_old_version_marker: v1.11

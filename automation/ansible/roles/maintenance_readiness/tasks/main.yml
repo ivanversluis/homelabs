@@ -1,0 +1,44 @@
+---
+# Wave 0.5 maintenance-readiness preflight. Read-only: every task here must be safe to run
+# against a live production cluster with no side effects. Cluster-API checks run once,
+# delegated to the control-plane node's own admin kubeconfig over the already-established
+# ansible->sudo SSH route — no new Vault role, ServiceAccount, or RBAC surface is introduced.
+
+- name: Initialise this node's findings list
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: []
+
+- name: Host/Arch read-only checks (every node)
+  ansible.builtin.import_tasks: host.yml
+
+- name: Cluster-level read-only checks (control-plane node only)
+  when: inventory_hostname in groups['control_plane']
+  block:
+    - name: Kubernetes cluster health checks
+      ansible.builtin.import_tasks: kubernetes.yml
+
+    - name: Calico health checks
+      ansible.builtin.import_tasks: calico.yml
+
+    - name: Longhorn health checks
+      ansible.builtin.import_tasks: longhorn.yml
+
+    - name: Flux reconciliation health checks
+      ansible.builtin.import_tasks: flux.yml
+
+- name: Record that this node passed the reused control-tower validation gate
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'CT-' + inventory_hostname,
+      'component': 'control-tower',
+      'severity': 'info',
+      'observed': 'Semaphore -> Vault -> ephemeral SSH certificate -> ansible -> sudo succeeded for this node',
+      'evidence': 'control_tower_validation role (same play, executed before maintenance_readiness) asserted this and would have hard-failed the run otherwise',
+      'impact': 'none',
+      'remediation': 'none',
+      'blocks_next_wave': false,
+    }] }}"
+
+- name: Show this node's findings
+  ansible.builtin.debug:
+    var: maintenance_readiness_findings

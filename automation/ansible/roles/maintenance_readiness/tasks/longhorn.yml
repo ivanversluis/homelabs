@@ -1,0 +1,155 @@
+---
+# Wave 0.5 Task 4 (Longhorn): read-only health/version checks. Runs only on the control-plane
+# node. Does not change any Longhorn setting, volume, or node schedulable state.
+
+- name: Fetch Longhorn DaemonSet objects
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ maintenance_readiness_kubeconfig }}
+    get daemonsets -n {{ maintenance_readiness_longhorn_namespace }} -o json
+  become: true
+  changed_when: false
+  register: longhorn_ds_raw
+
+- name: Fetch Longhorn Deployment objects
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ maintenance_readiness_kubeconfig }}
+    get deployments -n {{ maintenance_readiness_longhorn_namespace }} -o json
+  become: true
+  changed_when: false
+  register: longhorn_deploy_raw
+
+- name: Fetch Longhorn Volume custom resources
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ maintenance_readiness_kubeconfig }}
+    get volumes.longhorn.io -A -o json
+  become: true
+  changed_when: false
+  register: longhorn_volumes_raw
+
+- name: Fetch Longhorn Node custom resources (schedulable/disk state)
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ maintenance_readiness_kubeconfig }}
+    get nodes.longhorn.io -n {{ maintenance_readiness_longhorn_namespace }} -o json
+  become: true
+  changed_when: false
+  register: longhorn_nodes_raw
+
+- name: Fetch the Longhorn node-drain-policy setting
+  ansible.builtin.command: >-
+    kubectl --kubeconfig={{ maintenance_readiness_kubeconfig }}
+    get settings.longhorn.io node-drain-policy -n {{ maintenance_readiness_longhorn_namespace }} -o json
+  become: true
+  changed_when: false
+  failed_when: false
+  register: longhorn_drain_policy_raw
+
+- name: Parse Longhorn objects
+  ansible.builtin.set_fact:
+    longhorn_daemonsets: "{{ (longhorn_ds_raw.stdout | from_json)['items'] }}"
+    longhorn_deployments: "{{ (longhorn_deploy_raw.stdout | from_json)['items'] }}"
+    longhorn_volumes: "{{ (longhorn_volumes_raw.stdout | from_json)['items'] }}"
+    longhorn_nodes: "{{ (longhorn_nodes_raw.stdout | from_json)['items'] }}"
+
+- name: Record Longhorn DaemonSet health findings
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'LONGHORN-DS-' + item.metadata.name,
+      'component': 'longhorn',
+      'severity': 'blocker',
+      'observed': 'DaemonSet ' + item.metadata.name + ' has ' + (item.status.numberReady | string) + '/' + (item.status.desiredNumberScheduled | string) + ' pods Ready',
+      'evidence': 'desiredNumberScheduled=' + (item.status.desiredNumberScheduled | string) + ', numberReady=' + (item.status.numberReady | string),
+      'impact': 'A degraded Longhorn manager/CSI-plugin coverage risks volume attach/detach or replica-rebuild failures during maintenance',
+      'remediation': 'Investigate ' + item.metadata.name + ' pods in ' + maintenance_readiness_longhorn_namespace + ' before starting maintenance',
+      'blocks_next_wave': true,
+    }] }}"
+  loop: "{{ longhorn_daemonsets }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when: item.metadata.name in maintenance_readiness_longhorn_daemonsets and item.status.numberReady != item.status.desiredNumberScheduled
+
+- name: Record Longhorn Deployment health findings (driver-deployer, UI, CSI sidecars)
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'LONGHORN-DEPLOY-' + item.metadata.name,
+      'component': 'longhorn',
+      'severity': 'blocker',
+      'observed': 'Deployment ' + item.metadata.name + ' has ' + (item.status.readyReplicas | default(0) | string) + '/' + (item.spec.replicas | string) + ' replicas Ready',
+      'evidence': 'spec.replicas=' + (item.spec.replicas | string) + ', status.readyReplicas=' + (item.status.readyReplicas | default(0) | string),
+      'impact': 'A degraded Longhorn control-plane component reduces resilience of volume provisioning/attachment during maintenance',
+      'remediation': 'Investigate ' + item.metadata.name + ' in ' + maintenance_readiness_longhorn_namespace + ' before starting maintenance',
+      'blocks_next_wave': true,
+    }] }}"
+  loop: "{{ longhorn_deployments }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when: (item.status.readyReplicas | default(0)) != item.spec.replicas
+
+- name: Record unhealthy Longhorn volume findings (attached volumes only; detached volumes report robustness=unknown by design)
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'LONGHORN-VOLUME-' + item.metadata.name,
+      'component': 'longhorn',
+      'severity': 'blocker',
+      'observed': 'Volume ' + item.metadata.name + ' robustness is ' + (item.status.robustness | default('unknown')) + ' while state=' + (item.status.state | default('unknown')),
+      'evidence': 'robustness=' + (item.status.robustness | default('unknown')) + ', state=' + (item.status.state | default('unknown')) + ', numberOfReplicas=' + (item.spec.numberOfReplicas | string),
+      'impact': 'A degraded/faulted attached volume is at risk of data unavailability if its node is drained/maintained now',
+      'remediation': 'Wait for replica rebuild to complete or investigate the affected node before maintenance; see Longhorn UI for ' + item.metadata.name,
+      'blocks_next_wave': true,
+    }] }}"
+  loop: "{{ longhorn_volumes }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when: >-
+    (item.status.state | default('') == 'attached' and item.status.robustness | default('') not in ['healthy'])
+
+- name: Record single-replica (no redundancy) volume findings — risky to drain
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'LONGHORN-SINGLE-REPLICA-' + item.metadata.name,
+      'component': 'longhorn',
+      'severity': 'exception',
+      'observed': 'Volume ' + item.metadata.name + ' has numberOfReplicas=1 (no redundancy)',
+      'evidence': 'spec.numberOfReplicas=1, state=' + (item.status.state | default('unknown')),
+      'impact': 'Draining the node hosting this volume single replica will cause the workload to lose access to its data until that node returns',
+      'remediation': 'Identify which node currently hosts this volume replica before draining it; consider increasing replica count before Wave 1',
+      'blocks_next_wave': false,
+    }] }}"
+  loop: "{{ longhorn_volumes }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  when: (item.spec.numberOfReplicas | default(2)) == 1
+
+- name: Record Longhorn node schedulable/disk findings
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'LONGHORN-NODE-' + item.metadata.name,
+      'component': 'longhorn',
+      'severity': 'blocker',
+      'observed': 'Longhorn node ' + item.metadata.name + ' is not schedulable or has an unhealthy disk',
+      'evidence': item.status.conditions | default([]),
+      'impact': 'New replicas cannot be scheduled to this node; draining another node that needs to rebuild replicas here would fail',
+      'remediation': 'Investigate Longhorn node ' + item.metadata.name + ' (disks tab in Longhorn UI) before starting maintenance',
+      'blocks_next_wave': true,
+    }] }}"
+  loop: "{{ longhorn_nodes }}"
+  loop_control:
+    label: "{{ item.metadata.name }}"
+  vars:
+    schedulable_cond: "{{ item.status.conditions | selectattr('type', 'equalto', 'Schedulable') | list | first | default({'status': 'Unknown'}) }}"
+  when: not (item.spec.allowScheduling | default(true) | bool) or schedulable_cond.status != 'True'
+
+- name: Record Longhorn version and drain/eviction policy report finding (informational)
+  ansible.builtin.set_fact:
+    maintenance_readiness_findings: "{{ maintenance_readiness_findings + [{
+      'id': 'LONGHORN-VERSION-POLICY',
+      'component': 'longhorn',
+      'severity': 'info',
+      'observed': 'Longhorn version and node-drain-policy setting',
+      'evidence': {
+        'manager_image': (longhorn_daemonsets | selectattr('metadata.name', 'equalto', 'longhorn-manager') | map(attribute='spec.template.spec.containers') | first | default([{'image': 'unavailable'}]) | map(attribute='image') | first),
+        'node_drain_policy': ((longhorn_drain_policy_raw.stdout | from_json).value if (longhorn_drain_policy_raw.rc | default(1)) == 0 else 'unavailable'),
+      },
+      'impact': 'none (baseline for Wave 1 Longhorn upgrade and drain-strategy planning)',
+      'remediation': 'none',
+      'blocks_next_wave': false,
+    }] }}"

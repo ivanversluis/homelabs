@@ -1,0 +1,8 @@
+---
+wave3_lh_drain_kubeconfig: /etc/kubernetes/admin.conf
+wave3_lh_drain_namespace: longhorn-system
+wave3_lh_drain_worker_nodes:
+  - k8s-worker01
+  - k8s-worker02
+  - k8s-worker03
+wave3_lh_drain_expected_policy: block-if-contains-last-replica

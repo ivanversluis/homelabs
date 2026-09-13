@@ -1,13 +1,12 @@
-# Future maintenance lifecycle (documented, not yet implemented)
+# Homelab maintenance lifecycle
 
-Wave -1 builds the SSH/Ansible/Semaphore/Vault control tower only. It intentionally does
-**not** perform any Kubernetes, Arch Linux, Longhorn, Calico/Cilium, kube-vip, or application
-version upgrade. This document records the lifecycle model the control tower is being built
-to eventually run, so a future wave has a concrete target instead of starting from scratch.
+The control tower is operational: GitHub stores desired automation content, SemaphoreUI is the
+orchestration surface, Vault issues short-lived SSH client certificates, and Ansible executes
+against the nodes. The independent `admin` break-glass route remains recovery-only.
 
-## Ansible execution safety properties (future)
+## Mandatory Ansible safety properties
 
-Every maintenance playbook must set:
+Every mutating maintenance playbook must set:
 
 ```yaml
 serial: 1
@@ -15,11 +14,9 @@ any_errors_fatal: true
 max_fail_percentage: 0
 ```
 
-`serial: 1` processes exactly one node at a time. `any_errors_fatal` + `max_fail_percentage: 0`
-mean a single node failure stops the whole run rather than continuing on to damage further
-nodes.
+Never continue to another node after a failed health gate.
 
-## Execution model (future)
+## Execution model
 
 ```mermaid
 flowchart LR
@@ -37,24 +34,90 @@ flowchart LR
     K --> L[next node]
 ```
 
-## Rules
+## Global rules
 
-- Never run `pacman -Syu` on all nodes concurrently — one node at a time, always.
-- Never use `kubectl drain --disable-eviction` by default — PDBs exist for a reason.
-- Honor PodDisruptionBudgets; do not bypass them without a documented exception.
-- Inspect the Longhorn node-drain policy before draining a node that hosts volume replicas.
-- Abort the whole run on any degraded Longhorn volume or unhealthy Calico state — do not
-  proceed to the next node hoping it self-heals.
-- Remember there is exactly **one** control-plane node (`k8s-master01`) in this cluster —
-  there is no HA control plane to fall back on if it is mishandled.
-- Kubernetes minor version upgrades via kubeadm require control-plane-first ordering, even
-  though routine OS maintenance begins with a worker canary. Do not apply the worker-canary
-  pattern to a kubeadm minor upgrade.
+- Never run `pacman -Syu` on multiple nodes concurrently.
+- Never use partial Arch upgrades such as `pacman -Sy <package>`.
+- Never use `kubectl drain --disable-eviction` by default.
+- Honor PodDisruptionBudgets; any exception must be deliberate and documented.
+- Inspect Longhorn replica placement and node-drain policy before draining a node.
+- Abort on degraded Longhorn or unhealthy Calico state.
+- The cluster has one control-plane node (`k8s-master01`); there is no HA control-plane fallback.
+- Kubernetes minor upgrades via kubeadm use control-plane-first ordering. Ordinary Arch-only
+  maintenance begins with a worker canary.
 
-## Relationship to Wave -1
+## Wave status
 
-This maintenance model depends on the control tower built in Wave -1c/-1d: the `ansible`
-automation account, Vault-issued short-lived SSH certificates, and Semaphore as the
-orchestration surface that will eventually run these playbooks on a schedule or on demand.
-None of the maintenance playbooks described here exist yet — implementing them is a
-follow-up wave, not part of this one.
+- **Wave -1 — control tower:** complete for operational use. Semaphore -> Vault Kubernetes auth
+  -> ephemeral SSH certificate -> `ansible` -> sudo is validated. Break-glass remains independent.
+- **Wave 0.5 — maintenance readiness:** implemented as
+  `automation/ansible/playbooks/50-maintenance-readiness.yml` and must be run before/after each
+  invasive wave. It produces READY / READY WITH ACCEPTED EXCEPTIONS / BLOCKED.
+- **Wave 1 — Longhorn:** complete at v1.12.1. See `wave1-longhorn.md`.
+- **Wave 2 — Calico:** complete at v3.32.1 with healthy Flux/TigeraStatus/node evidence and a
+  post-upgrade readiness verdict with no blockers. See `wave2-calico.md`.
+- **Wave 3 — coordinated Arch Linux + Kubernetes:** worker drain behavior is proven. The first
+  mutating Kubernetes stage is now pinned to control-plane `v1.36.4` and explicitly gated by a
+  fresh etcd + Longhorn recovery checkpoint. See `wave3-arch-kubernetes.md`.
+- **Wave 4 — platform components:** pending.
+- **Wave 5 — applications:** pending.
+
+## Wave 0.5 readiness gate
+
+The readiness playbook is read-only and covers Kubernetes node/pod/PDB state, Calico,
+Longhorn, Flux, host disk/inode/version state and the control-tower trust path. An authoritative
+result requires all members of `k8s_homelab`.
+
+Routine invocation:
+
+```text
+playbook=playbooks/50-maintenance-readiness.yml
+limit=k8s_homelab
+```
+
+## Wave 3 preparation gate
+
+Wave 3 is deliberately separated into read-only preparation and later mutation. The preparation
+playbook collects Arch package state/candidates, pacman consistency, system-Python diagnostics,
+Kubernetes component and kubeadm state, Calico/Longhorn baselines, Longhorn drain/PDB constraints,
+and Flux health.
+
+```text
+playbook=playbooks/60-wave3-preflight.yml
+limit=k8s_homelab
+```
+
+The worker02 live-drain canary proved that workload and Longhorn reconciliation can complete
+without bypassing PDB protection. The next Kubernetes stage uses control-plane-first ordering but
+does **not** drain or reboot the single control-plane node.
+
+Immediately before the control-plane mutation, create the fresh recovery checkpoint:
+
+```text
+playbook=playbooks/66-wave3-recovery-checkpoint.yml
+limit=k8s-master01
+```
+
+Then, while that checkpoint is still within its two-hour gate, run the pinned control-plane upgrade:
+
+```text
+playbook=playbooks/67-wave3-control-plane-upgrade.yml
+limit=k8s-master01
+```
+
+The target is explicitly pinned to `v1.36.4`. The playbook downloads the exact upstream kubeadm
+binary plus published SHA-256, verifies the checksum, requires a clean target upgrade plan, archives
+`/etc/kubernetes`, pre-pulls the target images, and executes `kubeadm upgrade apply v1.36.4`.
+It does not run `pacman`, drain a node, reboot the host, or upgrade the kubelet binary.
+
+The intended intermediate state is a v1.36.4 API server/control plane with v1.35.x kubelets. That
+skew is temporary and intentional so the workers can then be upgraded one at a time, beginning
+with worker02, whose drain behavior has already been proven.
+
+For a combined Arch + Kubernetes window, do not collapse these into one generic node loop:
+
+- Kubernetes minor-version ordering: control plane first, then workers one at a time.
+- Worker host maintenance: worker02 canary, then remaining workers, then control-plane host OS/kubelet.
+
+Before every mutation, explicitly confirm current etcd recovery, Longhorn backups/volume health,
+Vault/Semaphore recovery and the independent admin break-glass path.

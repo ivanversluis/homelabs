@@ -1,0 +1,44 @@
+---
+# Returns a static OpenAI-compatible models list for GET /v1/models.
+#
+# Open WebUI uses this endpoint to validate the connection. Kong AI Proxy handles
+# chat requests, while this exact GET route returns the configured Anthropic model.
+# The same client API key as chat completion requests is required.
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: ai-models-static-response
+  namespace: kong
+plugin: request-termination
+config:
+  status_code: 200
+  content_type: "application/json; charset=utf-8"
+  body: '{"object":"list","data":[{"id":"claude-sonnet-4-6","object":"model","created":1771286400,"owned_by":"anthropic","root":"claude-sonnet-4-6"}]}'
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-gateway-models
+  namespace: kong
+  annotations:
+    # normalize-model-claude also converts Authorization: Bearer to apikey.
+    konghq.com/plugins: "normalize-model-claude,ai-gateway-key-auth,ai-models-static-response,rate-limit-global"
+    konghq.com/methods: "GET"
+    konghq.com/strip-path: "false"
+spec:
+  ingressClassName: kong
+  # No tls: section here — ai.${DOMAIN} (and mcp/ai-chat) are already registered
+  # by the ai-gateway Ingress's tls stanza. Kong serves the same wildcard cert
+  # for all matching SNI hosts; declaring the same secret+hosts here too made
+  # KIC's certificate config sync fail (see git history for this comment).
+  rules:
+    - host: ai.${DOMAIN}
+      http:
+        paths:
+          - path: /v1/models
+            pathType: Exact
+            backend:
+              service:
+                name: ai-gateway
+                port:
+                  number: 80

@@ -2,35 +2,17 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - headlamp/
-  - external-secrets/
   - vault/
   - vault-config/
   - argocd-image-updater/
   # argocd and semaphoreui are managed by dedicated Flux Kustomizations
-  # (clusters/k8s-homelab/infra/argocd-kustomization.yaml and
-  # clusters/k8s-homelab/infra/semaphoreui-kustomization.yaml) with postBuild.substituteFrom
   # because their HelmRelease values use ${DOMAIN} for OIDC issuer URLs.
-  # home-exporters and monitoring are managed by dedicated Flux Kustomizations
-  # (clusters/k8s-homelab/infra/home-exporters-kustomization.yaml and
-  # clusters/k8s-homelab/infra/monitoring-kustomization.yaml) with postBuild.substituteFrom
-  # because goodwe NetworkPolicy uses ${GOODWE_INVERTER_CIDR}, monitoring/gatus uses ${DOMAIN},
-  # and monitoring/mikrotik-proxy uses ${MIKROTIK_IP}.
-  # observability is managed exclusively by the dedicated Flux Kustomization
-  # (clusters/k8s-homelab/infra/observability-kustomization.yaml) with
-  # postBuild.substituteFrom so ${DOMAIN} is properly substituted.
+  # home-exporters is managed by a dedicated Flux Kustomization because the
+  # goodwe NetworkPolicy uses ${GOODWE_INVERTER_CIDR}.
+  # openclaw is managed exclusively by a dedicated Flux Kustomization with
+  # force: false, so its PVC cannot be silently recreated.
   - nodes/
   - portainer/
-  - network-policies/
-  # openclaw is managed exclusively by a dedicated Flux Kustomization
-  # (clusters/k8s-homelab/infra/openclaw-kustomization.yaml) with force: false, so its
-  # PVC (openclaw-data) can't be silently recreated by the force: true root Kustomization.
-  # flux-substitution creates the flux-domain-vars Secret in flux-system;
-  # cert-manager, kong, and ai have their own Flux Kustomization CRDs
-  # (clusters/k8s-homelab/infra/*-kustomization.yaml) with substituteFrom.
+  # flux-substitution creates flux-domain-vars in flux-system for components
+  # that use dedicated postBuild.substituteFrom reconciliation.
   - flux-substitution/
-  # KubeVirt virtualization stack: operator CRs only (operators bootstrapped via script)
-  - kubevirt/
-  - cdi/
-  # local-path-provisioner is a PRE-EXISTING cluster deployment (83d old, local-path-storage ns).
-  # infra/local-path-provisioner/ kept for reference but NOT applied here to avoid conflicts.
-  # StorageClass used: local-path (default, rancher.io/local-path, WaitForFirstConsumer)

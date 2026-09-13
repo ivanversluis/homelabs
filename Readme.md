@@ -1,4 +1,4 @@
-My personal bare-metal Kubernetes homelab, managed with Flux GitOps and slowly optimized as an enterprise-grade instance. Focus on core services and later on hardening the services and having meaningful observability on top.
+My personal bare-metal Kubernetes homelab, managed with Flux GitOps and slowly optimized as an enterprise-grade instance. The focus is on a clear Kubernetes platform layer, secure shared services, workload isolation, lifecycle management, and meaningful observability.
 
 ## Architecture
 
@@ -21,34 +21,36 @@ flowchart LR
         W2["k8s-worker02"]
         W3["k8s-worker03"]
   end
- subgraph CoreServices["Storage & Networking Layer"]
+ subgraph Platform["Kubernetes Platform"]
     direction LR
-        LH["Longhorn - Persistent Storage"]
         CL["Calico - CNI"]
         LB["MetalLB - Load Balancer"]
+        LH["Longhorn - Persistent Storage"]
+        KV["KubeVirt + CDI"]
+        CERT["cert-manager"]
+        ESO["External Secrets"]
   end
- subgraph Infra["Infrastructure Services"]
+ subgraph SharedServices["Shared Services"]
     direction LR
-        ID["Authentik (Identity)"]
-        DNS["Pi-hole + Unbound (DNS)"]
-        VAULT["Vault (Secrets)"]
+        ID["Authentik - Identity"]
+        DNS["Pi-hole + Unbound - DNS"]
         TUN["Cloudflare Tunnel"]
-        EXT["External Secrets"]
   end
- subgraph Observability["Observability & Monitoring"]
+ subgraph Observability["Platform Observability"]
     direction LR
-        PROM["kube-prometheus-stack"]
+        PROM["Prometheus"]
         GRAF["Grafana"]
         LOKI["Loki"]
         PRTL["Promtail"]
-        MS["metrics-server"]
+        KPS["kube-prometheus-stack"]
   end
- subgraph Management["Cluster Management"]
+ subgraph Infra["Infrastructure & Management"]
     direction LR
+        VAULT["Vault"]
         PORT["Portainer EE"]
         HEAD["Headlamp"]
         SEM["SemaphoreUI"]
-        OC["OpenClaw (AI Ops)"]
+        OC["OpenClaw"]
   end
  subgraph Apps["User Applications"]
     direction LR
@@ -57,27 +59,27 @@ flowchart LR
         LKD["Linkding"]
         TMX["Termix"]
   end
- subgraph K8S["Kubernetes Cluster · Arch Linux"]
+ subgraph K8S["Kubernetes Cluster - Arch Linux"]
     direction TB
         ControlPlane
         Workers
-        CoreServices
-        Infra
+        Platform
+        SharedServices
         Observability
-        Management
+        Infra
         Apps
   end
- subgraph GitOps["GitOps · Deployment Management"]
+ subgraph GitOps["GitOps - Deployment Management"]
     direction TB
         FLUX["Flux CD"]
   end
     CP --> Workers
-    Workers --> CoreServices
-    FLUX --> CoreServices & Infra & Observability & Management & Apps
-    CoreServices --> Infra
-    Infra --> Observability
-    Infra --> Management
-    Infra --> Apps
+    Workers --> Platform
+    FLUX --> Platform & SharedServices & Observability & Infra & Apps
+    Platform --> SharedServices
+    Platform --> Observability
+    Platform --> Infra
+    Platform --> Apps
   style CP fill:#0088cc
   style W1 fill:#0088cc
   style W2 fill:#0088cc
@@ -86,52 +88,64 @@ flowchart LR
 
 ## Hardware
 
-4× HP EliteDesk 800 G9 Mini PC — Intel i5-12600 · 16 GB RAM · 256 GB NVMe · Arch Linux
+4x HP EliteDesk 800 G9 Mini PC - Intel i5-12600 - 16 GB RAM - 256 GB NVMe - Arch Linux
 
-| Node          | Role          |
-|---------------|---------------|
-| k8s-master01  | Control Plane |
-| k8s-worker01  | Worker        |
-| k8s-worker02  | Worker        |
-| k8s-worker03  | Worker        |
+| Node | Role |
+|---|---|
+| k8s-master01 | Control Plane |
+| k8s-worker01 | Worker |
+| k8s-worker02 | Worker |
+| k8s-worker03 | Worker |
 
-## Repo layout
+## Repository model
 
-- `clusters/k8s-homelab` — cluster entrypoint + Flux bootstrap
-- `infra` — shared platform components (vault, monitoring, external-secrets, headlamp, portainer, semaphoreui, openclaw, etc.)
-- `services` — core services (DNS, storage, LB, identity, tunnel)
-- `apps` — user workloads (`linkding`, `n8n`, `termix`, `forgejo`)
-- `scripts` — host/bootstrap helper scripts
+The repository is organized by architectural responsibility rather than by installation mechanism.
 
-## Stack
+> **`platform/` makes Kubernetes work. `infra/`, `services/`, and `workloads/` run on or consume the platform.**
 
-| Component      | Current in repo                              | Roadmap              |
-|----------------|----------------------------------------------|----------------------|
-| OS             | Arch Linux                                   | —                    |
-| CNI            | Calico                                       | Cilium               |
-| GitOps         | Flux CD (Kustomize + HelmRelease)            | —                    |
-| Load Balancer  | MetalLB                                      | kube-vip (planned)   |
-| Storage        | Longhorn                                     | —                    |
-| DNS            | Pi-hole + Unbound                            | —                    |
-| Secrets        | Vault + External Secrets                     | —                    |
-| Identity       | Authentik                                    | —                    |
-| Tunnel         | Cloudflare Tunnel                            | —                    |
-| Monitoring     | kube-prometheus-stack + metrics-server       | —                    |
-| Observability  | Grafana + Loki + Promtail                    | —                    |
-| Automation     | SemaphoreUI                                  | —                    |
-| Container Mgmt | Portainer EE                                 | —                    |
-| K8s Dashboard  | Headlamp                                     | —                    |
-| AI Ops Agent   | OpenClaw                                     | —                    |
+- `clusters/k8s-homelab` - cluster entrypoint and reconciliation wiring.
+- `platform` - Kubernetes system capabilities: networking, storage, virtualization, observability, and cluster security controllers.
+- `infra` - shared infrastructure and management components that run on the platform, such as Vault, Kong, Headlamp, Portainer, SemaphoreUI, OpenClaw, and AI tooling.
+- `services` - shared runtime services consumed by clients or workloads, currently DNS, identity, and tunnel services.
+- `workloads/apps` - application workloads.
+- `workloads/vms` - KubeVirt virtual-machine workloads.
+- `automation` - Ansible, Terraform, and operational automation.
+- `scripts` - host/bootstrap and validation helpers.
+- `docs` - architecture, lifecycle, and operating documentation.
 
-## Apps
+See [`docs/repository-layout.md`](docs/repository-layout.md) for the classification rules and GitOps ownership model.
 
-| App      | Image                                    |
-|----------|------------------------------------------|
-| n8n      | `n8nio/n8n`                              |
-| Forgejo  | `codeberg.org/forgejo/forgejo`           |
-| Linkding | `sissbruecker/linkding`                  |
-| Termix   | `ghcr.io/lukegus/termix`                 |
+## Platform stack
+
+| Capability | Current implementation | Roadmap |
+|---|---|---|
+| OS | Arch Linux | - |
+| CNI | Calico | Cilium |
+| GitOps | Flux CD (Kustomize + HelmRelease) | - |
+| Load Balancer | MetalLB | kube-vip planned |
+| Persistent Storage | Longhorn | - |
+| Local VM Storage | local-path-provisioner | - |
+| Virtualization | KubeVirt + CDI | - |
+| Cluster DNS | CoreDNS | - |
+| Certificates | cert-manager | - |
+| External Secrets | External Secrets Operator | - |
+| Monitoring | kube-prometheus-stack + metrics-server | - |
+| Observability | Grafana + Prometheus + Loki + Promtail | - |
+
+## Shared services and management
+
+| Component | Role |
+|---|---|
+| Pi-hole + Unbound | LAN DNS filtering and encrypted upstream DNS |
+| Authentik | Identity provider |
+| Cloudflare Tunnel | External publication path |
+| Vault | Secrets backend |
+| Kong | API/ingress gateway |
+| Headlamp | Kubernetes dashboard |
+| Portainer EE | Container management |
+| SemaphoreUI | Automation UI |
+| OpenClaw | AI operations agent |
 
 ## Lifecycle management
 
-For ensuring the homelab cluster is up to date and getting recent updates a Renovate GitHub Action and configuration has been enabled on this repo. On weekly basis or ad-hoc manually the GitHub Action is run, it validates the repository content and created a pull request if a new update is available.
+A Renovate GitHub Action and lifecycle automation keep the homelab current. Kubernetes platform upgrades are intentionally gated and documented under `docs/lifecycle/`; critical components retain dedicated Flux `Kustomization` objects so repository refactoring does not change their safety or persistence behavior.

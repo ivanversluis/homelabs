@@ -1,0 +1,224 @@
+---
+# Read-only Wave 3 preparation. Remote inspection deliberately uses raw commands so
+# the assessment does not depend on the system Python that Wave 3 is expected to repair.
+
+- name: Require an authoritative full-cluster Wave 3 preflight
+  ansible.builtin.assert:
+    that:
+      - (ansible_play_hosts_all | sort) == (groups['k8s_homelab'] | sort)
+    fail_msg: >-
+      Wave 3 preparation must inspect the complete k8s_homelab inventory. Run this playbook
+      from Semaphore with limit=k8s_homelab; a partial node limit is diagnostic only and is
+      not accepted as the Wave 3 approval gate.
+  run_once: true
+
+- name: Record running kernel
+  ansible.builtin.raw: uname -r
+  changed_when: false
+  register: wave3_kernel
+
+- name: Record installed package versions
+  ansible.builtin.raw: >-
+    for p in {{ wave3_relevant_packages | join(' ') }}; do
+      pacman -Q "$p" 2>/dev/null || true;
+    done
+  changed_when: false
+  register: wave3_installed_packages
+
+- name: Check pacman database consistency
+  ansible.builtin.raw: pacman -Dk
+  changed_when: false
+  failed_when: false
+  register: wave3_pacman_db_check
+
+- name: Inspect system Python and its dynamic-linker state
+  ansible.builtin.raw: |
+    set +e
+    echo "command=$(command -v python3 2>/dev/null || true)"
+    if [ -e /usr/bin/python3 ]; then
+      echo "realpath=$(readlink -f /usr/bin/python3 2>/dev/null || true)"
+      /usr/bin/python3 --version 2>&1
+      echo "python_rc=$?"
+      echo "--- ldd /usr/bin/python3 ---"
+      ldd /usr/bin/python3 2>&1 || true
+      echo "--- package owner ---"
+      pacman -Qo /usr/bin/python3 2>&1 || true
+      echo "--- package file verification ---"
+      pacman -Qkk python 2>&1 || true
+    else
+      echo "/usr/bin/python3=MISSING"
+      pacman -Q python 2>&1 || true
+    fi
+    exit 0
+  changed_when: false
+  register: wave3_python_diagnostics
+
+- name: Record cgroup mode
+  ansible.builtin.raw: stat -fc %T /sys/fs/cgroup
+  changed_when: false
+  register: wave3_cgroup_mode
+
+- name: Confirm swap is disabled
+  ansible.builtin.raw: swapon --show --noheadings 2>/dev/null || true
+  changed_when: false
+  register: wave3_swap
+
+- name: Record running Kubernetes and runtime binary versions
+  ansible.builtin.raw: |
+    set +e
+    kubeadm version -o short 2>&1 || true
+    kubelet --version 2>&1 || true
+    kubectl version --client 2>&1 | head -n 4 || true
+    containerd --version 2>&1 || true
+    runc --version 2>&1 | head -n 1 || true
+    exit 0
+  changed_when: false
+  register: wave3_binary_versions
+
+- name: Record critical service state
+  ansible.builtin.raw: |
+    set +e
+    for svc in sshd containerd kubelet; do
+      printf '%s active=' "$svc"
+      systemctl is-active "$svc" 2>/dev/null || true
+      printf '%s enabled=' "$svc"
+      systemctl is-enabled "$svc" 2>/dev/null || true
+    done
+    exit 0
+  changed_when: false
+  register: wave3_service_state
+
+- name: Inspect available package updates without changing the system sync database
+  ansible.builtin.raw: |
+    set +e
+    if command -v checkupdates >/dev/null 2>&1; then
+      out="$(checkupdates 2>&1)"
+      rc=$?
+      printf '%s\n' "$out"
+      echo "CHECKUPDATES_RC=$rc"
+      echo "--- relevant candidates ---"
+      printf '%s\n' "$out" | grep -E '^(linux|glibc|python|pacman|systemd|openssh|containerd|runc|kubeadm|kubelet|kubectl) ' || true
+      if printf '%s\n' "$out" | grep -Eq '^(kubeadm|kubelet|kubectl) .* -> 1\.(37|[4-9][0-9])\.'; then
+        echo "WAVE3_UNSUPPORTED_K8S_CANDIDATE"
+      fi
+    else
+      echo "checkupdates=UNAVAILABLE"
+      echo "pacman -Qu below uses the node's existing sync database and may be stale"
+      pacman -Qu 2>&1 || true
+    fi
+    exit 0
+  changed_when: false
+  register: wave3_update_candidates
+
+- name: Enforce host-side hard preconditions for planning
+  ansible.builtin.assert:
+    that:
+      - wave3_pacman_db_check.rc == 0
+      - (wave3_cgroup_mode.stdout | trim) == 'cgroup2fs'
+      - (wave3_swap.stdout | trim | length) == 0
+      - "'WAVE3_UNSUPPORTED_K8S_CANDIDATE' not in wave3_update_candidates.stdout"
+    fail_msg: >-
+      Wave 3 host preflight failed on {{ inventory_hostname }}. Do not run package or
+      Kubernetes mutation until pacman consistency, cgroup v2, swap, and repository
+      Kubernetes-version constraints are understood.
+
+- name: Show per-node Wave 3 preparation summary
+  ansible.builtin.debug:
+    msg:
+      - "Node={{ inventory_hostname }}"
+      - "Kernel={{ wave3_kernel.stdout | trim }}"
+      - "Installed packages={{ wave3_installed_packages.stdout_lines | default([]) }}"
+      - "Binary versions={{ wave3_binary_versions.stdout_lines | default([]) }}"
+      - "System Python diagnostics={{ wave3_python_diagnostics.stdout_lines | default([]) }}"
+      - "Critical services={{ wave3_service_state.stdout_lines | default([]) }}"
+      - "Repository/update evidence={{ wave3_update_candidates.stdout_lines | default([]) }}"
+
+- name: Record Kubernetes node state from the control plane
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_kubeconfig }} get nodes -o wide
+  changed_when: false
+  register: wave3_nodes
+  when: inventory_hostname == wave3_control_plane_node
+
+- name: Record running control-plane and kube-proxy images
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_kubeconfig }} -n kube-system
+    get pods -o custom-columns=NAME:.metadata.name,IMAGE:.spec.containers[0].image --no-headers |
+    grep -E '^(kube-apiserver|kube-controller-manager|kube-scheduler|kube-proxy)'
+  changed_when: false
+  register: wave3_control_plane_images
+  when: inventory_hostname == wave3_control_plane_node
+
+- name: Record kubeadm ClusterConfiguration
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_kubeconfig }} -n kube-system get configmap kubeadm-config
+    -o jsonpath='{.data.ClusterConfiguration}'
+  changed_when: false
+  register: wave3_kubeadm_config
+  when: inventory_hostname == wave3_control_plane_node
+
+- name: Run kubeadm upgrade plan in read-only mode
+  ansible.builtin.raw: kubeadm upgrade plan
+  changed_when: false
+  failed_when: false
+  register: wave3_kubeadm_upgrade_plan
+  when: inventory_hostname == wave3_control_plane_node
+
+- name: Record Calico version and TigeraStatus
+  ansible.builtin.raw: |
+    set +e
+    kubectl --kubeconfig={{ wave3_kubeconfig }} get installation.operator.tigera.io default -o jsonpath='{.status.calicoVersion}{"\n"}'
+    kubectl --kubeconfig={{ wave3_kubeconfig }} get tigerastatus
+    exit 0
+  changed_when: false
+  register: wave3_calico_state
+  when: inventory_hostname == wave3_control_plane_node
+
+- name: Record Longhorn manager image, volume health, node state, drain policy, and PDB constraints
+  ansible.builtin.raw: |
+    set +e
+    echo "--- manager image ---"
+    kubectl --kubeconfig={{ wave3_kubeconfig }} -n {{ wave3_longhorn_namespace }} get daemonset longhorn-manager -o jsonpath='{.spec.template.spec.containers[?(@.name=="longhorn-manager")].image}{"\n"}'
+    echo "--- volumes ---"
+    kubectl --kubeconfig={{ wave3_kubeconfig }} -n {{ wave3_longhorn_namespace }} get volumes.longhorn.io
+    echo "--- nodes ---"
+    kubectl --kubeconfig={{ wave3_kubeconfig }} -n {{ wave3_longhorn_namespace }} get nodes.longhorn.io
+    echo "--- drain policy ---"
+    kubectl --kubeconfig={{ wave3_kubeconfig }} -n {{ wave3_longhorn_namespace }} get settings.longhorn.io node-drain-policy -o jsonpath='{.value}{"\n"}'
+    echo "--- PDBs ---"
+    kubectl --kubeconfig={{ wave3_kubeconfig }} -n {{ wave3_longhorn_namespace }} get poddisruptionbudgets
+    exit 0
+  changed_when: false
+  register: wave3_longhorn_state
+  when: inventory_hostname == wave3_control_plane_node
+
+- name: Record Flux health
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_kubeconfig }} -n flux-system get kustomizations,helmreleases
+  changed_when: false
+  register: wave3_flux_state
+  when: inventory_hostname == wave3_control_plane_node
+
+- name: Assert Wave 1 and Wave 2 component baselines remain in place
+  ansible.builtin.assert:
+    that:
+      - wave3_expected_calico_version in wave3_calico_state.stdout
+      - wave3_expected_longhorn_manager_image in wave3_longhorn_state.stdout
+      - wave3_kubeadm_upgrade_plan.rc == 0
+    fail_msg: >-
+      Wave 3 cluster preflight did not confirm the expected Calico/Longhorn baseline or
+      kubeadm could not produce an upgrade plan. Stop before any mutation.
+  when: inventory_hostname == wave3_control_plane_node
+
+- name: Show cluster-level Wave 3 preparation summary
+  ansible.builtin.debug:
+    msg:
+      - "Target candidate={{ wave3_target_patch_candidate }} (must be reconfirmed immediately before approval)"
+      - "Nodes={{ wave3_nodes.stdout_lines | default([]) }}"
+      - "Control-plane images={{ wave3_control_plane_images.stdout_lines | default([]) }}"
+      - "kubeadm upgrade plan={{ wave3_kubeadm_upgrade_plan.stdout_lines | default([]) }}"
+      - "Calico={{ wave3_calico_state.stdout_lines | default([]) }}"
+      - "Longhorn={{ wave3_longhorn_state.stdout_lines | default([]) }}"
+      - "Flux={{ wave3_flux_state.stdout_lines | default([]) }}"
+      - "PREPARATION ONLY: no package synchronization, kubeadm upgrade, drain, reboot, or service restart was performed."
+  when: inventory_hostname == wave3_control_plane_node

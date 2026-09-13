@@ -59,3 +59,34 @@ Wave -1c live activation approved. Re-read .github/prompts/wave-minus1-control-t
 ## Post-activation backup
 
 After Vault begins holding the SSH CA private key, create another Vault checkpoint backup and copy it offsite. The original pre-change Wave -1b backup must remain retained as the clean rollback checkpoint.
+
+### Status: completed 2026-09-10
+
+Wave -1c/-1d live activation is fully complete and validated end-to-end via the real
+Semaphore -> Vault Kubernetes-auth -> ephemeral-cert -> Ansible path (all 4 nodes,
+`ok=21 failed=0` each, run from the Semaphore UI).
+
+Post-activation Vault checkpoint backup taken (Vault scaled to 0, filesystem copied,
+scaled back to 1, unsealed):
+
+```text
+/var/lib/homelab-backups/post-wave-1c/20260910T183848Z   (on k8s-master01)
+```
+
+This checkpoint has been copied to Synology and `sha256sum -c SHA256SUMS` has passed there,
+confirmed by the operator. This checkpoint is now durable, same as the Wave -1b gate. The
+original Wave -1b backup at `/var/lib/homelab-backups/pre-maintenance/20260909T144749Z`
+remains untouched.
+
+## Wave -1 closure status
+
+- Wave -1a (repository tooling/validation): **complete**.
+- Wave -1b (one-time pre-change backup): **complete**, Synology copy + checksum verified.
+- Wave -1c (SSH/Ansible/Semaphore/Vault control tower live activation): **complete**,
+  validated end-to-end on all 4 nodes.
+- Wave -1d (control tower end-to-end validation): **complete**.
+- Wave -1e (Vault-issued SSH **host** certificates / host CA): **not implemented — still
+  pending**. Nodes continue to authenticate via pinned `known_hosts` fingerprints (TOFU), as
+  originally designed in Wave -1c. No `ssh-host-signer` Vault mount and no
+  `@cert-authority` entries exist yet. This was confirmed against live evidence and is
+  intentionally deferred; it is not required for Wave 0.5 or Wave 1 to proceed.

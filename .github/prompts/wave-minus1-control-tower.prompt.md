@@ -24,11 +24,11 @@ Do not perform Kubernetes, Arch Linux, Longhorn, Calico, Cilium, kube-vip, or ap
 ## Current Wave status
 
 ```text
-Wave -1a  repository tooling and validation
-Wave -1b  one-time pre-change backup       COMPLETE
-Wave -1c  activate SSH/Ansible/Semaphore control tower
-Wave -1d  validate control tower end-to-end
-Wave -1e  optional SSH host certificates later
+Wave -1a  repository tooling and validation             COMPLETE
+Wave -1b  one-time pre-change backup                     COMPLETE
+Wave -1c  activate SSH/Ansible/Semaphore control tower    COMPLETE
+Wave -1d  validate control tower end-to-end               COMPLETE
+Wave -1e  optional SSH host certificates later            NOT STARTED (pending)
 ```
 
 A verified Wave -1b backup was completed on 2026-09-09:
@@ -39,7 +39,14 @@ A verified Wave -1b backup was completed on 2026-09-09:
 
 Validation completed successfully for etcd, PostgreSQL logical dumps, all selected Bound PVC archives, native Prometheus TSDB snapshot/archive, offline Vault PVC archive, and SHA-256 checksums. `vms/debian-bookworm-dv` was intentionally excluded.
 
-Before live Wave -1c activation, require the user to confirm that the complete backup directory was copied to Synology and `sha256sum -c SHA256SUMS` succeeded there. Repository-only implementation does not require that confirmation.
+Wave -1c live activation copied the complete backup directory to Synology and
+`sha256sum -c SHA256SUMS` succeeded there, confirmed by the operator. The post-activation
+Vault checkpoint backup (`post-wave-1c/20260910T183848Z`) has also been copied to Synology
+and checksum-verified. See [`wave-minus1-handoff.md`](../../docs/lifecycle/wave-minus1-handoff.md)
+for the full closure record. Wave -1e (host CA / Vault-signed host certificates) remains
+not implemented; this does not block Wave 0.5 or Wave 1. See
+[`maintenance-plan.md`](../../docs/lifecycle/maintenance-plan.md) for the Wave 0.5
+read-only maintenance-readiness gate and the Wave 1-5 sequence.
 
 ## Known cluster state
 

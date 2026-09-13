@@ -1,0 +1,24 @@
+---
+# OpenClaw -> Kong AI Gateway.
+# ai.${DOMAIN} resolves to Kong inside the cluster; Calico evaluates the
+# post-DNAT destination, so allow Kong's proxy container ports explicitly.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-kong-ai
+  namespace: openclaw
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: openclaw
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 8000
+        - protocol: TCP
+          port: 8443
