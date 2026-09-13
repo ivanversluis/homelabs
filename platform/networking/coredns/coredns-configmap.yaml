@@ -1,4 +1,4 @@
-# CoreDNS ConfigMap — managed by Flux
+# CoreDNS ConfigMap - managed by Flux
 #
 # WHY this is in Git:
 #   The CoreDNS split-brain hosts{} block was previously applied by a one-off
@@ -8,7 +8,7 @@
 #
 # HOW substitution works:
 #   This file uses ${DOMAIN} and ${KONG_LB_IP}. The Flux Kustomization
-#   (clusters/k8s-homelab/infra/coredns-kustomization.yaml) uses
+#   (clusters/k8s-homelab/platform/coredns-kustomization.yaml) uses
 #   postBuild.substituteFrom to inject those values from the flux-domain-vars
 #   Secret before applying.
 #
@@ -47,9 +47,9 @@ data:
         reload
         loadbalance
 
-        # ── Split-brain DNS: *.${DOMAIN} → Kong ClusterIP ──────────────────
+        # Split-brain DNS: *.${DOMAIN} -> Kong ClusterIP
         # In-cluster pods resolve these hostnames to Kong ClusterIP
-        # instead of the public Cloudflare CDN IPs. Traffic stays in-cluster
+        # instead of public Cloudflare CDN IPs. Traffic stays in-cluster
         # for OIDC callbacks, API calls, and service-to-service communication.
         # NOTE: Using ClusterIP because MetalLB v0.14.9 is incompatible with
         # K8s 1.35 (empty endpoints bug). Upgrade MetalLB to restore VIP.
@@ -75,5 +75,4 @@ data:
             ${KONG_LB_IP} portainer.${DOMAIN}
             fallthrough
         }
-        # ── End split-brain ───────────────────────────────────────────────────
     }

@@ -10,20 +10,13 @@ These files are inert: the active Kustomization still references the v1.11.0 ups
 - Image inventory: `deploy/longhorn-images.txt`
 - Integrity: locally computed SHA-256 values are recorded in `SHA256SUMS`
 
-Review notes: the manifest is an upstream Helm-rendered Kubernetes bundle. It contains the
-expected Longhorn CRDs, namespace-scoped workloads, one ClusterRole, hostPath mounts, and one
-privileged workload required by Longhorn's node/storage integration. It contains no shell
-download pipeline. Manifest image references match the separately retrieved upstream image
-inventory; that inventory additionally lists `longhorn-cli`, which is not a static workload
-image in the rendered manifest.
+Review notes: the manifest is an upstream Helm-rendered Kubernetes bundle. It contains the expected Longhorn CRDs, namespace-scoped workloads, one ClusterRole, hostPath mounts, and one privileged workload required by Longhorn's node/storage integration. It contains no shell download pipeline. Manifest image references match the separately retrieved upstream image inventory; that inventory additionally lists `longhorn-cli`, which is not a static workload image in the rendered manifest.
 
 Before activation, verify:
 
 ```bash
-cd services/storage/longhorn/k8s/vendor
+cd platform/storage/longhorn/k8s/vendor
 sha256sum -c SHA256SUMS
 ```
 
-Activation requires an explicit operator approval and the successful read-only Semaphore
-Wave 1 preparation gate. Never apply this manifest directly; activate it only through the
-documented Git/Flux diff.
+Activation requires an explicit operator approval and the successful read-only Semaphore Wave 1 preparation gate. Never apply this manifest directly; activate it only through the documented Git/Flux diff.

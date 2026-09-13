@@ -4,7 +4,7 @@ resources:
   - kubevirt-namespace.yaml
   # kubevirt-netpol.yaml intentionally NOT applied:
   # kubevirt is excluded from the GlobalNetworkPolicy default-deny
-  # (see infra/network-policies/global/00-default-deny.yaml).
+  # (see platform/networking/network-policies/global/00-default-deny.yaml).
   # Applying per-namespace NPs here creates implicit deny for operator traffic.
   # Network access for kubevirt is unrestricted by design (same as longhorn-system).
   - kubevirt-cr.yaml
