@@ -21,40 +21,48 @@ spec:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
     spec:
-      # SECURITY EXCEPTION: fsGroup: 0 (root) is required because the official
-      # ghcr.io/open-webui/open-webui image runs as root and writes directly to
-      # /app/backend/data. Using a non-zero fsGroup causes permission errors on
-      # the Longhorn PVC. Track upstream: https://github.com/open-webui/open-webui
-      # for a non-root release before removing this exception.
-      # Schedule only on Longhorn-capable worker nodes; master has no Longhorn disk.
       nodeSelector:
         node.longhorn.io/create-default-disk: "true"
       securityContext:
         fsGroup: 0
       containers:
         - name: openwebui
-          # Pin to a stable tag; Renovate will bump this
           image: ghcr.io/open-webui/open-webui:v0.11.3
           ports:
             - containerPort: 8080
               name: http
           env:
-            # ── Point Open WebUI at Kong AI Gateway (not Azure directly) ──────
-            # All LLM traffic goes through Kong so rate limiting, prompt guard,
-            # and logging apply automatically.
+            # Git/Vault are authoritative for application configuration. The DB
+            # remains persistent for users, chats, history and application data,
+            # but Admin UI configuration cannot override these ConfigVars.
+            - name: ENABLE_PERSISTENT_CONFIG
+              value: "false"
+
+            # LLM traffic always goes through Kong. The value below is the
+            # internal Kong client key, never the Anthropic upstream credential.
+            - name: ENABLE_OPENAI_API
+              value: "true"
             - name: OPENAI_API_BASE_URL
               value: "https://ai.${DOMAIN}/v1"
             - name: OPENAI_API_KEY
-              # Kong injects the real Azure key; Open WebUI just needs a non-empty value
-              value: "kong-managed"
-            # Ollama is not deployed in Kubernetes — disable to prevent 500 errors
-            # on every page load from failed host.docker.internal:11434 connections.
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-llm-gateway-key
+                  key: OPENAI_API_KEY
             - name: ENABLE_OLLAMA_API
               value: "false"
 
-            # ── Authentication via Authentik OIDC ────────────────────────────
-            # All OIDC config is sourced from Vault via ExternalSecret openwebui-oidc.
-            # This allows changing OIDC settings without redeploying manifests.
+            # Tool servers are rendered by External Secrets from Git topology +
+            # the Vault-backed MCP consumer key. No UI configuration is required.
+            - name: ENABLE_DIRECT_CONNECTIONS
+              value: "true"
+            - name: TOOL_SERVER_CONNECTIONS
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-tool-connections
+                  key: TOOL_SERVER_CONNECTIONS
+
+            # Authentication via Authentik OIDC.
             - name: WEBUI_AUTH_TRUSTED_EMAIL_HEADER
               value: ""
             - name: ENABLE_LOGIN_FORM
@@ -105,7 +113,6 @@ spec:
             - name: OAUTH_SCOPES
               value: "openid email profile"
 
-            # ── Admin seed (first run only) ───────────────────────────────────
             - name: WEBUI_ADMIN_EMAIL
               valueFrom:
                 secretKeyRef:
@@ -117,12 +124,6 @@ spec:
                   name: openwebui-admin
                   key: admin-password
 
-            # ── MCP / Tool server ─────────────────────────────────────────────
-            # Open WebUI discovers tool servers via its settings UI; no env needed here.
-            # The MCP endpoint is added manually once in the UI:
-            #   Settings → Tools → https://mcp.${DOMAIN}/kubernetes
-
-            # ── General ───────────────────────────────────────────────────────
             - name: WEBUI_NAME
               value: "Homelab AI"
             - name: WEBUI_URL
@@ -146,7 +147,7 @@ spec:
             httpGet:
               path: /health
               port: 8080
-            failureThreshold: 60   # 60 * 5s = 5 minutes for model downloads + DB migration
+            failureThreshold: 60
             periodSeconds: 5
           readinessProbe:
             httpGet:
