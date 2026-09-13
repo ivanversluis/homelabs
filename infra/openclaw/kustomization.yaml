@@ -10,9 +10,10 @@ resources:
   - openclaw-clusterrolebinding.yaml
   - openclaw-externalsecret.yaml
   - openclaw-configmap.yaml
+  - openclaw-runtime-config.yaml
   - openclaw-k8s-monitor-cronjob.yaml
   - openclaw-deployment.yaml
   - openclaw-service.yaml
 
 patches:
-  - path: openclaw-kong-model-patch.yaml
+  - path: openclaw-gitops-config-patch.yaml
