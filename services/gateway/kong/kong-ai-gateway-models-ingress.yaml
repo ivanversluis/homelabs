@@ -3,6 +3,7 @@
 #
 # Open WebUI uses this endpoint to validate the connection. Kong AI Proxy handles
 # chat requests, while this exact GET route returns the configured Anthropic model.
+# The same client API key as chat completion requests is required.
 apiVersion: configuration.konghq.com/v1
 kind: KongPlugin
 metadata:
@@ -20,7 +21,8 @@ metadata:
   name: ai-gateway-models
   namespace: kong
   annotations:
-    konghq.com/plugins: "ai-models-static-response,rate-limit-global"
+    # normalize-model-claude also converts Authorization: Bearer to apikey.
+    konghq.com/plugins: "normalize-model-claude,ai-gateway-key-auth,ai-models-static-response,rate-limit-global"
     konghq.com/methods: "GET"
     konghq.com/strip-path: "false"
 spec:
