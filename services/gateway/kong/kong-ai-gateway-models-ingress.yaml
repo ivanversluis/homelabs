@@ -1,14 +1,8 @@
 ---
 # Returns a static OpenAI-compatible models list for GET /v1/models.
 #
-# WHY THIS EXISTS:
-# Open WebUI calls GET /v1/models to verify and refresh the connection.
-# The main ai-gateway Ingress has ai-prompt-guard which rejects all non-JSON
-# GET requests ("this LLM route only supports application/json").
-# This dedicated route intercepts GET /v1/models before ai-prompt-guard runs,
-# returning a hardcoded model list so Open WebUI sees the connection as healthy.
-#
-# Kong route priority: /v1/models (Exact) wins over /v1 (Prefix) for GET /v1/models.
+# Open WebUI uses this endpoint to validate the connection. Kong AI Proxy handles
+# chat requests, while this exact GET route returns the configured Anthropic model.
 apiVersion: configuration.konghq.com/v1
 kind: KongPlugin
 metadata:
@@ -18,8 +12,7 @@ plugin: request-termination
 config:
   status_code: 200
   content_type: "application/json; charset=utf-8"
-  # Update model id here if the Azure deployment changes.
-  body: '{"object":"list","data":[{"id":"gpt-4o-mini","object":"model","created":1715000000,"owned_by":"azure","root":"gpt-4o-mini"}]}'
+  body: '{"object":"list","data":[{"id":"claude-sonnet-4-5","object":"model","created":1759104000,"owned_by":"anthropic","root":"claude-sonnet-4-5"}]}'
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
