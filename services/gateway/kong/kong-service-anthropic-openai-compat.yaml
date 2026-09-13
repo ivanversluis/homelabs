@@ -19,6 +19,10 @@ metadata:
     konghq.com/protocol: "https"
     konghq.com/host-header: "api.anthropic.com"
     konghq.com/tls-verify: "true"
+    # Explicitly bind the public GTS Root R4 CA registered by kong-bootstrap.
+    # This makes the CA association visible on the Kong Service entity instead
+    # of relying only on the global NGINX trust store.
+    konghq.com/ca-certificates-configmaps: "anthropic-gts-root-r4"
   labels:
     app.kubernetes.io/name: anthropic-openai-compat
     app.kubernetes.io/part-of: kong

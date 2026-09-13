@@ -6,3 +6,4 @@ resources:
   - kong-azure-ai-plugin-config-externalsecret.yaml
   - kong-anthropic-ai-externalsecret.yaml
   - kong-ai-gateway-client-key-externalsecret.yaml
+  - kong-gts-root-r4-ca-configmap.yaml
