@@ -13,7 +13,7 @@ plugin: request-termination
 config:
   status_code: 200
   content_type: "application/json; charset=utf-8"
-  body: '{"object":"list","data":[{"id":"claude-sonnet-4-5","object":"model","created":1759104000,"owned_by":"anthropic","root":"claude-sonnet-4-5"}]}'
+  body: '{"object":"list","data":[{"id":"claude-sonnet-4-6","object":"model","created":1771286400,"owned_by":"anthropic","root":"claude-sonnet-4-6"}]}'
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
