@@ -40,10 +40,13 @@ spec:
 
             # LLM traffic always goes through Kong. The value below is the
             # internal Kong client key, never the Anthropic upstream credential.
+            # Use the pass-through Anthropic OpenAI compatibility route; the
+            # legacy /v1 path still uses Kong ai-proxy and is intentionally not
+            # used after the Kong 3.9.3 response-decoder failure was isolated.
             - name: ENABLE_OPENAI_API
               value: "true"
             - name: OPENAI_API_BASE_URL
-              value: "https://ai.${DOMAIN}/v1"
+              value: "https://ai.${DOMAIN}/openai/v1"
             - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:
