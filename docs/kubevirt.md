@@ -86,6 +86,7 @@ Console and SSH options:
 
 ```bash
 virtctl console debian-bookworm -n vms
+Successfully connected to debian-bookworm console. Press Ctrl+] or Ctrl+5 to exit console.
 
 LAUNCHER=$(kubectl get pod -n vms -l kubevirt.io=virt-launcher -o name | head -1 | sed 's|pod/||')
 kubectl port-forward -n vms pod/$LAUNCHER 2222:22 &

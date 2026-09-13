@@ -6,27 +6,50 @@ This repository allows Copilot Agents, but external source trust is deny-by-defa
 
 Classify Kubernetes content by architectural responsibility, not by installation mechanism. The authoritative model is `docs/repository-layout.md`.
 
-- `platform/` - Kubernetes system capabilities and cluster-wide controllers.
-- `infra/` - supporting infrastructure and management software running on the platform.
-- `services/` - shared runtime services consumed by clients or workloads.
-- `workloads/apps/` - application workloads.
+- `platform/` - Kubernetes system capabilities and cluster-wide controllers that make Kubernetes work.
+- `infra/` - homelab operations and management control plane: GitOps, cluster administration, infrastructure automation, secrets backend, operational agents.
+- `services/` - shared runtime/data-plane capabilities consumed by clients, workloads, or platform components.
+- `workloads/apps/` - application/use-case workloads primarily consumed by a user.
 - `workloads/vms/` - KubeVirt virtual-machine workloads.
 - `clusters/k8s-homelab/platform/` - dedicated platform Flux reconciliation objects.
-- `clusters/k8s-homelab/workloads/` - existing workload Flux reconciliation objects; keep their identities stable.
+- `clusters/k8s-homelab/services/` - dedicated shared-service Flux reconciliation objects.
+- `clusters/k8s-homelab/workloads/` - dedicated workload Flux reconciliation objects.
+- `clusters/synology/` - Synology-specific desired state and legacy/container-service definitions. This tree is not part of the `k8s-homelab` Flux root unless explicitly wired in a future change.
 
-Do not recreate the legacy workload roots `apps/`, `vms/`, or `clusters/k8s-homelab/apps/` after Wave 2.
+Wave 3 canonical examples:
 
-Repository paths and Vault secret paths are separate contracts. Do not rename existing Vault keys merely because a manifest moved.
+- Kong Gateway: `services/gateway/kong/`
+- Home telemetry exporters: `services/telemetry/home-exporters/`
+- AI/Open WebUI + MCP use case: `workloads/apps/ai/`
+- OpenClaw Kubernetes operations agent: `infra/openclaw/`
+- Kubernetes management UIs/tools such as Headlamp and Portainer: `infra/`
+- Legacy Synology Portainer Compose definition: `clusters/synology/workloads/apps/portainer/`
+
+Do not recreate the legacy roots `apps/`, `vms/`, `clusters/k8s-homelab/apps/`, `infra/kong/`, `infra/ai/`, or `infra/home-exporters/` after their migration waves.
+
+Repository paths and Vault secret paths are separate contracts. Do not rename existing Vault keys merely because a manifest moved. In particular, Wave 3 does not rename existing `infra/kong`, `infra/home-exporters`, or AI-related Vault keys.
 
 ## GitOps Migration Safety
 
 A filesystem move is not automatically a safe GitOps ownership move.
 
-1. For path-only refactors, preserve Flux `Kustomization` metadata.name, dependencies, prune/force settings, postBuild, sourceRef, namespaces, and resource content. Change only `spec.path` and repository file locations.
+1. For path-only refactors, preserve Flux `Kustomization` `metadata.name`, dependencies, prune/force settings, postBuild, sourceRef, namespaces, and rendered resource content. Change only `spec.path` and repository file locations.
 2. If live resources change Flux owner, stop and create a staged ownership-transfer plan: protect/disable prune, reconcile, adopt with the new owner, verify live inventory/labels, remove from the old owner, then restore prune.
 3. Treat Namespace, CRD, PVC, StorageClass, operator CR, and stateful ownership changes as destructive-risk.
-4. Any P1 review finding involving pruning, inventory, namespace deletion, ownership, or persistence is a merge blocker. A COMMENTED automated review is not equivalent to approval.
-5. For Wave 2 validation follow `docs/lifecycle/wave2-workloads.md` and report live inventory checks before recommending merge.
+4. Any P1/P2 review finding involving pruning, inventory, namespace deletion, ownership, persistence, or unintended resource recreation is a merge blocker. A COMMENTED automated review is not equivalent to approval.
+5. For Wave 2 validation follow `docs/lifecycle/wave2-workloads.md`.
+6. For Wave 3 validation follow `docs/lifecycle/wave3-classification.md`. Do not recommend merge until its static and live read-only checks are complete.
+
+## Wave 3 Non-Negotiable Invariants
+
+- Flux object names remain `kong`, `home-exporters`, `identity-ingress`, and `ai`.
+- `kong` source path is `./services/gateway/kong`.
+- `home-exporters` source path is `./services/telemetry/home-exporters`.
+- `identity-ingress` remains the same Flux object and still targets `./services/identity/kong-ingress`.
+- `ai` source path is `./workloads/apps/ai` and still depends on `kong`.
+- No Namespace, PVC, Deployment, Service, NetworkPolicy, ExternalSecret, HelmRelease, Kong CR, or other live resource should change semantically due to Wave 3.
+- `clusters/synology/workloads/apps/portainer/` is repository organization only and must not be added to the `k8s-homelab` Flux root.
+- `infra/openclaw/` remains infrastructure because it is a Kubernetes operations agent; do not move it to workloads as part of Wave 3.
 
 ## External Source Safety Policy
 

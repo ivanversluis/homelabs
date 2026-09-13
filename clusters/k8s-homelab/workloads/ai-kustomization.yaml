@@ -1,5 +1,6 @@
 ---
-# Flux Kustomization for the AI namespace (Open WebUI + kubernetes-mcpo).
+# Flux Kustomization for the AI workload (Open WebUI + MCP tools).
+# Wave 3 classifies this stack as an application workload.
 # Depends on: kong (KongPlugin/Consumer CRDs applied first) and flux-domain-vars Secret.
 # The postBuild substituteFrom replaces ${DOMAIN} in manifests.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
@@ -9,7 +10,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: ./infra/ai
+  path: ./workloads/apps/ai
   prune: true
   sourceRef:
     kind: GitRepository
