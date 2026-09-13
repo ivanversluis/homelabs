@@ -17,3 +17,12 @@ resources:
 
 patches:
   - path: openclaw-gitops-config-patch.yaml
+  # openclaw-config keeps AGENTS.md and k8s-monitor.js. Its historical
+  # openclaw.json is deliberately removed from the rendered object so there is
+  # exactly one active Git-owned runtime config source.
+  - target:
+      kind: ConfigMap
+      name: openclaw-config
+    patch: |-
+      - op: remove
+        path: /data/openclaw.json
