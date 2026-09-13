@@ -9,7 +9,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: ./apps/homebox
+  path: ./workloads/apps/homebox
   prune: true
   sourceRef:
     kind: GitRepository

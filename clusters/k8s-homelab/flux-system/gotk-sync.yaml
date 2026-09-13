@@ -35,6 +35,6 @@ spec:
   # Kustomization objects that target specific paths:
   #   platform/security/cert-manager/config, platform/observability,
   #   platform/networking/coredns, infra/kong, infra/ai,
-  #   infra/identity-ingress, apps/homepage, apps/homebox,
-  #   apps/forgejo, apps/vaultwarden
+  #   infra/identity-ingress, workloads/apps/homepage, workloads/apps/homebox,
+  #   workloads/apps/forgejo, workloads/apps/vaultwarden
   # Each of those declares its own postBuild.substituteFrom: flux-domain-vars.

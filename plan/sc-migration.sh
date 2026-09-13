@@ -18,7 +18,7 @@
 #     --namespace forgejo \
 #     --pvc forgejo-pvc \
 #     --deployment forgejo \
-#     --manifest apps/forgejo/forgejo-pvc.yaml
+#     --manifest workloads/apps/forgejo/forgejo-pvc.yaml
 
 set -euo pipefail
 

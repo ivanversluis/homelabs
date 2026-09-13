@@ -11,7 +11,7 @@ platform/virtualization/kubevirt/   # KubeVirt platform/controller configuration
 platform/virtualization/cdi/        # CDI platform/controller configuration
 platform/storage/local-path-provisioner/
                                     # node-local VM storage capability
-vms/                                # VirtualMachine workloads - unchanged in Wave 1
+workloads/vms/                      # VirtualMachine workloads
 ```
 
 The current VM lab runs workloads on `k8s-worker03`, which provides KVM and local NVMe-backed storage.
@@ -53,7 +53,7 @@ The script:
 4. applies the operators and waits for readiness;
 5. applies the CRs from `platform/virtualization/`;
 6. verifies/deploys the local-path storage capability from `platform/storage/local-path-provisioner/`;
-7. applies the existing `vms/` workload manifests.
+7. applies the existing `workloads/vms/` workload manifests.
 
 ## Flux ownership
 
@@ -62,17 +62,17 @@ After bootstrap, Flux manages:
 - `platform/virtualization/kubevirt/` - KubeVirt namespace and KubeVirt CR/configuration;
 - `platform/virtualization/cdi/` - CDI namespace and CDI CR/configuration;
 - `platform/storage/local-path-provisioner/` - declarative/reference storage manifests according to the documented bootstrap model;
-- `vms/` - VM workload namespace, policies, Services, and `VirtualMachine` resources.
+- `workloads/vms/` - VM workload namespace, policies, Services, and `VirtualMachine` resources.
 
 The dedicated platform reconciliation chain is:
 
 ```text
 kubevirt Flux Kustomization
   -> cdi Flux Kustomization (dependsOn: kubevirt)
-     -> VM workload reconciliation
+     -> vms Flux Kustomization
 ```
 
-Wave 1 does not relocate `vms/`; workload restructuring is intentionally deferred.
+Wave 2 changes only the repository path for VM workloads. `Kustomization/vms` remains the same live Flux owner and retains its inventory.
 
 ## VM lifecycle
 
@@ -131,7 +131,7 @@ A missing masquerade `ports` entry can produce a timeout even when MetalLB, the 
 
 The global baseline is maintained under `platform/networking/network-policies/`.
 
-CDI importer pods for a DataVolume run in the `vms` namespace, so image-download egress is governed by the workload policy in `vms/vms-netpol.yaml`.
+CDI importer pods for a DataVolume run in the `vms` namespace, so image-download egress is governed by the workload policy in `workloads/vms/vms-netpol.yaml`.
 
 ## Troubleshooting
 
@@ -159,12 +159,12 @@ If endpoints and MetalLB advertisement are healthy, verify the KubeVirt masquera
 
 ## Adding VMs
 
-VMs remain workloads in this wave:
+VMs are workload definitions under `workloads/vms/`:
 
-1. add `vms/<name>-vm.yaml`;
+1. add `workloads/vms/<name>-vm.yaml`;
 2. update VM/DataVolume names and node/storage settings;
-3. add it to `vms/kustomization.yaml`;
-4. let Flux reconcile or use the documented local bootstrap/test flow.
+3. add it to `workloads/vms/kustomization.yaml`;
+4. let the existing `vms` Flux Kustomization reconcile it or use the documented local bootstrap/test flow.
 
 ## References
 

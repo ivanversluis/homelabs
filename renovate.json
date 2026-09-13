@@ -32,7 +32,7 @@
 
   "kubernetes": {
     "managerFilePatterns": [
-      "/(^|/)apps/.+\\.ya?ml$/",
+      "/(^|/)workloads/.+\\.ya?ml$/",
       "/(^|/)services/.+\\.ya?ml$/",
       "/(^|/)infra/.+\\.ya?ml$/",
       "/(^|/)clusters/.+\\.ya?ml$/"

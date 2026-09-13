@@ -1,16 +1,15 @@
 ---
-# Flux Kustomization for Termix (terminal).
-# Separate from the main apps path because termix-deployment.yaml uses ${DOMAIN}
-# for OIDC issuer endpoints and the demo-termix.${DOMAIN} public URL.
-# Depends on: kong (ingress + OIDC callback routes through Kong).
+# Flux Kustomization for Vaultwarden password manager.
+# Depends on: kong (IngressClass + wildcard cert must be ready) and flux-domain-vars Secret.
+# The postBuild substituteFrom replaces ${DOMAIN} in manifests.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: termix
+  name: vaultwarden
   namespace: flux-system
 spec:
   interval: 10m
-  path: ./apps/termix
+  path: ./workloads/apps/vaultwarden
   prune: true
   sourceRef:
     kind: GitRepository
