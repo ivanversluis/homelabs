@@ -25,8 +25,8 @@ config:
       end
 
       local raw = kong.request.get_raw_body()
-      if raw and raw ~= "" and not raw:find('"model":"claude%-sonnet%-4%-5"') and not raw:find('"model": "claude%-sonnet%-4%-5"') then
-        local normalized = raw:gsub('"model"%s*:%s*"[^"]*"', '"model":"claude-sonnet-4-5"', 1)
+      if raw and raw ~= "" and not raw:find('"model":"claude%-sonnet%-4%-6"') and not raw:find('"model": "claude%-sonnet%-4%-6"') then
+        local normalized = raw:gsub('"model"%s*:%s*"[^"]*"', '"model":"claude-sonnet-4-6"', 1)
         if normalized ~= raw then
           kong.service.request.set_raw_body(normalized)
         end
