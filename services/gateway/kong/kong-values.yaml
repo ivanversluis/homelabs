@@ -2,10 +2,10 @@
 # helm install kong kong/kong \
 #   --namespace kong --create-namespace \
 #   --version 2.46.0 \
-#   -f infra/kong/kong-values.yaml
+#   -f services/gateway/kong/kong-values.yaml
 #
 # NOTE: KONG_EXTERNAL_LB_IP is substituted by the deploy script via envsubst.
-#       Run: envsubst < infra/kong/kong-values.yaml | helm install kong kong/kong ...
+#       Run: envsubst < services/gateway/kong/kong-values.yaml | helm install kong kong/kong ...
 
 # ─────────────────────────────────────────────
 # Proxy (data plane) — MetalLB LoadBalancer IP
