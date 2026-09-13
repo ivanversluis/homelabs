@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - openclaw-namespace.yaml
   - openclaw-netpol.yaml
+  - openclaw-kong-netpol.yaml
   - openclaw-pvc.yaml
   - openclaw-serviceaccount.yaml
   - openclaw-clusterrole.yaml
@@ -12,3 +13,6 @@ resources:
   - openclaw-k8s-monitor-cronjob.yaml
   - openclaw-deployment.yaml
   - openclaw-service.yaml
+
+patches:
+  - path: openclaw-kong-model-patch.yaml
