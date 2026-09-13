@@ -29,7 +29,7 @@ data:
         "mode": "replace",
         "providers": {
           "kong": {
-            "baseUrl": "https://ai.${DOMAIN}/v1",
+            "baseUrl": "https://ai.${DOMAIN}/openai/v1",
             "apiKey": {
               "source": "env",
               "provider": "default",
