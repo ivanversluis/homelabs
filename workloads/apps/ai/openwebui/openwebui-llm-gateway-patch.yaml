@@ -10,6 +10,9 @@ spec:
         - name: openwebui
           env:
             - name: OPENAI_API_KEY
+              # Strategic merge patch: null clears the base's `value: "kong-managed"`
+              # placeholder — a Deployment env var can't have both value and valueFrom set.
+              value: null
               valueFrom:
                 secretKeyRef:
                   name: openwebui-llm-gateway-key
