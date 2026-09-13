@@ -1,7 +1,11 @@
 ---
-# Rewrites any client-side model alias/preset to the Anthropic model configured
-# in Kong. Open WebUI can send custom preset names; Kong AI Proxy requires the
-# request model to match config.model.name.
+# Preprocesses OpenAI-compatible clients before Kong key-auth and AI Proxy:
+# 1. Authorization: Bearer <client-key> -> apikey: <client-key>
+# 2. normalize client-side model aliases/presets to the Claude model configured
+#    in Kong AI Proxy.
+#
+# One pre-function does both jobs because Kong allows a single instance of a
+# plugin type per Route/Service/Consumer combination.
 apiVersion: configuration.konghq.com/v1
 kind: KongPlugin
 metadata:
@@ -11,6 +15,15 @@ plugin: pre-function
 config:
   access:
     - |
+      local auth = kong.request.get_header("authorization")
+      if auth then
+        local key = auth:match("^[Bb]earer%s+(.+)$")
+        if key then
+          kong.service.request.set_header("apikey", key)
+          kong.service.request.clear_header("authorization")
+        end
+      end
+
       local raw = kong.request.get_raw_body()
       if raw and raw ~= "" and not raw:find('"model":"claude%-sonnet%-4%-5"') and not raw:find('"model": "claude%-sonnet%-4%-5"') then
         local normalized = raw:gsub('"model"%s*:%s*"[^"]*"', '"model":"claude-sonnet-4-5"', 1)
