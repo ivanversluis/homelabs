@@ -10,10 +10,18 @@ resources:
   - openclaw-clusterrolebinding.yaml
   - openclaw-externalsecret.yaml
   - openclaw-configmap.yaml
-  - openclaw-runtime-config.yaml
   - openclaw-k8s-monitor-cronjob.yaml
   - openclaw-deployment.yaml
   - openclaw-service.yaml
+
+# Generate the runtime config with Kustomize's content hash. The Deployment
+# references this ConfigMap by name, so any Git config change updates the Pod
+# template reference and triggers a deterministic rollout. The init container
+# then renders the template into the read-only runtime emptyDir.
+configMapGenerator:
+  - name: openclaw-runtime-config
+    files:
+      - openclaw.json.template=openclaw.json.template
 
 patches:
   - path: openclaw-gitops-config-patch.yaml
