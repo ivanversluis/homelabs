@@ -6,22 +6,16 @@ metadata:
 spec:
   template:
     spec:
-      # Runs after the existing install-skills init container. The first init
-      # container seeds/repairs openclaw.json; this one makes Kong the active
-      # LLM provider on every pod start, including when the PVC already exists.
-      initContainers:
-        - name: configure-kong-ai
-          image: ghcr.io/openclaw/openclaw:2026.7.1
-          imagePullPolicy: IfNotPresent
+      containers:
+        - name: openclaw
+          # The base Deployment's install-skills init container currently resets
+          # the default model to openai/gpt-5.5. Configure Kong here, after ALL
+          # init containers have completed, so startup ordering is deterministic.
           command:
             - sh
             - -c
             - |
               set -eu
-              export HOME=/home/node
-              export OPENCLAW_HOME=/home/node/.openclaw
-              export OPENCLAW_CONFIG_DIR=/home/node/.openclaw/.openclaw
-              export NPM_CONFIG_CACHE=/tmp/.npm
 
               PROVIDER=$(node -e '
                 console.log(JSON.stringify({
@@ -42,10 +36,9 @@ spec:
               node /app/dist/index.js config set models.providers.kong "$PROVIDER" --strict-json --replace 2>/dev/null || true
               node /app/dist/index.js config set agents.defaults.model '{"primary":"kong/claude-sonnet-4-5"}' --strict-json 2>/dev/null || true
 
-              # The OpenClaw PVC persists agent/session model overrides. Existing
-              # sessions may still be pinned to openai/gpt-5.5 even after changing
-              # agents.defaults.model. Remove non-Kong overrides so they fall back
-              # to the new Kong-backed default instead of the broken legacy path.
+              # The OpenClaw PVC persists per-agent/session model overrides.
+              # Remove non-Kong overrides so resumed sessions inherit the new
+              # Kong-backed default instead of the previous OpenAI/Codex route.
               node -e '
               const fs = require("fs"), path = require("path");
               const agentsDir = "/home/node/.openclaw/.openclaw/agents";
@@ -89,23 +82,8 @@ spec:
                 } catch (_) {}
               }
               ' 2>/dev/null || true
+
+              exec node /app/dist/index.js gateway run --allow-unconfigured --bind lan
           env:
             - name: KONG_AI_BASE_URL
               value: "https://ai.${DOMAIN}/v1"
-            - name: KONG_AI_GATEWAY_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: openclaw-secrets
-                  key: KONG_AI_GATEWAY_KEY
-          securityContext:
-            runAsUser: 1000
-            runAsGroup: 1000
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop: ["ALL"]
-          volumeMounts:
-            - name: data
-              mountPath: /home/node/.openclaw
-            - name: tmp-volume
-              mountPath: /tmp
