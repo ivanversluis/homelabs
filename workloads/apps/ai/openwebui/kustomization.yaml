@@ -4,7 +4,11 @@ resources:
   - openwebui-externalsecret.yaml
   - openwebui-oidc-externalsecret.yaml
   - openwebui-kongkey-externalsecret.yaml
+  - openwebui-llm-gateway-key-externalsecret.yaml
   - openwebui-pvc.yaml
   - openwebui-deployment.yaml
   - openwebui-service.yaml
   - openwebui-ingress.yaml
+
+patches:
+  - path: openwebui-llm-gateway-patch.yaml
