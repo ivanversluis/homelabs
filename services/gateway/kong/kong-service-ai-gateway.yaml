@@ -2,9 +2,10 @@
 # Internal services call https://ai.${DOMAIN}/v1/chat/completions
 # which resolves to Kong via split-brain DNS.
 #
-# Kong accepts the OpenAI-compatible chat request, normalizes the model name,
-# translates the request to Anthropic, and injects the upstream x-api-key from
-# Vault. Open WebUI and OpenClaw never receive the Anthropic credential.
+# Kong accepts the OpenAI-compatible chat request, validates the client API key,
+# normalizes the model name, translates the request to Anthropic, and injects
+# the upstream x-api-key from Vault. Open WebUI and OpenClaw never receive the
+# Anthropic credential.
 apiVersion: v1
 kind: Service
 metadata:
@@ -31,9 +32,9 @@ metadata:
   name: ai-gateway
   namespace: kong
   annotations:
-    # normalize-model-claude MUST run first: clients can send aliases/preset names,
-    # while Kong AI Proxy requires the request model to match config.model.name.
-    konghq.com/plugins: "normalize-model-claude,ai-proxy-anthropic,ai-prompt-guard,rate-limit-global"
+    # normalize-model-claude converts Authorization: Bearer to apikey and
+    # normalizes client model aliases before key-auth and AI Proxy execute.
+    konghq.com/plugins: "normalize-model-claude,ai-gateway-key-auth,ai-proxy-anthropic,ai-prompt-guard,rate-limit-global"
     konghq.com/strip-path: "false"
 spec:
   ingressClassName: kong
