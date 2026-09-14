@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - mcp-externalsecret.yaml
   - mcp-inject-api-key-config-externalsecret.yaml
+  - openwebui-acl-group-secret.yaml
