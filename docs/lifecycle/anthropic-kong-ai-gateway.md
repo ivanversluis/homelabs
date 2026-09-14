@@ -49,7 +49,7 @@ Do not commit either value to Git.
 Open WebUI keeps the existing OpenAI-compatible endpoint:
 
 ```text
-https://ai.${DOMAIN}/v1
+https://llm-gw.${DOMAIN}/v1
 ```
 
 Its `OPENAI_API_KEY` is sourced from `secret/infra/kong:ai-gateway-client-key` through External Secrets. It is an internal Kong credential, not the Anthropic key.
@@ -62,7 +62,7 @@ For the existing homelab installation, verify the connection once after this cha
 
 1. Open **Admin Settings -> Connections** in Open WebUI.
 2. Edit the OpenAI-compatible connection.
-3. Set the URL to `https://ai.${DOMAIN}/v1`.
+3. Set the URL to `https://llm-gw.${DOMAIN}/v1`.
 4. Set its API key to the **internal** `ai-gateway-client-key` value from Vault.
 5. Save and refresh the model list.
 
@@ -76,7 +76,7 @@ OpenClaw configures a custom OpenAI-compatible provider:
 
 ```text
 provider: kong
-base URL: https://ai.${DOMAIN}/v1
+base URL: https://llm-gw.${DOMAIN}/v1
 model: kong/claude-sonnet-4-6
 API: openai-completions
 ```
@@ -136,7 +136,7 @@ export AI_GATEWAY_CLIENT_KEY='<value of secret/infra/kong:ai-gateway-client-key>
 Model discovery:
 
 ```bash
-curl -fsS "https://ai.${DOMAIN}/v1/models" \
+curl -fsS "https://llm-gw.${DOMAIN}/v1/models" \
   -H "Authorization: Bearer ${AI_GATEWAY_CLIENT_KEY}" | jq
 ```
 
@@ -149,7 +149,7 @@ claude-sonnet-4-6
 Chat completion:
 
 ```bash
-curl -fsS "https://ai.${DOMAIN}/v1/chat/completions" \
+curl -fsS "https://llm-gw.${DOMAIN}/v1/chat/completions" \
   -H "Authorization: Bearer ${AI_GATEWAY_CLIENT_KEY}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -163,7 +163,7 @@ curl -fsS "https://ai.${DOMAIN}/v1/chat/completions" \
 
 ### Open WebUI
 
-1. Confirm the OpenAI-compatible connection is `https://ai.${DOMAIN}/v1` in **Admin Settings -> Connections**.
+1. Confirm the OpenAI-compatible connection is `https://llm-gw.${DOMAIN}/v1` in **Admin Settings -> Connections**.
 2. Confirm that connection uses the internal Kong client key, not the Anthropic key.
 3. Refresh models.
 4. Confirm `claude-sonnet-4-6` is visible.

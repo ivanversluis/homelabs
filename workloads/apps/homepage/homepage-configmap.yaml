@@ -19,7 +19,7 @@ data:
             description: LLM Chat Interface
             icon: openai.png
         - AI Gateway:
-            href: "https://ai.${DOMAIN}/v1/models"
+            href: "https://llm-gw.${DOMAIN}/v1/models"
             description: Kong AI Proxy (Azure OpenAI)
             icon: kong.png
 

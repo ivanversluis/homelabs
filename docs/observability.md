@@ -127,7 +127,7 @@ The kube-prometheus-stack monitoring plane is reconciled through:
 clusters/k8s-homelab/platform/monitoring-kustomization.yaml
 ```
 
-`monitoring-kong-consumers-kustomization.yaml` remains a separate dependency boundary so Kong consumer resources are not applied before their ExternalSecret-generated credential exists.
+The RouterOS integration, including its Gatus KongConsumer, lives under `services/gateway/kong/api-gateway/routeros-upstream/`. Its bootstrap Flux reconciliation waits for the ExternalSecret-generated credentials before the route, plugins, and consumer are applied.
 
 ## Operational rule
 

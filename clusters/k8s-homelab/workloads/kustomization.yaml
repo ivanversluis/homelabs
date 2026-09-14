@@ -12,3 +12,5 @@ resources:
   - linkding-kustomization.yaml
   - termix-kustomization.yaml
   - ai-kustomization.yaml
+  - kong-mcp-bootstrap-kustomization.yaml
+  - kong-mcp-kustomization.yaml

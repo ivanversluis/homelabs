@@ -11,10 +11,10 @@ metadata:
     konghq.com/strip-path: "false"
 spec:
   ingressClassName: kong
-  # No tls stanza: reuse the ai.${DOMAIN} SNI/certificate already owned by the
+  # No tls stanza: reuse the gateway SNI/certificate already owned by the
   # existing ai-gateway Ingress.
   rules:
-    - host: ai.${DOMAIN}
+    - host: llm-gw.${DOMAIN}
       http:
         paths:
           - path: /openai/v1/models

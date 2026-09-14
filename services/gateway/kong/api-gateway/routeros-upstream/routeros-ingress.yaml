@@ -1,10 +1,10 @@
 # Ingress: mikrotik-proxy
-# Routes /mikrotik/* requests received on kong-kong-proxy to the RouterOS
+# Routes api-gw.${DOMAIN}/mikrotik/* requests to the RouterOS
 # REST API via the mikrotik-routeros headless Service.
 #
 # Request flow:
 #   Gatus (monitoring ns)
-#     → http://kong-kong-proxy.kong.svc.cluster.local/mikrotik/interface/wireguard/peer
+#     → https://api-gw.${DOMAIN}/mikrotik/interface/wireguard/peer
 #     → Kong strips /mikrotik prefix (strip-path: true)
 #     → mikrotik-request-transformer adds Authorization: Basic <base64>
 #     → mikrotik-routeros headless svc (monitoring ns) resolves to RouterOS IP
@@ -28,7 +28,8 @@ metadata:
 spec:
   ingressClassName: kong
   rules:
-    - http:
+    - host: api-gw.${DOMAIN}
+      http:
         paths:
           - path: /mikrotik
             pathType: Prefix

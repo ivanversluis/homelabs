@@ -46,7 +46,7 @@ spec:
             - name: ENABLE_OPENAI_API
               value: "true"
             - name: OPENAI_API_BASE_URL
-              value: "https://ai.${DOMAIN}/openai/v1"
+              value: "https://llm-gw.${DOMAIN}/openai/v1"
             - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:

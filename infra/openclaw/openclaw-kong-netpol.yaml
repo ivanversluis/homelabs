@@ -1,6 +1,6 @@
 ---
 # OpenClaw -> Kong AI Gateway.
-# ai.${DOMAIN} resolves to Kong inside the cluster; Calico evaluates the
+# llm-gw.${DOMAIN} resolves to Kong inside the cluster; Calico evaluates the
 # post-DNAT destination, so allow Kong's proxy container ports explicitly.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

@@ -42,10 +42,12 @@ Primary mission:
 
 | Hostname | Route | Backend |
 |----------|-------|---------|
-| `ai.${DOMAIN}/v1` | Kong ai-proxy → Azure AI Foundry | LLM completions |
-| `ai.${DOMAIN}/v1/models` | Kong static response | Model list JSON |
+| `api-gw.${DOMAIN}/healthz` | Kong static response | General API gateway health |
+| `api-gw.${DOMAIN}/mikrotik` | Kong authenticated proxy | RouterOS REST API |
+| `llm-gw.${DOMAIN}/v1` | Kong ai-proxy → Azure AI Foundry | LLM completions |
+| `llm-gw.${DOMAIN}/v1/models` | Kong static response | Model list JSON |
 | `ai-chat.${DOMAIN}` | Kong → Open WebUI | Chat UI |
-| `mcp.${DOMAIN}/kubernetes` | Kong → kubernetes-mcpo | MCP tool server |
+| `mcp-gw.${DOMAIN}/kubernetes` | Kong → kubernetes-mcpo | MCP tool server |
 
 All traffic enters via Cloudflare Tunnel → `kong-kong-proxy.kong.svc.cluster.local`.
 
@@ -137,12 +139,12 @@ plan/kong-manifests-openui-gateway-mcp/
 ### MCP tool server connection fails in Open WebUI
 - Open WebUI sends `Authorization: Bearer <key>` but Kong key-auth expects `apikey` header
 - The `mcp-bearer-to-apikey` pre-function converts the header
-- Test directly: `curl -H "Authorization: Bearer <key>" https://mcp.${DOMAIN}/kubernetes/openapi.json`
+- Test directly: `curl -H "Authorization: Bearer <key>" https://mcp-gw.${DOMAIN}/kubernetes/openapi.json`
 
 ### Model name rejected by ai-proxy
 - Kong ai-proxy validates that request `model` matches config `model.name`
 - The `normalize-model-name` pre-function rewrites custom names → `gpt-4o-mini`
-- Test: `curl -d '{"model":"k8s-assistant","stream":false,"messages":[{"role":"user","content":"hi"}]}' https://ai.${DOMAIN}/v1/chat/completions`
+- Test: `curl -d '{"model":"k8s-assistant","stream":false,"messages":[{"role":"user","content":"hi"}]}' https://llm-gw.${DOMAIN}/v1/chat/completions`
 
 ## Kubernetes MCP Tools (21 tools via kubernetes-mcp-server)
 

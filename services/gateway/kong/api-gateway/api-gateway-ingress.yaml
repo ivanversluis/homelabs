@@ -1,0 +1,36 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: api-gateway-health
+  namespace: kong
+plugin: request-termination
+config:
+  status_code: 200
+  content_type: application/json
+  body: '{"status":"ok","gateway":"api"}'
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-gateway
+  namespace: kong
+  annotations:
+    konghq.com/plugins: api-gateway-health
+    konghq.com/strip-path: "false"
+spec:
+  ingressClassName: kong
+  tls:
+    - hosts:
+        - api-gw.${DOMAIN}
+      secretName: kong-tls-wildcard
+  rules:
+    - host: api-gw.${DOMAIN}
+      http:
+        paths:
+          - path: /healthz
+            pathType: Exact
+            backend:
+              service:
+                name: gateway-status
+                port:
+                  number: 80

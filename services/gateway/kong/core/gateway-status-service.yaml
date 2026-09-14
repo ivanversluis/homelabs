@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-status
+  namespace: kong
+  labels:
+    app.kubernetes.io/name: gateway-status
+    app.kubernetes.io/part-of: kong
+spec:
+  selector:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: app
+  ports:
+    - name: proxy
+      port: 80
+      targetPort: 8000

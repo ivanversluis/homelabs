@@ -17,4 +17,3 @@ resources:
   - cdi-kustomization.yaml
   - observability-kustomization.yaml
   - monitoring-kustomization.yaml
-  - monitoring-kong-consumers-kustomization.yaml
