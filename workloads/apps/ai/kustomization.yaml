@@ -4,4 +4,3 @@ resources:
   - ai-namespace.yaml
   - ai-netpol.yaml
   - openwebui/
-  - mcp/

@@ -1,4 +1,4 @@
-# Ingress: mcp.${DOMAIN}/kubernetes → kubernetes-mcpo service
+# Ingress: mcp-gw.${DOMAIN}/kubernetes → kubernetes-mcpo service
 # Kong applies:
 #   1. bearer-to-apikey — converts "Authorization: Bearer <key>" → "apikey: <key>"
 #                         Open WebUI tool servers only support Bearer auth but Kong
@@ -10,7 +10,7 @@
 #
 # Open WebUI config:
 #   Settings → Tools → Add Tool Server
-#   URL: https://mcp.${DOMAIN}/kubernetes
+#   URL: https://mcp-gw.${DOMAIN}/kubernetes
 #   Auth: Bearer <value from openwebui-kongkey secret>
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -32,7 +32,7 @@ metadata:
 spec:
   ingressClassName: kong
   rules:
-    - host: mcp.${DOMAIN}
+    - host: mcp-gw.${DOMAIN}
       http:
         paths:
           - path: /kubernetes

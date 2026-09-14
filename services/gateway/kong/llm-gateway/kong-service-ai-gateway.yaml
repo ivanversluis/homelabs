@@ -1,5 +1,5 @@
 # Service + Ingress: exposes the AI Gateway endpoint inside the cluster.
-# Internal services call https://ai.${DOMAIN}/v1/chat/completions
+# Internal services call https://llm-gw.${DOMAIN}/v1/chat/completions
 # which resolves to Kong via split-brain DNS.
 #
 # Kong accepts the OpenAI-compatible chat request, validates the client API key,
@@ -41,15 +41,14 @@ spec:
   tls:
     # All subdomains share the wildcard cert. KIC registers each host as a Kong SNI.
     - hosts:
-        - ai.${DOMAIN}
-        - mcp.${DOMAIN}
+        - llm-gw.${DOMAIN}
         - ai-chat.${DOMAIN}
         - auth.${DOMAIN}
         - homepage.${DOMAIN}
         - homebox.${DOMAIN}
       secretName: kong-tls-wildcard
   rules:
-    - host: ai.${DOMAIN}
+    - host: llm-gw.${DOMAIN}
       http:
         paths:
           - path: /v1

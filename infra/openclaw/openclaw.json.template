@@ -22,7 +22,7 @@
     "mode": "replace",
     "providers": {
       "kong": {
-        "baseUrl": "https://ai.${DOMAIN}/openai/v1",
+        "baseUrl": "https://llm-gw.${DOMAIN}/openai/v1",
         "apiKey": {
           "source": "env",
           "provider": "default",

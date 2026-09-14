@@ -5,7 +5,7 @@
 # forwards OpenAI-compatible requests directly to Anthropic's compatibility API.
 #
 # Client endpoint:
-#   https://ai.${DOMAIN}/openai/v1/chat/completions
+#   https://llm-gw.${DOMAIN}/openai/v1/chat/completions
 #
 # With strip-path=true, Kong removes /openai and sends:
 #   https://api.anthropic.com/v1/chat/completions
@@ -53,11 +53,11 @@ metadata:
     konghq.com/preserve-host: "false"
 spec:
   ingressClassName: kong
-  # Deliberately no tls stanza. ai.${DOMAIN} is already registered against the
-  # wildcard certificate by the existing ai-gateway Ingress. Duplicating TLS/SNI
+  # Deliberately no tls stanza. llm-gw.${DOMAIN} is already registered against the
+  # wildcard certificate by the ai-gateway Ingress. Duplicating TLS/SNI
   # declarations previously triggered KIC certificate-tag sync failures.
   rules:
-    - host: ai.${DOMAIN}
+    - host: llm-gw.${DOMAIN}
       http:
         paths:
           - path: /openai

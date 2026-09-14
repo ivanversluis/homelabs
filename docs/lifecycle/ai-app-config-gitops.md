@@ -100,7 +100,7 @@ Expected:
 
 ```text
 persistent=false
-base=https://ai.<domain>/v1
+base=https://llm-gw.<domain>/v1
 ```
 
 ## Full application-state reset (destructive)

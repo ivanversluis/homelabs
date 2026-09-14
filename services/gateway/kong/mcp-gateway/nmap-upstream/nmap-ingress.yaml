@@ -1,4 +1,4 @@
-# Ingress: mcp.${DOMAIN}/nmap → nmap-mcpo service
+# Ingress: mcp-gw.${DOMAIN}/nmap → nmap-mcpo service
 # Reuses the same Kong plugin chain as mcp-kubernetes.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -15,7 +15,7 @@ metadata:
 spec:
   ingressClassName: kong
   rules:
-    - host: mcp.${DOMAIN}
+    - host: mcp-gw.${DOMAIN}
       http:
         paths:
           - path: /nmap

@@ -9,5 +9,7 @@ resources:
   - unbound-kustomization.yaml
   - kong-bootstrap-kustomization.yaml
   - kong-kustomization.yaml
+  - kong-routeros-bootstrap-kustomization.yaml
+  - kong-routeros-kustomization.yaml
   - identity-ingress-kustomization.yaml
   - home-exporters-kustomization.yaml

@@ -63,9 +63,10 @@ data:
             ${KONG_LB_IP} git.${DOMAIN}
             ${KONG_LB_IP} n8n.${DOMAIN}
             ${KONG_LB_IP} argocd.${DOMAIN}
-            ${KONG_LB_IP} ai.${DOMAIN}
+            ${KONG_LB_IP} api-gw.${DOMAIN}
+            ${KONG_LB_IP} llm-gw.${DOMAIN}
             ${KONG_LB_IP} ai-chat.${DOMAIN}
-            ${KONG_LB_IP} mcp.${DOMAIN}
+            ${KONG_LB_IP} mcp-gw.${DOMAIN}
             ${KONG_LB_IP} pihole.${DOMAIN}
             ${KONG_LB_IP} homepage.${DOMAIN}
             ${KONG_LB_IP} homebox.${DOMAIN}
