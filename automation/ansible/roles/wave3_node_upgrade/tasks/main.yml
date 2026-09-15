@@ -119,9 +119,6 @@
     set -e
     probe='{{ wave3_node_repository_probe_dir }}'
     rm -rf "$probe"
-    # pacman 7 downloads as the configured unprivileged DownloadUser (normally alpm).
-    # Keep this throwaway DB isolated from /var/lib/pacman, but make the path traversable
-    # so pacman's privileged parent can create download-* directories usable by that user.
     install -d -m 0755 "$probe" "$probe/local" "$probe/sync"
     pacman -Sy --noconfirm --dbpath "$probe" >/dev/null
     {% for pkg in wave3_node_kubernetes_packages %}
