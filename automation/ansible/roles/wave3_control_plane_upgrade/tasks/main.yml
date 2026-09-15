@@ -61,7 +61,7 @@
     config="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n kube-system get configmap kubeadm-config -o jsonpath='{.data.ClusterConfiguration}')"
     printf '%s\n' "$config" | grep -F 'kubernetesVersion:'
     for key in {{ wave3_cp_required_apiserver_args | join(' ') }}; do
-      count="$(printf '%s\n' "$config" | grep -c "^[[:space:]]*${key}:" || true)"
+      count="$(printf '%s\n' "$config" | grep -c "^[[:space:]]*- name: ${key}$" || true)"
       printf '%s_count=%s\n' "$key" "$count"
       test "$count" -eq 1
     done
@@ -189,7 +189,7 @@
     set -e
     elapsed=0
     while [ "$elapsed" -lt 300 ]; do
-      nodes_not_ready="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get nodes -o json | jq -r '.items[] | select(([.status.conditions[] | select(.type=="Ready" and .status=="True")] | length) == 0) | .metadata.name')"
+      nodes_not_ready="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get nodes -o json | jq -r '.items[] | select(([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | .metadata.name')"
       bad_volumes="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n {{ wave3_cp_longhorn_namespace }} get volumes.longhorn.io -o json | jq -r '.items[] | select(.status.robustness != "healthy") | .metadata.name')"
       bad_tigera="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get tigerastatus -o json | jq -r '.items[] | select(([.status.conditions[]? | select(.type=="Available" and .status=="True")] | length) == 0 or ([.status.conditions[]? | select((.type=="Progressing" or .type=="Degraded") and .status=="True")] | length) > 0) | .metadata.name')"
       bad_ks="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get kustomizations.kustomize.toolkit.fluxcd.io -A -o json | jq -r '.items[] | select((.spec.suspend // false) == false) | select(([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | (.metadata.namespace + "/" + .metadata.name)')"
@@ -215,7 +215,7 @@
     config="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n kube-system get configmap kubeadm-config -o jsonpath='{.data.ClusterConfiguration}')"
     printf '%s\n' "$config" | grep -q 'kubernetesVersion: {{ wave3_cp_target_version }}'
     for key in {{ wave3_cp_required_apiserver_args | join(' ') }}; do
-      cfg_count="$(printf '%s\n' "$config" | grep -c "^[[:space:]]*${key}:" || true)"
+      cfg_count="$(printf '%s\n' "$config" | grep -c "^[[:space:]]*- name: ${key}$" || true)"
       manifest_count="$(grep -c -- "--${key}=" /etc/kubernetes/manifests/kube-apiserver.yaml || true)"
       printf '%s config=%s manifest=%s\n' "$key" "$cfg_count" "$manifest_count"
       test "$cfg_count" -eq 1
