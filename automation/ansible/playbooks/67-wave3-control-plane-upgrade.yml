@@ -7,5 +7,10 @@
   serial: 1
   any_errors_fatal: true
   max_fail_percentage: 0
+  pre_tasks:
+    - name: Revalidate recovery backup target before loading upgrade role
+      ansible.builtin.include_role:
+        name: wave3_control_plane_upgrade
+        tasks_from: verify_backup_target
   roles:
     - wave3_control_plane_upgrade
