@@ -1,0 +1,11 @@
+---
+- name: Revalidate Longhorn backup target before control-plane upgrade
+  ansible.builtin.raw: |
+    set -e
+    backup_target_url="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n {{ wave3_cp_longhorn_namespace }} get backuptargets.longhorn.io {{ wave3_cp_backup_target_name }} -o jsonpath='{.spec.backupTargetURL}')"
+    backup_target_available="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n {{ wave3_cp_longhorn_namespace }} get backuptargets.longhorn.io {{ wave3_cp_backup_target_name }} -o jsonpath='{.status.available}')"
+    printf 'backup_target=%s\nbackup_target_url=%s\nbackup_target_available=%s\n' '{{ wave3_cp_backup_target_name }}' "$backup_target_url" "$backup_target_available"
+    test -n "$backup_target_url"
+    test "$backup_target_available" = true
+  changed_when: false
+  register: wave3_cp_backup_target_preflight
