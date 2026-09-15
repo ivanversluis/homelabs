@@ -1,0 +1,16 @@
+---
+- name: Wave 3 remaining worker Arch and Kubernetes upgrades
+  hosts: k8s-worker01:k8s-worker03
+  gather_facts: false
+  serial: 1
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  vars:
+    wave3_node_upgrade_approved: true
+    wave3_node_mode: worker
+    wave3_node_allowed_targets:
+      - k8s-worker01
+      - k8s-worker03
+    wave3_node_required_prior_canary: k8s-worker02
+  roles:
+    - wave3_node_upgrade
