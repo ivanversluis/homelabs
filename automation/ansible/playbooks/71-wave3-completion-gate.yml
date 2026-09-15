@@ -1,5 +1,5 @@
 ---
-- name: Wave 3 final completion gate
+- name: Wave 3 final per-node completion gate
   hosts: k8s_homelab
   gather_facts: false
   serial: 1
@@ -7,3 +7,14 @@
   max_fail_percentage: 0
   roles:
     - wave3_completion_gate
+
+- name: Wave 3 final cluster completion gate
+  hosts: k8s-master01
+  gather_facts: false
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  tasks:
+    - name: Verify cluster-wide Wave 3 completion
+      ansible.builtin.include_role:
+        name: wave3_completion_gate
+        tasks_from: cluster
