@@ -6,14 +6,15 @@
     bad_volumes="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n {{ wave3_checkpoint_longhorn_namespace }} get volumes.longhorn.io -o json | jq -r '.items[] | select(.status.robustness != "healthy") | .metadata.name')"
     manager="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n {{ wave3_checkpoint_longhorn_namespace }} get daemonset longhorn-manager -o jsonpath='{.spec.template.spec.containers[?(@.name=="longhorn-manager")].image}')"
     calico="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} get installation.operator.tigera.io default -o jsonpath='{.status.calicoVersion}')"
-    backup_targets="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n {{ wave3_checkpoint_longhorn_namespace }} get backuptargets.longhorn.io -o json)"
-    usable_backup_targets="$(printf '%s' "$backup_targets" | jq -r '.items[] | select((.spec.backupTargetURL // "") != "" and (.status.available // false) == true) | .metadata.name')"
-    printf 'bad_nodes=%s\nbad_volumes=%s\nmanager=%s\ncalico=%s\nusable_backup_targets=%s\n' "$bad_nodes" "$bad_volumes" "$manager" "$calico" "$usable_backup_targets"
+    backup_target_url="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n {{ wave3_checkpoint_longhorn_namespace }} get backuptargets.longhorn.io {{ wave3_checkpoint_backup_target_name }} -o jsonpath='{.spec.backupTargetURL}')"
+    backup_target_available="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n {{ wave3_checkpoint_longhorn_namespace }} get backuptargets.longhorn.io {{ wave3_checkpoint_backup_target_name }} -o jsonpath='{.status.available}')"
+    printf 'bad_nodes=%s\nbad_volumes=%s\nmanager=%s\ncalico=%s\nbackup_target=%s\nbackup_target_url=%s\nbackup_target_available=%s\n' "$bad_nodes" "$bad_volumes" "$manager" "$calico" '{{ wave3_checkpoint_backup_target_name }}' "$backup_target_url" "$backup_target_available"
     test -z "$bad_nodes"
     test -z "$bad_volumes"
     test "$manager" = '{{ wave3_checkpoint_expected_longhorn_manager_image }}'
     test "$calico" = '{{ wave3_checkpoint_expected_calico_version }}'
-    test -n "$usable_backup_targets"
+    test -n "$backup_target_url"
+    test "$backup_target_available" = true
   changed_when: false
   register: wave3_checkpoint_preflight
 
@@ -27,13 +28,20 @@
   changed_when: false
   register: wave3_checkpoint_timestamp
 
+- name: Record deterministic checkpoint identities
+  ansible.builtin.set_fact:
+    wave3_checkpoint_stamp: "{{ wave3_checkpoint_timestamp.stdout | trim }}"
+    wave3_checkpoint_systembackup_name: >-
+      {{ wave3_checkpoint_systembackup_prefix }}-{{ wave3_checkpoint_timestamp.stdout | trim | lower }}
+    wave3_checkpoint_etcd_snapshot_path: >-
+      {{ wave3_checkpoint_dir }}/etcd-{{ wave3_checkpoint_timestamp.stdout | trim }}.db
+
 - name: Create and verify fresh etcd snapshot
   ansible.builtin.raw: |
     set -e
-    stamp='{{ wave3_checkpoint_timestamp.stdout | trim }}'
     pod='etcd-{{ inventory_hostname }}'
-    inside="/var/lib/etcd/wave3-pre-control-plane-${stamp}.db"
-    outside="{{ wave3_checkpoint_dir }}/etcd-${stamp}.db"
+    inside='/var/lib/etcd/wave3-pre-control-plane-{{ wave3_checkpoint_stamp }}.db'
+    outside='{{ wave3_checkpoint_etcd_snapshot_path }}'
 
     kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n kube-system get pod "$pod" >/dev/null
     kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n kube-system exec "$pod" -- \
@@ -60,33 +68,31 @@
 - name: Create fresh Longhorn SystemBackup with volume backups
   ansible.builtin.raw: |
     set -e
-    stamp='{{ wave3_checkpoint_timestamp.stdout | trim | lower }}'
-    name='{{ wave3_checkpoint_systembackup_prefix }}-'"$(printf '%s' "$stamp" | tr '[:upper:]' '[:lower:]')"
     cat <<EOF | kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} apply -f -
     apiVersion: longhorn.io/v1beta2
     kind: SystemBackup
     metadata:
-      name: ${name}
+      name: {{ wave3_checkpoint_systembackup_name }}
       namespace: {{ wave3_checkpoint_longhorn_namespace }}
     spec:
       volumeBackupPolicy: always
     EOF
-    printf 'SYSTEMBACKUP=%s\n' "$name"
+    printf 'SYSTEMBACKUP=%s\n' '{{ wave3_checkpoint_systembackup_name }}'
   changed_when: true
   register: wave3_checkpoint_systembackup_create
 
 - name: Wait for Longhorn SystemBackup to become Ready
   ansible.builtin.raw: |
     set -e
-    name="$(printf '%s\n' '{{ wave3_checkpoint_systembackup_create.stdout }}' | sed -n 's/^SYSTEMBACKUP=//p' | tail -1)"
-    test -n "$name"
+    name='{{ wave3_checkpoint_systembackup_name }}'
     elapsed=0
     while [ "$elapsed" -lt {{ wave3_checkpoint_systembackup_timeout_seconds }} ]; do
-      state="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n {{ wave3_checkpoint_longhorn_namespace }} get systembackups.longhorn.io "$name" -o jsonpath='{.status.state}' 2>/dev/null || true)"
-      error="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n {{ wave3_checkpoint_longhorn_namespace }} get systembackups.longhorn.io "$name" -o jsonpath='{.status.error}' 2>/dev/null || true)"
+      systembackup="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n {{ wave3_checkpoint_longhorn_namespace }} get systembackups.longhorn.io "$name" -o json)"
+      state="$(printf '%s' "$systembackup" | jq -r '.status.state // ""')"
+      error="$(printf '%s' "$systembackup" | jq -r '.status.error // ""')"
       printf 'systembackup=%s state=%s error=%s\n' "$name" "$state" "$error"
       if [ "$state" = Ready ]; then
-        policy="$(kubectl --kubeconfig={{ wave3_checkpoint_kubeconfig }} -n {{ wave3_checkpoint_longhorn_namespace }} get systembackups.longhorn.io "$name" -o jsonpath='{.spec.volumeBackupPolicy}')"
+        policy="$(printf '%s' "$systembackup" | jq -r '.spec.volumeBackupPolicy // ""')"
         test "$policy" = always
         exit 0
       fi
@@ -104,13 +110,12 @@
 - name: Persist checkpoint marker for the control-plane upgrade gate
   ansible.builtin.raw: |
     set -e
-    stamp='{{ wave3_checkpoint_timestamp.stdout | trim }}'
-    etcd_path="$(printf '%s\n' '{{ wave3_checkpoint_etcd.stdout }}' | sed -n 's/^ETCD_SNAPSHOT=//p' | tail -1)"
-    systembackup="$(printf '%s\n' '{{ wave3_checkpoint_systembackup_create.stdout }}' | sed -n 's/^SYSTEMBACKUP=//p' | tail -1)"
+    etcd_path='{{ wave3_checkpoint_etcd_snapshot_path }}'
+    systembackup='{{ wave3_checkpoint_systembackup_name }}'
     test -s "$etcd_path"
     test -n "$systembackup"
     cat > {{ wave3_checkpoint_marker }} <<EOF
-    CHECKPOINT_UTC=${stamp}
+    CHECKPOINT_UTC={{ wave3_checkpoint_stamp }}
     ETCD_SNAPSHOT=${etcd_path}
     SYSTEMBACKUP=${systembackup}
     EOF
