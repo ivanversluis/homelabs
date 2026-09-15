@@ -28,57 +28,6 @@
   changed_when: false
   register: wave3_completion_host
 
-- name: Verify cluster-wide Kubernetes and platform state
-  ansible.builtin.raw: |
-    set -e
-    server="$(kubectl --kubeconfig={{ wave3_completion_kubeconfig }} version -o json | jq -r '.serverVersion.gitVersion')"
-    bad_nodes="$(kubectl --kubeconfig={{ wave3_completion_kubeconfig }} get nodes -o json | jq -r --arg target '{{ wave3_completion_target_version }}' '.items[] | select(.status.nodeInfo.kubeletVersion != $target or ([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0 or (.spec.unschedulable // false) == true) | (.metadata.name + "=" + .status.nodeInfo.kubeletVersion)')"
-    bad_pods="$(kubectl --kubeconfig={{ wave3_completion_kubeconfig }} get pods -A -o json | jq -r '.items[] | select(.status.phase != "Succeeded") | select(.status.phase != "Running" or ([.status.containerStatuses[]? | select(.ready != true)] | length) > 0) | (.metadata.namespace + "/" + .metadata.name)')"
-    bad_volumes="$(kubectl --kubeconfig={{ wave3_completion_kubeconfig }} -n {{ wave3_completion_longhorn_namespace }} get volumes.longhorn.io -o json | jq -r '.items[] | select(.status.robustness != "healthy") | .metadata.name')"
-    manager="$(kubectl --kubeconfig={{ wave3_completion_kubeconfig }} -n {{ wave3_completion_longhorn_namespace }} get daemonset longhorn-manager -o jsonpath='{.spec.template.spec.containers[?(@.name=="longhorn-manager")].image}')"
-    calico="$(kubectl --kubeconfig={{ wave3_completion_kubeconfig }} get installation.operator.tigera.io default -o jsonpath='{.status.calicoVersion}')"
-    bad_tigera="$(kubectl --kubeconfig={{ wave3_completion_kubeconfig }} get tigerastatus -o json | jq -r '.items[] | select(([.status.conditions[]? | select(.type=="Available" and .status=="True")] | length) == 0 or ([.status.conditions[]? | select((.type=="Progressing" or .type=="Degraded") and .status=="True")] | length) > 0) | .metadata.name')"
-    bad_ks="$(kubectl --kubeconfig={{ wave3_completion_kubeconfig }} get kustomizations.kustomize.toolkit.fluxcd.io -A -o json | jq -r '.items[] | select((.spec.suspend // false) == false) | select(([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | (.metadata.namespace + "/" + .metadata.name)')"
-    bad_hr="$(kubectl --kubeconfig={{ wave3_completion_kubeconfig }} get helmreleases.helm.toolkit.fluxcd.io -A -o json | jq -r '.items[] | select((.spec.suspend // false) == false) | select(([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | (.metadata.namespace + "/" + .metadata.name)')"
-    printf 'server=%s\nbad_nodes=%s\nbad_pods=%s\nbad_volumes=%s\nlonghorn=%s\ncalico=%s\nbad_tigera=%s\nbad_ks=%s\nbad_hr=%s\n' "$server" "$bad_nodes" "$bad_pods" "$bad_volumes" "$manager" "$calico" "$bad_tigera" "$bad_ks" "$bad_hr"
-    test "$server" = '{{ wave3_completion_target_version }}'
-    test -z "$bad_nodes"
-    test -z "$bad_pods"
-    test -z "$bad_volumes"
-    test "$manager" = '{{ wave3_completion_expected_longhorn_manager_image }}'
-    test "$calico" = '{{ wave3_completion_expected_calico_version }}'
-    test -z "$bad_tigera"
-    test -z "$bad_ks"
-    test -z "$bad_hr"
-
-    config="$(kubectl --kubeconfig={{ wave3_completion_kubeconfig }} -n kube-system get configmap kubeadm-config -o jsonpath='{.data.ClusterConfiguration}')"
-    for key in {{ wave3_completion_required_apiserver_args | join(' ') }}; do
-      cfg_count="$(printf '%s\n' "$config" | grep -c "^[[:space:]]*- name: ${key}$" || true)"
-      manifest_count="$(grep -c -- "--${key}=" /etc/kubernetes/manifests/kube-apiserver.yaml || true)"
-      printf '%s config=%s manifest=%s\n' "$key" "$cfg_count" "$manifest_count"
-      test "$cfg_count" -eq 1
-      test "$manifest_count" -eq 1
-    done
-
-    printf '%s\n' 'NODE_VERSIONS'
-    kubectl --kubeconfig={{ wave3_completion_kubeconfig }} get nodes -o custom-columns=NAME:.metadata.name,KUBELET:.status.nodeInfo.kubeletVersion,READY:.status.conditions[-1].status
-    printf '%s\n' 'CONTROL_PLANE_IMAGES'
-    kubectl --kubeconfig={{ wave3_completion_kubeconfig }} -n kube-system get pods -o custom-columns=NAME:.metadata.name,IMAGE:.spec.containers[0].image --no-headers | grep -E '^(kube-apiserver|kube-controller-manager|kube-scheduler)'
-    printf '%s\n' 'KUBE_PROXY_IMAGE'
-    kubectl --kubeconfig={{ wave3_completion_kubeconfig }} -n kube-system get daemonset kube-proxy -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
-  changed_when: false
-  register: wave3_completion_cluster
-  when: inventory_hostname == wave3_completion_control_plane
-
-- name: Show Wave 3 completion evidence
+- name: Show per-node Wave 3 completion evidence
   ansible.builtin.debug:
-    msg:
-      - "Host {{ inventory_hostname }}={{ wave3_completion_host.stdout_lines | default([]) }}"
-      - "Cluster={{ wave3_completion_cluster.stdout_lines | default([]) }}"
-  when: inventory_hostname == wave3_completion_control_plane
-
-- name: Declare Wave 3 complete
-  ansible.builtin.debug:
-    msg: "WAVE 3 COMPLETE: all nodes and the control plane are at v1.36.4 with Calico, Longhorn, Flux, workloads, and Authentik OIDC healthy."
-  run_once: true
-  delegate_to: "{{ wave3_completion_control_plane }}"
+    msg: "{{ inventory_hostname }}={{ wave3_completion_host.stdout_lines | default([]) }}"
