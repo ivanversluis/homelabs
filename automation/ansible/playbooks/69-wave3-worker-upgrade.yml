@@ -1,0 +1,25 @@
+---
+- name: Wave 3 remaining worker Arch and Kubernetes upgrade
+  hosts: workers
+  gather_facts: false
+  serial: 1
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  pre_tasks:
+    - name: Require exactly one non-canary worker per Semaphore run
+      ansible.builtin.assert:
+        that:
+          - ansible_play_hosts_all | length == 1
+          - inventory_hostname in ['k8s-worker01', 'k8s-worker03']
+        fail_msg: >-
+          Run playbook 69 once with limit=k8s-worker01 and once with limit=k8s-worker03.
+          Never upgrade both remaining workers under one short-lived SSH certificate.
+  vars:
+    wave3_node_upgrade_approved: true
+    wave3_node_mode: worker
+    wave3_node_allowed_targets:
+      - k8s-worker01
+      - k8s-worker03
+    wave3_node_required_prior_canary: k8s-worker02
+  roles:
+    - wave3_node_upgrade
