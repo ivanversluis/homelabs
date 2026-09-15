@@ -1,0 +1,9 @@
+---
+- name: Wave 3 final completion gate
+  hosts: k8s_homelab
+  gather_facts: false
+  serial: 1
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  roles:
+    - wave3_completion_gate
