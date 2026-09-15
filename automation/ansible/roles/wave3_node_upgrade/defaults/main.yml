@@ -1,0 +1,42 @@
+---
+wave3_node_upgrade_approved: false
+wave3_node_mode: worker
+wave3_node_allowed_targets: []
+wave3_node_required_prior_canary: ""
+wave3_node_require_all_workers_target: false
+
+wave3_node_control_plane: k8s-master01
+wave3_node_kubeconfig: /etc/kubernetes/admin.conf
+wave3_node_target_version: v1.36.4
+wave3_node_target_package_prefix: "1.36.4-"
+wave3_node_kubernetes_packages:
+  - kubeadm
+  - kubelet
+  - kubectl
+
+wave3_node_longhorn_namespace: longhorn-system
+wave3_node_backup_target_name: default
+wave3_node_expected_longhorn_manager_image: docker.io/longhornio/longhorn-manager:v1.12.1
+wave3_node_expected_calico_version: v3.32.1
+wave3_node_required_apiserver_args:
+  - oidc-issuer-url
+  - oidc-client-id
+  - oidc-username-claim
+  - oidc-groups-claim
+wave3_node_control_tower_namespaces:
+  - semaphoreui
+  - vault
+
+wave3_node_checkpoint_marker: /var/lib/homelab-backups/wave3-control-plane/latest-checkpoint.env
+wave3_node_checkpoint_max_age_seconds: 7200
+wave3_node_maintenance_dir: /var/lib/homelab-maintenance
+wave3_node_maintenance_marker: "{{ wave3_node_maintenance_dir }}/wave3-node-upgrade.env"
+wave3_node_pacman_sync_backup: "{{ wave3_node_maintenance_dir }}/pacman-sync-before-wave3.tgz"
+wave3_node_repository_probe_dir: /var/tmp/wave3-pacman-probe
+
+wave3_node_drain_timeout: 2m
+wave3_node_drain_attempts: 3
+wave3_node_volume_stabilize_timeout_seconds: 300
+wave3_node_post_reboot_timeout_seconds: 600
+wave3_node_post_uncordon_timeout_seconds: 300
+wave3_node_reboot_timeout_seconds: 600
