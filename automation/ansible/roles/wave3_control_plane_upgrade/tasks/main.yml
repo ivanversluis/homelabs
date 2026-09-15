@@ -189,7 +189,7 @@
     set -e
     elapsed=0
     while [ "$elapsed" -lt 300 ]; do
-      nodes_not_ready="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get nodes -o json | jq -r '.items[] | select(([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | .metadata.name')"
+      nodes_not_ready="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get nodes -o json | jq -r '.items[] | select(([.status.conditions[] | select(.type=="Ready" and .status=="True")] | length) == 0) | .metadata.name')"
       bad_volumes="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} -n {{ wave3_cp_longhorn_namespace }} get volumes.longhorn.io -o json | jq -r '.items[] | select(.status.robustness != "healthy") | .metadata.name')"
       bad_tigera="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get tigerastatus -o json | jq -r '.items[] | select(([.status.conditions[]? | select(.type=="Available" and .status=="True")] | length) == 0 or ([.status.conditions[]? | select((.type=="Progressing" or .type=="Degraded") and .status=="True")] | length) > 0) | .metadata.name')"
       bad_ks="$(kubectl --kubeconfig={{ wave3_cp_kubeconfig }} get kustomizations.kustomize.toolkit.fluxcd.io -A -o json | jq -r '.items[] | select((.spec.suspend // false) == false) | select(([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | (.metadata.namespace + "/" + .metadata.name)')"
