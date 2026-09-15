@@ -1,0 +1,15 @@
+---
+- name: Wave 3 control-plane host Arch and kubelet upgrade
+  hosts: k8s-master01
+  gather_facts: false
+  serial: 1
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  vars:
+    wave3_node_upgrade_approved: true
+    wave3_node_mode: control-plane
+    wave3_node_allowed_targets:
+      - k8s-master01
+    wave3_node_require_all_workers_target: true
+  roles:
+    - wave3_node_upgrade
