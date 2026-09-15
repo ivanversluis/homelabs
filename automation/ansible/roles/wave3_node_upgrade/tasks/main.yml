@@ -242,6 +242,11 @@
       - "versions={{ wave3_node_versions_after_pacman.stdout_lines | default([]) }}"
       - "kubeadm node={{ wave3_node_kubeadm_upgrade.stdout_lines | default([]) }}"
 
+- name: Record boot ID before reboot
+  ansible.builtin.raw: cat /proc/sys/kernel/random/boot_id
+  changed_when: false
+  register: wave3_node_boot_id_before
+
 - name: Reboot upgraded host
   ansible.builtin.raw: systemctl reboot
   changed_when: true
@@ -250,20 +255,28 @@
 - name: Reset SSH connection after reboot request
   ansible.builtin.meta: reset_connection
 
-- name: Wait for upgraded host to return over SSH
-  ansible.builtin.wait_for_connection:
+- name: Wait for upgraded host SSH port to return
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host | default(inventory_hostname) }}"
+    port: 22
     delay: 10
     sleep: 5
     timeout: "{{ wave3_node_reboot_timeout_seconds }}"
+    state: started
+  delegate_to: localhost
+  become: false
 
 - name: Verify host services and binaries after reboot
   ansible.builtin.raw: |
     set -e
+    boot_id="$(cat /proc/sys/kernel/random/boot_id)"
+    test "$boot_id" != '{{ wave3_node_boot_id_before.stdout | trim }}'
     systemctl is-active --quiet sshd
     systemctl is-active --quiet containerd
     systemctl is-active --quiet kubelet
     test "$(kubeadm version -o short)" = '{{ wave3_node_target_version }}'
     test "$(kubelet --version | awk '{print $2}')" = '{{ wave3_node_target_version }}'
+    printf 'boot_id=%s\n' "$boot_id"
     printf 'kernel=%s\n' "$(uname -r)"
     printf 'kubeadm=%s\n' "$(kubeadm version -o short)"
     printf 'kubelet=%s\n' "$(kubelet --version | awk '{print $2}')"
