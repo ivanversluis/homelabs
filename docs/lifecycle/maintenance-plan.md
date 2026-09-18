@@ -57,7 +57,7 @@ flowchart LR
 - **Wave 2 — Calico:** complete at v3.32.1 with healthy Flux/TigeraStatus/node evidence and a
   post-upgrade readiness verdict with no blockers. See `wave2-calico.md`.
 - **Wave 3 — coordinated Arch Linux + Kubernetes:** complete. All four nodes converged to
-  Kubernetes `v1.36.4` with current Arch host packages, Calico `v3.32.1` and Longhorn
+  Kubernetes `v1.36.4` after a full Arch system upgrade on every node, with Calico `v3.32.1` and Longhorn
   `v1.12.1`. See `2026-09-platform-upgrade-retrospective.md`.
 - **Recurring platform maintenance:** the tested Wave 3 implementation is now the reusable monthly
   Arch + Kubernetes maintenance path. See `recurring-platform-upgrade.md`.
