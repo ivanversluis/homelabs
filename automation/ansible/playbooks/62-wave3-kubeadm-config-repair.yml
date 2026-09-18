@@ -1,4 +1,7 @@
 ---
+# Historical one-off repair retained for recovery/audit use.
+# Do NOT run this in the normal recurring maintenance path. It fixes the exact duplicate
+# apiServer mapping discovered during the 2026-09 catch-up upgrade.
 # Narrow Wave 3 repair for the malformed kubeadm ClusterConfiguration discovered by the
 # read-only execution gate. This playbook only removes one exact, empty duplicate top-level
 # `apiServer: {}` key from kube-system/kubeadm-config after validating all preconditions.
