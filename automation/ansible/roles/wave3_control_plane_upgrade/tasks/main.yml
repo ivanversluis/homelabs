@@ -5,9 +5,11 @@
       - wave3_cp_upgrade_approved | bool
       - inventory_hostname == wave3_cp_control_plane_node
       - wave3_cp_target_version == lifecycle_kubernetes_target_version
+      - lifecycle_kubernetes_target_version.startswith('v' + lifecycle_kubernetes_target_minor + '.')
+      - lifecycle_kubernetes_target_package_prefix == ((lifecycle_kubernetes_target_version | regex_replace('^v', '')) + '-')
     fail_msg: >-
-      Control-plane upgrade is not approved or the target does not match the reviewed lifecycle target.
-      Do not substitute a newer Kubernetes version implicitly.
+      Control-plane upgrade is not approved or the central lifecycle target/minor/package-prefix
+      settings are inconsistent. Do not substitute a newer Kubernetes version implicitly.
 
 - name: Require a fresh verified recovery checkpoint
   ansible.builtin.raw: |
