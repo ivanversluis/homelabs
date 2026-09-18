@@ -34,6 +34,39 @@ Do not silently accept a newer Arch Kubernetes package. The mutating node-upgrad
 live repository in an isolated pacman database and fails closed unless the candidate matches the
 reviewed package prefix.
 
+## Choose the maintenance mode
+
+Use the same fail-closed node-maintenance roles for both modes, but do not perform an unnecessary
+Kubernetes control-plane apply when the reviewed Kubernetes target is unchanged.
+
+**Mode A — Arch + Kubernetes target change**
+
+Use when `lifecycle_kubernetes_target_version` differs from
+`lifecycle_kubernetes_current_version`:
+
+```text
+50 -> 60 -> 66 -> 67 -> 68 -> 69 (one worker at a time) -> 66 -> 70 -> 71 -> 50
+```
+
+The first 66/67 pair is required because the API/control plane must reach the reviewed Kubernetes
+target before any kubelet package is moved to that target.
+
+**Mode B — Arch maintenance with Kubernetes target unchanged**
+
+Use when current and target Kubernetes versions are identical and the live repository still offers
+the reviewed Kubernetes package prefix:
+
+```text
+50 -> 60 -> 68 -> 69 (one worker at a time) -> 66 -> 70 -> 71 -> 50
+```
+
+The first 66/67 pair can be skipped. The fresh checkpoint immediately before playbook 70 remains
+mandatory because the single control-plane host will reboot.
+
+If the isolated repository probe shows that Arch now offers a different Kubernetes package version,
+stop and review a new lifecycle target. Do not let an Arch-only window implicitly become a Kubernetes
+upgrade.
+
 ## Normal recurring sequence
 
 ### 1. Baseline readiness
@@ -73,9 +106,10 @@ they are not part of every monthly cycle:
 
 Routine maintenance should not run 62-65 by habit.
 
-### 4. Fresh recovery checkpoint
+### 4. Fresh recovery checkpoint for a Kubernetes target change
 
-Before a Kubernetes control-plane mutation:
+When `lifecycle_kubernetes_target_version` differs from
+`lifecycle_kubernetes_current_version`, create the checkpoint before playbook 67:
 
 ```text
 playbook=playbooks/66-wave3-recovery-checkpoint.yml
@@ -85,7 +119,10 @@ limit=k8s-master01
 Require `WAVE 3 RECOVERY CHECKPOINT: READY`. The checkpoint contains a checksum-verified etcd
 snapshot plus a Ready Longhorn SystemBackup with volume backups.
 
-### 5. Kubernetes control-plane target
+If current and target Kubernetes versions are identical, skip this checkpoint here and continue
+with the worker canary. A separate fresh checkpoint is still mandatory before playbook 70.
+
+### 5. Kubernetes control-plane target (only when target changes)
 
 ```text
 playbook=playbooks/67-wave3-control-plane-upgrade.yml
