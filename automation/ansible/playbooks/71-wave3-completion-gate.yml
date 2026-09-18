@@ -9,8 +9,9 @@
     - wave3_completion_gate
 
 - name: Coordinated platform final cluster completion gate
-  hosts: k8s-master01
+  hosts: control_plane
   gather_facts: false
+  run_once: true
   any_errors_fatal: true
   max_fail_percentage: 0
   tasks:
