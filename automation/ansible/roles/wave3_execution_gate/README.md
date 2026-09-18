@@ -1,26 +1,27 @@
 # wave3_execution_gate
 
-Read-only gate between Wave 3 preparation and any live mutation.
+Optional read-only diagnostic gate retained from the 2026-09 catch-up cycle.
 
-Run from Semaphore:
+Run it when kubeadm configuration, drain behavior, Longhorn state, or platform prerequisites have
+changed materially:
 
 ```text
 playbook=playbooks/61-wave3-execution-gate.yml
 limit=k8s-master01
 ```
 
-The gate runs on the control plane because it only needs cluster API access. It does not
-change kubeadm configuration, cordon/drain nodes, update packages, restart services, or reboot.
+The gate runs on the control plane and does not change kubeadm configuration, cordon/drain nodes,
+update packages, restart services, or reboot.
 
-It blocks if:
+It checks:
 
-- `kubeadm upgrade plan` reports malformed ClusterConfiguration data, including duplicate YAML keys;
-- the Calico v3.32.1 or Longhorn v1.12.1 baseline is not intact;
-- any Longhorn volume is not healthy;
-- any Flux Kustomization/HelmRelease is not Ready;
-- a server-side dry-run of `kubectl drain` fails for any worker.
+- `kubeadm upgrade plan` parsing;
+- the centrally configured Calico and Longhorn baseline;
+- Longhorn volume health;
+- Flux readiness;
+- server-side dry-run drain behavior for workers.
 
-The current live preflight showed kubeadm warning about a duplicate `apiServer` key in the
-`kubeadm-config` ConfigMap. Therefore the expected first run of this gate is BLOCKED and should
-print the numbered live ClusterConfiguration needed to prepare a precise repair. Do not bypass
-that condition.
+Important: a server-side drain dry-run does not persist the cordon, so it does not reproduce all of
+Longhorn's live-cordon reconciliation behavior. For routine monthly maintenance, playbook 60 plus
+the fail-closed worker canary is the normal path. Use this role as diagnostic evidence, not as a
+mandatory recurring gate.
