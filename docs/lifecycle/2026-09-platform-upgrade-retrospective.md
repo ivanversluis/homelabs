@@ -1,6 +1,6 @@
 # 2026-09 platform catch-up upgrade retrospective
 
-Status: **coordinated platform baseline restored**.
+Status: **coordinated platform baseline restored after approximately one year of accumulated host/platform drift**.
 
 In September 2026 the homelab completed its first full coordinated Arch Linux + Kubernetes
 maintenance cycle after roughly one year of accumulated platform drift. This was more than a
@@ -9,7 +9,7 @@ maintenance process that can be repeated.
 
 ## Achievement
 
-The cluster converged to:
+The cluster reached the reviewed Kubernetes/platform target and every node completed a full Arch system upgrade:
 
 | Component | Result |
 |---|---|
@@ -27,7 +27,10 @@ The cluster converged to:
 | Longhorn manager | v1.12.1 |
 
 The final per-node completion gate proved all four hosts had the target Kubernetes packages and
-active services. The remaining final-gate blocker was not an upgrade failure: the KubeVirt CDI
+active services. Because Arch is rolling release and the maintenance window spanned multiple hours,
+non-Kubernetes package versions were not guaranteed to be identical between the first and last node;
+for example containerd ended at 2.3.5 on worker01/02 and 2.4.0 on master01/worker03. Kubernetes
+package versions were deliberately held to the reviewed target. The remaining final-gate blocker was not an upgrade failure: the KubeVirt CDI
 importer for the Debian test VM was still provisioning a DataVolume on worker03. The same expected
 transient workload also caused the subsequent maintenance-readiness report to remain BLOCKED until
 the import converges.
@@ -174,7 +177,30 @@ Rebooting that node removed the only connector and temporarily removed external 
 
 Tracked in issue #257. No real public FQDNs are recorded in the issue or this document.
 
-### 12. Application image tags matter during drains
+### 12. Control-tower workload placement is part of the maintenance dependency graph
+
+Worker maintenance correctly stopped when Semaphore or its database was placed on the target worker.
+The control-tower guard forced those workloads to be moved before mutation instead of allowing the
+automation to remove its own execution dependencies.
+
+For future windows, treat Semaphore, its database, Vault and the external access path as explicit
+maintenance dependencies, not ordinary workloads.
+
+### 13. Rolling Arch repositories can move during a long maintenance window
+
+Every node used a full `pacman -Syu`, but the repository changed while the multi-node maintenance
+window was in progress. This explains the observed containerd patch/minor difference between nodes
+even though each node was fully synchronized at its own mutation time.
+
+Decision:
+
+- continue enforcing an exact reviewed Kubernetes package target;
+- report the broader host package versions before and after maintenance;
+- do not interpret small non-Kubernetes package skew as proof that a node received a partial upgrade;
+- if exact host-package convergence becomes a requirement, introduce an Arch package snapshot/cache
+  rather than attempting partial package pinning.
+
+### 14. Application image tags matter during drains
 
 A normal eviction can recreate an application on another node. If the workload uses `latest` plus
 `imagePullPolicy: Always`, maintenance can accidentally become an application upgrade. The Homebox
