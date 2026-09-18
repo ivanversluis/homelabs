@@ -56,9 +56,11 @@ flowchart LR
 - **Wave 1 — Longhorn:** complete at v1.12.1. See `wave1-longhorn.md`.
 - **Wave 2 — Calico:** complete at v3.32.1 with healthy Flux/TigeraStatus/node evidence and a
   post-upgrade readiness verdict with no blockers. See `wave2-calico.md`.
-- **Wave 3 — coordinated Arch Linux + Kubernetes:** worker drain behavior is proven. The first
-  mutating Kubernetes stage is now pinned to control-plane `v1.36.4` and explicitly gated by a
-  fresh etcd + Longhorn recovery checkpoint. See `wave3-arch-kubernetes.md`.
+- **Wave 3 — coordinated Arch Linux + Kubernetes:** complete. All four nodes converged to
+  Kubernetes `v1.36.4` with current Arch host packages, Calico `v3.32.1` and Longhorn
+  `v1.12.1`. See `2026-09-platform-upgrade-retrospective.md`.
+- **Recurring platform maintenance:** the tested Wave 3 implementation is now the reusable monthly
+  Arch + Kubernetes maintenance path. See `recurring-platform-upgrade.md`.
 - **Wave 4 — platform components:** pending.
 - **Wave 5 — applications:** pending.
 
@@ -74,6 +76,13 @@ Routine invocation:
 playbook=playbooks/50-maintenance-readiness.yml
 limit=k8s_homelab
 ```
+
+## Recurring coordinated platform maintenance
+
+The original Wave 3 playbook numbers are retained for Semaphore compatibility, but their reviewed
+target is now sourced from the central lifecycle variables in
+`automation/ansible/inventories/homelab/group_vars/all.yml`. The complete repeatable sequence is
+documented in `recurring-platform-upgrade.md`.
 
 ## Wave 3 preparation gate
 
@@ -105,14 +114,14 @@ playbook=playbooks/67-wave3-control-plane-upgrade.yml
 limit=k8s-master01
 ```
 
-The target is explicitly pinned to `v1.36.4`. The playbook downloads the exact upstream kubeadm
-binary plus published SHA-256, verifies the checksum, requires a clean target upgrade plan, archives
-`/etc/kubernetes`, pre-pulls the target images, and executes `kubeadm upgrade apply v1.36.4`.
-It does not run `pacman`, drain a node, reboot the host, or upgrade the kubelet binary.
+The reviewed target is set centrally. The control-plane playbook downloads the exact upstream
+kubeadm binary plus published SHA-256, verifies the checksum, requires a clean target upgrade plan,
+archives `/etc/kubernetes`, pre-pulls the target images, and executes `kubeadm upgrade apply`
+only when the API server is not already at the reviewed target. It does not run `pacman`, drain a
+node, reboot the host, or upgrade the kubelet binary.
 
-The intended intermediate state is a v1.36.4 API server/control plane with v1.35.x kubelets. That
-skew is temporary and intentional so the workers can then be upgraded one at a time, beginning
-with worker02, whose drain behavior has already been proven.
+For a Kubernetes minor upgrade, temporary API-server/kubelet skew is intentional: control plane
+first, then workers one at a time beginning with the configured lifecycle canary.
 
 For a combined Arch + Kubernetes window, do not collapse these into one generic node loop:
 
