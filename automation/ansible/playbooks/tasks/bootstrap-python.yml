@@ -4,7 +4,9 @@
 # Prefers the node's system Python when it exists AND actually works — a
 # *functional* check, not just an existence check, because a prior partial
 # package-upgrade (stale glibc vs. a newer python build) can leave a python3
-# binary installed that `command -v` alone would not catch as broken. See
+# binary installed that `command -v` alone would not catch as broken. The probe uses only
+# stable stdlib modules available on current Arch Python; deprecated modules such as `spwd`
+# are intentionally excluded so a modern interpreter is not reported as broken. See
 # docs/lifecycle/ (Wave -1c live activation notes) for the incident that
 # motivated this design: `pacman -Sy --needed python` installed a build
 # requiring glibc >= 2.44 while the node only had glibc 2.43, breaking every
@@ -32,7 +34,7 @@
 - name: Probe whether a functional system Python 3 interpreter exists
   ansible.builtin.raw: >-
     command -v python3 >/dev/null 2>&1 &&
-    python3 -c 'import sys, ssl, hashlib, zlib, spwd, grp, pwd, ctypes, ctypes.util as u; ctypes.cdll.LoadLibrary(u.find_library("c"))' >/dev/null 2>&1 &&
+    python3 -c 'import sys, ssl, hashlib, zlib, grp, pwd, ctypes, ctypes.util as u; ctypes.cdll.LoadLibrary(u.find_library("c"))' >/dev/null 2>&1 &&
     echo SYSTEM_PYTHON_OK || echo SYSTEM_PYTHON_BROKEN
   register: control_tower_system_python_probe
   changed_when: false
@@ -49,7 +51,7 @@
 - name: Probe whether a previously deployed standalone Python is already present and functional
   ansible.builtin.raw: >-
     test -x {{ standalone_python_bin }} &&
-    {{ standalone_python_bin }} -c 'import sys, ssl, hashlib, zlib, spwd, grp, pwd, ctypes, ctypes.util as u; ctypes.cdll.LoadLibrary(u.find_library("c"))' >/dev/null 2>&1 &&
+    {{ standalone_python_bin }} -c 'import sys, ssl, hashlib, zlib, grp, pwd, ctypes, ctypes.util as u; ctypes.cdll.LoadLibrary(u.find_library("c"))' >/dev/null 2>&1 &&
     echo STANDALONE_PYTHON_OK || echo STANDALONE_PYTHON_MISSING
   register: control_tower_standalone_python_probe
   changed_when: false
@@ -115,7 +117,7 @@
 
     - name: Confirm the deployed standalone Python is functional
       ansible.builtin.raw: >-
-        {{ standalone_python_bin }} -c "import sys, ssl, hashlib, zlib, spwd, grp, pwd, ctypes, ctypes.util as u; ctypes.cdll.LoadLibrary(u.find_library('c')); print('STANDALONE_PYTHON_VERIFIED')"
+        {{ standalone_python_bin }} -c "import sys, ssl, hashlib, zlib, grp, pwd, ctypes, ctypes.util as u; ctypes.cdll.LoadLibrary(u.find_library('c')); print('STANDALONE_PYTHON_VERIFIED')"
       register: control_tower_standalone_python_verify
       failed_when: "'STANDALONE_PYTHON_VERIFIED' not in control_tower_standalone_python_verify.stdout"
 
