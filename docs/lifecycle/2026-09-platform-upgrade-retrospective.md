@@ -232,8 +232,8 @@ now documented in `recurring-platform-upgrade.md`.
 
 ## Result
 
-The important result is not only that the cluster reached Kubernetes v1.36.4 and a current Arch
-baseline. The homelab now has a tested maintenance mechanism with:
+The important result is not only that the cluster reached Kubernetes v1.36.4 and every node
+completed a full Arch system upgrade. The homelab now has a tested maintenance mechanism with:
 
 - explicit target review;
 - recovery checkpoints;
