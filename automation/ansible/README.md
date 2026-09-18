@@ -1,4 +1,4 @@
-# Wave -1 control-tower Ansible content
+# Homelab lifecycle Ansible content
 
 Ansible execution layer for the kubeadm/Arch Linux homelab lifecycle control tower:
 
@@ -10,9 +10,10 @@ Vault = short-lived SSH trust and secrets
 Flux = Kubernetes desired state
 ```
 
-This directory does **not** perform Kubernetes/Arch Linux/Longhorn/Calico/Cilium/kube-vip
-upgrades. See [`../../docs/lifecycle/maintenance-plan.md`](../../docs/lifecycle/maintenance-plan.md)
-for that future work.
+This directory now contains both the control-tower bootstrap/validation layer and the coordinated
+platform-maintenance playbooks used for Arch Linux + Kubernetes lifecycle operations. See
+[`../../docs/lifecycle/recurring-platform-upgrade.md`](../../docs/lifecycle/recurring-platform-upgrade.md)
+for the tested recurring sequence.
 
 ## Layout
 
@@ -28,7 +29,15 @@ playbooks/
   01-control-tower-smoke-test.yml   ping/raw connectivity, admin route
   05-control-tower-vault-ca.yml     configures Vault SSH CA (localhost -> Vault API only)
   10-control-tower-ssh-accounts.yml creates `ansible` account + CA trust, admin route
-  90-control-tower-validation.yml   full validation, ansible-certificate route
+  50-maintenance-readiness.yml      read-only full-cluster maintenance gate
+  60-wave3-preflight.yml             reusable coordinated platform preflight
+  66-wave3-recovery-checkpoint.yml   etcd + Longhorn recovery checkpoint
+  67-wave3-control-plane-upgrade.yml reviewed Kubernetes control-plane target
+  68-wave3-worker-upgrade-canary.yml configured worker canary
+  69-wave3-worker-upgrade.yml        one remaining worker per run
+  70-wave3-control-plane-host-upgrade.yml control-plane host maintenance
+  71-wave3-completion-gate.yml       final per-node + cluster gate
+  90-control-tower-validation.yml    full validation, ansible-certificate route
 ```
 
 ## Two SSH routes
