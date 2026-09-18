@@ -1,7 +1,7 @@
 ---
 # Pinned Kubernetes control-plane minor upgrade. No node drain, OS package upgrade, or reboot.
 # Requires the fresh recovery checkpoint produced by playbooks/66-wave3-recovery-checkpoint.yml.
-- name: Wave 3 Kubernetes control-plane upgrade to v1.36.4
+- name: Coordinated Kubernetes control-plane upgrade to reviewed lifecycle target
   hosts: control_plane
   gather_facts: false
   serial: 1
