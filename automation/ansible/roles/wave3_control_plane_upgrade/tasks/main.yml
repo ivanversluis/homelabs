@@ -4,9 +4,9 @@
     that:
       - wave3_cp_upgrade_approved | bool
       - inventory_hostname == wave3_cp_control_plane_node
-      - wave3_cp_target_version == 'v1.36.4'
+      - wave3_cp_target_version == lifecycle_kubernetes_target_version
     fail_msg: >-
-      Wave 3 control-plane upgrade is not approved or the target is not the reviewed v1.36.4.
+      Control-plane upgrade is not approved or the target does not match the reviewed lifecycle target.
       Do not substitute a newer Kubernetes version implicitly.
 
 - name: Require a fresh verified recovery checkpoint
@@ -74,7 +74,7 @@
     install -d -m 0700 '{{ wave3_cp_backup_dir }}'
   changed_when: true
 
-- name: Download exact kubeadm v1.36.4 binary and published checksum
+- name: Download exact target kubeadm binary and published checksum
   ansible.builtin.raw: |
     set -e
     curl -fL --retry 3 --retry-delay 2 '{{ wave3_cp_kubeadm_url }}' -o '{{ wave3_cp_work_dir }}/kubeadm-{{ wave3_cp_target_version }}'
@@ -113,7 +113,7 @@
       - "'already set in map' not in (wave3_cp_upgrade_plan.stdout | lower)"
       - "'error unmarshaling configuration' not in (wave3_cp_upgrade_plan.stdout | lower)"
     fail_msg: >-
-      kubeadm v1.36.4 did not produce a clean upgrade plan. Stop before control-plane mutation.
+      Target kubeadm did not produce a clean upgrade plan. Stop before control-plane mutation.
 
 - name: Archive current Kubernetes control-plane configuration immediately before apply
   ansible.builtin.raw: |
@@ -165,7 +165,7 @@
     exit 1
   changed_when: false
 
-- name: Wait for v1.36.4 control-plane static pods
+- name: Wait for target-version control-plane static pods
   ansible.builtin.raw: |
     set -e
     elapsed=0
@@ -240,4 +240,4 @@
       - "No node was drained and no OS package or kubelet binary was upgraded by this playbook."
       - "kubeadm apply={{ wave3_cp_apply.stdout_lines | default(['already at target']) }}"
       - "Postcheck={{ wave3_cp_postcheck.stdout_lines | default([]) }}"
-      - "Next: worker02 remains the first host/kubelet upgrade canary."
+      - "Next: {{ lifecycle_worker_canary }} remains the first host/kubelet upgrade canary."
