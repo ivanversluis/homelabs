@@ -1,5 +1,5 @@
 ---
-# Wave 0.5 maintenance-readiness preflight. Read-only: every task here must be safe to run
+# Maintenance-readiness preflight. Read-only: every task here must be safe to run
 # against a live production cluster with no side effects. Cluster-API checks run once,
 # delegated to the control-plane node's own admin kubeconfig over the already-established
 # ansible->sudo SSH route — no new Vault role, ServiceAccount, or RBAC surface is introduced.

@@ -1,4 +1,7 @@
 ---
+# Historical/diagnostic Longhorn drain analysis retained for troubleshooting.
+# Do NOT run this in every routine maintenance cycle. Use it only when storage/drain behavior
+# changes or a normal worker drain is blocked unexpectedly.
 # Read-only Longhorn-aware drain analysis for Wave 3. The server-side dry-run used by the
 # generic execution gate cannot persist the node cordon, so Longhorn does not get the normal
 # unschedulable-node signal it uses while reconciling instance-manager PDBs. This playbook

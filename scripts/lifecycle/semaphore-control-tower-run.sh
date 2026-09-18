@@ -46,7 +46,7 @@ CONTROL_TOWER_LIMIT="$(trim "$CONTROL_TOWER_LIMIT")"
 
 if [[ -z "$SSH_CERT_TTL" ]]; then
   case "$CONTROL_TOWER_PLAYBOOK" in
-    playbooks/68-wave3-worker-upgrade-canary.yml|playbooks/69-wave3-worker-upgrade.yml|playbooks/70-wave3-control-plane-host-upgrade.yml)
+    playbooks/66-wave3-recovery-checkpoint.yml|playbooks/67-wave3-control-plane-upgrade.yml|playbooks/68-wave3-worker-upgrade-canary.yml|playbooks/69-wave3-worker-upgrade.yml|playbooks/70-wave3-control-plane-host-upgrade.yml)
       SSH_CERT_TTL="60m"
       ;;
     *)

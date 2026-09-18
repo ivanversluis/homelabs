@@ -1,4 +1,8 @@
 ---
+# Optional diagnostic gate retained from the 2026-09 catch-up maintenance.
+# Run it when kubeadm configuration, drain behavior, or platform prerequisites changed.
+# It is not required for every routine monthly cycle because server-side drain dry-runs do not
+# reproduce Longhorn's live-cordon reconciliation behavior.
 # Read-only pre-mutation gate for Wave 3. This playbook intentionally runs only on the
 # control-plane node and uses kubectl server-side dry-run for drain simulation. It does not
 # persist cordons/evictions, change kubeadm configuration, update packages, restart services,

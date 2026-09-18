@@ -1,5 +1,7 @@
 # Wave 3 node-upgrade execution
 
+Status: **completed 2026-09-18**. This document is retained as the historical execution record for the first coordinated catch-up cycle. For future maintenance windows use [`recurring-platform-upgrade.md`](./recurring-platform-upgrade.md).
+
 This runbook continues Wave 3 after the kubeadm-managed control plane has reached Kubernetes
 `v1.36.4` through `67-wave3-control-plane-upgrade.yml`.
 

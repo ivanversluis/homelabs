@@ -5,10 +5,12 @@
       - wave3_node_upgrade_approved | bool
       - inventory_hostname in wave3_node_allowed_targets
       - wave3_node_mode in ['worker', 'control-plane']
-      - wave3_node_target_version == 'v1.36.4'
+      - wave3_node_target_version == lifecycle_kubernetes_target_version
+      - lifecycle_kubernetes_target_version.startswith('v' + lifecycle_kubernetes_target_minor + '.')
+      - lifecycle_kubernetes_target_package_prefix == ((lifecycle_kubernetes_target_version | regex_replace('^v', '')) + '-')
     fail_msg: >-
-      Wave 3 node maintenance is not explicitly approved, the host is not allow-listed, or the
-      reviewed v1.36.4 target/mode changed. Stop before any mutation.
+      Node maintenance is not explicitly approved, the host is not allow-listed, or the reviewed
+      lifecycle target/version/package-prefix settings are inconsistent. Stop before any mutation.
 
 - name: Verify control plane and platform baseline before host mutation
   ansible.builtin.raw: |

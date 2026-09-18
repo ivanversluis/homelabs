@@ -1,5 +1,5 @@
 ---
-- name: Wave 3 final per-node completion gate
+- name: Coordinated platform final per-node completion gate
   hosts: k8s_homelab
   gather_facts: false
   serial: 1
@@ -8,13 +8,14 @@
   roles:
     - wave3_completion_gate
 
-- name: Wave 3 final cluster completion gate
-  hosts: k8s-master01
+- name: Coordinated platform final cluster completion gate
+  hosts: control_plane
   gather_facts: false
+  run_once: true
   any_errors_fatal: true
   max_fail_percentage: 0
   tasks:
-    - name: Verify cluster-wide Wave 3 completion
+    - name: Verify cluster-wide coordinated platform completion
       ansible.builtin.include_role:
         name: wave3_completion_gate
         tasks_from: cluster

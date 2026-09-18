@@ -1,7 +1,8 @@
 # maintenance_readiness
 
-Wave 0.5 read-only maintenance-readiness assessment. Determines whether the cluster is
-healthy enough to safely start Wave 1 (Longhorn) and beyond, without changing anything.
+Read-only maintenance-readiness assessment. Determines whether the cluster is healthy enough to
+enter a maintenance window or whether a completed maintenance window has converged cleanly, without
+changing anything.
 
 Reused rather than duplicated:
 - Vault/SSH certificate trust and the `ansible`/sudo route — proven by `control_tower_validation`

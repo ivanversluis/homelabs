@@ -32,6 +32,19 @@ vault_ssh_allowed_principal: ansible
 vault_ssh_default_ttl: "30m"
 vault_ssh_max_ttl: "60m"
 
+
+# Recurring coordinated Arch Linux + Kubernetes maintenance target.
+# This is the reviewed target for the next lifecycle run. Update it only through
+# a dedicated PR after checking the live Arch package candidates, kubeadm support
+# path, Calico compatibility, Longhorn health, and recovery readiness.
+lifecycle_kubernetes_current_version: "v1.36.4"
+lifecycle_kubernetes_target_version: "v1.36.4"
+lifecycle_kubernetes_target_minor: "1.36"
+lifecycle_kubernetes_target_package_prefix: "1.36.4-"
+lifecycle_worker_canary: "k8s-worker02"
+lifecycle_expected_calico_version: "v3.32.1"
+lifecycle_expected_longhorn_manager_image: "docker.io/longhornio/longhorn-manager:v1.12.1"
+
 # Node SSH trust files installed by roles/ssh_automation_account.
 trusted_user_ca_keys_path: /etc/ssh/trusted-user-ca-keys.pem
 auth_principals_dir: /etc/ssh/auth_principals
@@ -45,8 +58,9 @@ sshd_backup_dir: /root/ssh-control-tower-backups
 # activation, 2026). Uses the glibc-linked "install_only_stripped" build (NOT
 # the musl "+static-full" build — that variant cannot dynamically load ANY
 # compiled Python extension module at all, per upstream docs, which breaks
-# ansible.builtin.user's password_lock (needs spwd) and any other module
-# needing a lib-dynload extension). This build only requires glibc >= 2.17
+# modules that need lib-dynload extensions). The system-Python health probe intentionally
+# avoids deprecated/removed stdlib modules such as spwd so modern Arch Python releases are
+# not misclassified as broken. This build only requires glibc >= 2.17
 # (verified via `ldd`: libpthread/libdl/libutil/librt/libm/libc/ld-linux —
 # all satisfied by the node's glibc 2.43+, no relation to the newer-glibc
 # partial-upgrade issue that broke pacman's own python package), and it DOES

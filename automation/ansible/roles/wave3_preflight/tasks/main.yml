@@ -98,9 +98,6 @@
       echo "CHECKUPDATES_RC=$rc"
       echo "--- relevant candidates ---"
       printf '%s\n' "$out" | grep -E '^(linux|glibc|python|pacman|systemd|openssh|containerd|runc|kubeadm|kubelet|kubectl) ' || true
-      if printf '%s\n' "$out" | grep -Eq '^(kubeadm|kubelet|kubectl) .* -> 1\.(37|[4-9][0-9])\.'; then
-        echo "WAVE3_UNSUPPORTED_K8S_CANDIDATE"
-      fi
     else
       echo "checkupdates=UNAVAILABLE"
       echo "pacman -Qu below uses the node's existing sync database and may be stale"
@@ -116,11 +113,10 @@
       - wave3_pacman_db_check.rc == 0
       - (wave3_cgroup_mode.stdout | trim) == 'cgroup2fs'
       - (wave3_swap.stdout | trim | length) == 0
-      - "'WAVE3_UNSUPPORTED_K8S_CANDIDATE' not in wave3_update_candidates.stdout"
     fail_msg: >-
-      Wave 3 host preflight failed on {{ inventory_hostname }}. Do not run package or
-      Kubernetes mutation until pacman consistency, cgroup v2, swap, and repository
-      Kubernetes-version constraints are understood.
+      Host preflight failed on {{ inventory_hostname }}. Do not run package or Kubernetes
+      mutation until pacman consistency, cgroup v2, and swap state are understood. The exact
+      Kubernetes repository candidate is enforced again by the mutating node-upgrade role.
 
 - name: Show per-node Wave 3 preparation summary
   ansible.builtin.debug:

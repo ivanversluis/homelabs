@@ -1,8 +1,8 @@
 ---
-# Wave 0.5 aggregation + verdict. Runs once (run_once, connection: local, hosts: k8s_homelab
+# Maintenance-readiness aggregation + verdict. Runs once (run_once, connection: local, hosts: k8s_homelab
 # so it is never skipped by a --limit k8s_homelab run) after the per-node play has collected
 # findings into each host's hostvars.maintenance_readiness_findings. Produces the explicit
-# READY / READY WITH ACCEPTED EXCEPTIONS / BLOCKED verdict required before Wave 1 may start.
+# READY / READY WITH ACCEPTED EXCEPTIONS / BLOCKED verdict used before and after maintenance.
 
 - name: Record expected and inspected cluster members
   ansible.builtin.set_fact:
@@ -42,7 +42,7 @@
   ansible.builtin.debug:
     msg:
       - >-
-        Wave 0.5 maintenance-readiness verdict:
+        Maintenance-readiness verdict:
         {{ maintenance_readiness_verdict if (maintenance_readiness_full_cluster | bool)
            else 'NON-AUTHORITATIVE/PARTIAL (' ~ maintenance_readiness_verdict ~ ')' }}
       - "Nodes inspected: {{ maintenance_readiness_inspected_hosts | join(', ') }}"
@@ -51,12 +51,12 @@
       - "Exception IDs: {{ maintenance_readiness_exceptions | map(attribute='id') | list }}"
       - "Informational findings: {{ maintenance_readiness_info | length }}"
 
-- name: Reject a partial result as the authoritative Wave 0.5 gate
+- name: Reject a partial result as the authoritative maintenance gate
   ansible.builtin.assert:
     that:
       - maintenance_readiness_full_cluster | bool
     fail_msg: >-
-      This was a NON-AUTHORITATIVE/PARTIAL readiness run. The authoritative Wave 0.5 gate
+      This was a NON-AUTHORITATIVE/PARTIAL readiness run. The authoritative maintenance gate
       requires every member of k8s_homelab. Rerun with limit=k8s_homelab (or all).
       Inspected={{ maintenance_readiness_inspected_hosts | join(',') }};
       expected={{ maintenance_readiness_expected_hosts | join(',') }}.
@@ -67,7 +67,7 @@
     state: directory
     mode: "0755"
 
-- name: Render the Wave 0.5 readiness report
+- name: Render the maintenance-readiness report
   ansible.builtin.template:
     src: readiness-report.md.j2
     dest: "{{ maintenance_readiness_report_dir }}/{{ maintenance_readiness_run_id }}.md"
@@ -80,9 +80,9 @@
 - name: Fail the run if the verdict is BLOCKED
   ansible.builtin.fail:
     msg: >-
-      Wave 0.5 readiness verdict is BLOCKED: {{ maintenance_readiness_unaccepted_blockers | length }}
+      Maintenance-readiness verdict is BLOCKED: {{ maintenance_readiness_unaccepted_blockers | length }}
       unaccepted blocker(s) exist. Resolve them, or explicitly add their IDs to
-      maintenance_readiness_accepted_exceptions after a conscious operator review, before
-      Wave 1 may start. See {{ maintenance_readiness_report_dir }}/{{ maintenance_readiness_run_id }}.md
+      maintenance_readiness_accepted_exceptions after a conscious operator review before
+      proceeding with maintenance. See {{ maintenance_readiness_report_dir }}/{{ maintenance_readiness_run_id }}.md
       for full details: {{ maintenance_readiness_unaccepted_blockers | map(attribute='id') | list }}
   when: maintenance_readiness_verdict == 'BLOCKED'

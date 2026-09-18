@@ -122,7 +122,7 @@
       'severity': ('exception' if not control_tower_system_python_ok else 'info'),
       'observed': ('Node depends on the standalone control-tower Python interpreter (system Python is broken)' if not control_tower_system_python_ok else 'System Python 3 is functional'),
       'evidence': 'control_tower_system_python_ok=' + (control_tower_system_python_ok | string),
-      'impact': ('Ansible automation on this node depends on ' + standalone_python_bin + ' until system Python is repaired; a coordinated OS-maintenance wave should restore it' if not control_tower_system_python_ok else 'none'),
-      'remediation': ('Repair system Python (see docs/lifecycle/ Wave -1c live-activation notes) during Wave 3' if not control_tower_system_python_ok else 'none'),
+      'impact': ('Ansible automation on this node depends on ' + standalone_python_bin + ' until system Python is repaired; the next coordinated OS-maintenance window should restore it' if not control_tower_system_python_ok else 'none'),
+      'remediation': ('Repair system Python during the next coordinated platform-maintenance window; see docs/lifecycle/recurring-platform-upgrade.md' if not control_tower_system_python_ok else 'none'),
       'blocks_next_wave': false,
     }] }}"

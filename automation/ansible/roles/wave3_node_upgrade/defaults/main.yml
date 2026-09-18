@@ -7,8 +7,8 @@ wave3_node_require_all_workers_target: false
 
 wave3_node_control_plane: k8s-master01
 wave3_node_kubeconfig: /etc/kubernetes/admin.conf
-wave3_node_target_version: v1.36.4
-wave3_node_target_package_prefix: "1.36.4-"
+wave3_node_target_version: "{{ lifecycle_kubernetes_target_version }}"
+wave3_node_target_package_prefix: "{{ lifecycle_kubernetes_target_package_prefix }}"
 wave3_node_kubernetes_packages:
   - kubeadm
   - kubelet
@@ -16,8 +16,8 @@ wave3_node_kubernetes_packages:
 
 wave3_node_longhorn_namespace: longhorn-system
 wave3_node_backup_target_name: default
-wave3_node_expected_longhorn_manager_image: docker.io/longhornio/longhorn-manager:v1.12.1
-wave3_node_expected_calico_version: v3.32.1
+wave3_node_expected_longhorn_manager_image: "{{ lifecycle_expected_longhorn_manager_image }}"
+wave3_node_expected_calico_version: "{{ lifecycle_expected_calico_version }}"
 wave3_node_required_apiserver_args:
   - oidc-issuer-url
   - oidc-client-id
@@ -36,7 +36,7 @@ wave3_node_repository_probe_dir: /var/tmp/wave3-pacman-probe
 
 wave3_node_drain_timeout: 2m
 wave3_node_drain_attempts: 3
-# Longhorn replica rebuilds on worker03 have exceeded five minutes after a normal drain.
+# Longhorn replica rebuilds have exceeded five minutes after a normal drain.
 # Keep the node cordoned and fail closed, but allow controllers enough time to restore redundancy.
 wave3_node_volume_stabilize_timeout_seconds: 1200
 wave3_node_post_reboot_timeout_seconds: 600
