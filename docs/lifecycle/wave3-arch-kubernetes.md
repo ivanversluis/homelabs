@@ -1,6 +1,6 @@
 # Wave 3: coordinated Arch Linux + Kubernetes
 
-Status: **COMPLETED 2026-09-18 — ALL FOUR NODES CONVERGED TO KUBERNETES v1.36.4 AND CURRENT ARCH HOST PACKAGES**.
+Status: **COMPLETED 2026-09-18 — ALL FOUR NODES CONVERGED TO KUBERNETES v1.36.4 AFTER A FULL ARCH SYSTEM UPGRADE ON EVERY NODE**.
 
 For the reusable monthly maintenance path see [`recurring-platform-upgrade.md`](./recurring-platform-upgrade.md). The full closure and lessons learned are recorded in [`2026-09-platform-upgrade-retrospective.md`](./2026-09-platform-upgrade-retrospective.md).
 
