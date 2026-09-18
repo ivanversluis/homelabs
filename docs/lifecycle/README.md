@@ -32,20 +32,21 @@ The maintenance process itself is now reusable rather than being a one-off recov
 
 ## Recurring operational path
 
-The normal coordinated platform-maintenance path is:
+The coordinated path depends on whether Kubernetes itself changes.
+
+Kubernetes target change:
 
 ```text
-50 maintenance readiness
--> 60 read-only platform preflight
--> 66 fresh recovery checkpoint
--> 67 Kubernetes control-plane target
--> 68 configured worker canary
--> 69 remaining workers one at a time
--> 66 refresh recovery checkpoint
--> 70 control-plane host maintenance
--> 71 completion gate
--> 50 final maintenance readiness
+50 -> 60 -> 66 -> 67 -> 68 -> 69 (one worker at a time) -> 66 -> 70 -> 71 -> 50
 ```
+
+Arch-only maintenance with the Kubernetes target unchanged:
+
+```text
+50 -> 60 -> 68 -> 69 (one worker at a time) -> 66 -> 70 -> 71 -> 50
+```
+
+The checkpoint immediately before the single control-plane host reboot is always mandatory.
 
 Playbooks 61-65 remain available as diagnostics/historical repair tools but are not routine steps.
 The existing `wave3_*` filenames and role names are retained for Semaphore compatibility.
