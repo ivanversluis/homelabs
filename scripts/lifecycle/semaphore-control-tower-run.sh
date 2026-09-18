@@ -8,7 +8,7 @@ VAULT_EXPECTED_POLICY="${VAULT_EXPECTED_POLICY:-homelab-ansible-sign}"
 VAULT_SSH_MOUNT="${VAULT_SSH_MOUNT:-ssh-client-signer}"
 VAULT_SSH_ROLE="${VAULT_SSH_ROLE:-homelab-ansible}"
 SSH_PRINCIPAL="${SSH_PRINCIPAL:-ansible}"
-SSH_CERT_TTL="${SSH_CERT_TTL:-30m}"
+SSH_CERT_TTL="${SSH_CERT_TTL:-}"
 SA_TOKEN_FILE="${SA_TOKEN_FILE:-/var/run/secrets/kubernetes.io/serviceaccount/token}"
 CONTROL_TOWER_PLAYBOOK="${CONTROL_TOWER_PLAYBOOK:-playbooks/95-disk-report.yml}"
 CONTROL_TOWER_LIMIT="${CONTROL_TOWER_LIMIT:-}"
@@ -43,6 +43,17 @@ done
 
 CONTROL_TOWER_PLAYBOOK="$(trim "$CONTROL_TOWER_PLAYBOOK")"
 CONTROL_TOWER_LIMIT="$(trim "$CONTROL_TOWER_LIMIT")"
+
+if [[ -z "$SSH_CERT_TTL" ]]; then
+  case "$CONTROL_TOWER_PLAYBOOK" in
+    playbooks/68-wave3-worker-upgrade-canary.yml|playbooks/69-wave3-worker-upgrade.yml|playbooks/70-wave3-control-plane-host-upgrade.yml)
+      SSH_CERT_TTL="60m"
+      ;;
+    *)
+      SSH_CERT_TTL="30m"
+      ;;
+  esac
+fi
 
 log "Playbook: [$CONTROL_TOWER_PLAYBOOK]"
 log "Target limit: [${CONTROL_TOWER_LIMIT:-all nodes}]"
