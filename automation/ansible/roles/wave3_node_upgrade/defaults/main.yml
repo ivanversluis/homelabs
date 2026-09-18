@@ -36,7 +36,9 @@ wave3_node_repository_probe_dir: /var/tmp/wave3-pacman-probe
 
 wave3_node_drain_timeout: 2m
 wave3_node_drain_attempts: 3
-wave3_node_volume_stabilize_timeout_seconds: 300
+# Longhorn replica rebuilds on worker03 have exceeded five minutes after a normal drain.
+# Keep the node cordoned and fail closed, but allow controllers enough time to restore redundancy.
+wave3_node_volume_stabilize_timeout_seconds: 1200
 wave3_node_post_reboot_timeout_seconds: 600
 wave3_node_post_uncordon_timeout_seconds: 300
 wave3_node_reboot_timeout_seconds: 600
