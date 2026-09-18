@@ -339,8 +339,9 @@
       bad_hr="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} get helmreleases.helm.toolkit.fluxcd.io -A -o json | jq -r '.items[] | select((.spec.suspend // false) == false) | select(([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | (.metadata.namespace + "/" + .metadata.name)')"
       printf 'ready=%s version=%s unschedulable=%s bad_nodes=%s bad_volumes=%s bad_ks=%s bad_hr=%s\n' "$ready" "$version" "${unsched:-false}" "$bad_nodes" "$bad_volumes" "$bad_ks" "$bad_hr"
       if [ "$ready" = True ] && [ "$version" = '{{ wave3_node_target_version }}' ] && [ -z "$bad_nodes" ] && [ -z "$bad_volumes" ] && [ -z "$bad_ks" ] && [ -z "$bad_hr" ]; then
-        {% if wave3_node_mode == 'worker' %}test "${unsched:-false}" != true{% else %}true{% endif %}
-        exit 0
+        if [ '{{ wave3_node_mode }}' != worker ] || [ "${unsched:-false}" != true ]; then
+          exit 0
+        fi
       fi
       sleep 10
       elapsed=$((elapsed + 10))
