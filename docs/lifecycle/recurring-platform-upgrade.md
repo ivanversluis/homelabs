@@ -185,6 +185,19 @@ limit=k8s_homelab
 
 A clean recurring cycle ends only when the final readiness report has no unaccepted blockers.
 
+### 12. Close the lifecycle baseline
+
+After a successful cycle, update the central baseline so the next window starts from the state that
+was actually achieved:
+
+```yaml
+lifecycle_kubernetes_current_version: "<the completed target>"
+lifecycle_kubernetes_target_version: "<the completed target>"
+```
+
+Commit that closure together with the maintenance record. Do not leave `current_version` pointing
+at the pre-upgrade source version.
+
 ## Credential timing
 
 The Semaphore control-tower runner uses:
