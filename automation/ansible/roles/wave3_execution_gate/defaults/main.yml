@@ -1,10 +1,7 @@
 ---
 wave3_gate_kubeconfig: /etc/kubernetes/admin.conf
-wave3_gate_target_minor: "1.36"
-wave3_gate_target_patch: "v1.36.4"
-wave3_gate_expected_calico_version: "v3.32.1"
-wave3_gate_expected_longhorn_manager_image: "docker.io/longhornio/longhorn-manager:v1.12.1"
-wave3_gate_worker_nodes:
-  - k8s-worker01
-  - k8s-worker02
-  - k8s-worker03
+wave3_gate_target_minor: "{{ lifecycle_kubernetes_target_minor }}"
+wave3_gate_target_patch: "{{ lifecycle_kubernetes_target_version }}"
+wave3_gate_expected_calico_version: "{{ lifecycle_expected_calico_version }}"
+wave3_gate_expected_longhorn_manager_image: "{{ lifecycle_expected_longhorn_manager_image }}"
+wave3_gate_worker_nodes: "{{ groups['workers'] }}"
