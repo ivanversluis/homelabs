@@ -37,7 +37,10 @@ vault_ssh_max_ttl: "60m"
 # This is the reviewed target for the next lifecycle run. Update it only through
 # a dedicated PR after checking the live Arch package candidates, kubeadm support
 # path, Calico compatibility, Longhorn health, and recovery readiness.
+lifecycle_kubernetes_current_version: "v1.36.4"
 lifecycle_kubernetes_target_version: "v1.36.4"
+lifecycle_kubernetes_target_minor: "1.36"
+lifecycle_kubernetes_target_package_prefix: "1.36.4-"
 lifecycle_worker_canary: "k8s-worker02"
 lifecycle_expected_calico_version: "v3.32.1"
 lifecycle_expected_longhorn_manager_image: "docker.io/longhornio/longhorn-manager:v1.12.1"
