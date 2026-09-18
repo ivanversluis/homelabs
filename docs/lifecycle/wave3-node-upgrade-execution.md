@@ -26,6 +26,8 @@ The node-upgrade role is fail closed.
 - A failed worker run intentionally leaves the worker cordoned; do not manually uncordon until the
   failure is understood and the node/platform health gates pass.
 - Every worker is upgraded in a separate Semaphore task so it receives a fresh Vault SSH certificate.
+- Wave 3 mutation playbooks 68/69/70 request a 60-minute Vault SSH certificate; other control-tower jobs keep the 30-minute default.
+- Longhorn stabilization after a worker drain may take up to 20 minutes before host package mutation proceeds.
 - The single control-plane host is upgraded only after every worker reports kubelet `v1.36.4`.
 - Control-plane host maintenance requires a fresh Wave 3 recovery checkpoint no older than two hours.
 
