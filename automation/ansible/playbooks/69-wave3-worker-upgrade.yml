@@ -1,0 +1,24 @@
+---
+- name: Coordinated remaining worker Arch and Kubernetes upgrade
+  hosts: workers
+  gather_facts: false
+  serial: 1
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  pre_tasks:
+    - name: Require exactly one non-canary worker per Semaphore run
+      ansible.builtin.assert:
+        that:
+          - ansible_play_hosts_all | length == 1
+          - inventory_hostname != lifecycle_worker_canary
+          - inventory_hostname in groups['workers']
+        fail_msg: >-
+          Run playbook 69 once for exactly one worker that is not the configured canary
+          {{ lifecycle_worker_canary }}. Never upgrade multiple workers in one run.
+  vars:
+    wave3_node_upgrade_approved: true
+    wave3_node_mode: worker
+    wave3_node_allowed_targets: "{{ groups['workers'] | difference([lifecycle_worker_canary]) }}"
+    wave3_node_required_prior_canary: "{{ lifecycle_worker_canary }}"
+  roles:
+    - wave3_node_upgrade

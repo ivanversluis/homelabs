@@ -1,0 +1,16 @@
+# KongConsumer: gatus
+# Represents the Gatus monitoring pod as a Kong consumer for key-auth.
+# `kong-routeros-bootstrap` ensures ESO has created the referenced credential
+# before this consumer is admitted.
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: gatus
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: mikrotik-proxy
+  annotations:
+    kubernetes.io/ingress.class: kong
+username: gatus
+credentials:
+  - mikrotik-proxy-key-auth

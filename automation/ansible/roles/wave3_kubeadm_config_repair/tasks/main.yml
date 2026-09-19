@@ -1,0 +1,136 @@
+---
+# Targeted repair for the exact malformed shape observed in Task #47:
+#   apiServer:
+#     extraArgs: ...four Authentik OIDC arguments...
+#   apiServer: {}
+# The empty duplicate is removed only after strict preconditions, backup and kubeadm validation.
+# All remote actions use raw because system Python is intentionally still absent before Wave 3.
+
+- name: Verify the live kubeadm configuration has exactly the expected malformed shape
+  ansible.builtin.raw: |
+    set -eu
+    cfg="$(kubectl --kubeconfig={{ wave3_repair_kubeconfig }} -n {{ wave3_repair_namespace }} get configmap {{ wave3_repair_configmap }} -o jsonpath='{.data.ClusterConfiguration}')"
+    test "$(printf '%s\n' "$cfg" | grep -c '^apiServer:$')" -eq 1
+    test "$(printf '%s\n' "$cfg" | grep -c '^apiServer: {}$')" -eq 1
+    test "$(printf '%s\n' "$cfg" | grep -c '^kubernetesVersion: {{ wave3_repair_expected_kubernetes_version }}$')" -eq 1
+    {% for arg in wave3_repair_required_apiserver_args %}
+    test "$(printf '%s\n' "$cfg" | grep -c '^[[:space:]]*- name: {{ arg }}$')" -eq 1
+    {% endfor %}
+  changed_when: false
+
+- name: Record kube-apiserver static manifest checksum before ConfigMap-only repair
+  ansible.builtin.raw: sha256sum /etc/kubernetes/manifests/kube-apiserver.yaml | awk '{print $1}'
+  changed_when: false
+  register: wave3_repair_apiserver_manifest_before
+
+- name: Create timestamp for the repair evidence
+  ansible.builtin.raw: date -u +%Y%m%dT%H%M%SZ
+  changed_when: false
+  register: wave3_repair_timestamp
+
+- name: Create protected backup and work directories
+  ansible.builtin.raw: >-
+    install -d -m 0700 {{ wave3_repair_backup_dir }} {{ wave3_repair_work_dir }}
+  changed_when: false
+
+- name: Back up the complete kubeadm ConfigMap before mutation
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_repair_kubeconfig }} -n {{ wave3_repair_namespace }}
+    get configmap {{ wave3_repair_configmap }} -o yaml
+    > {{ wave3_repair_backup_dir }}/kubeadm-config-before-{{ wave3_repair_timestamp.stdout | trim }}.yaml
+  changed_when: true
+
+- name: Materialize current and corrected ClusterConfiguration files
+  ansible.builtin.raw: |
+    set -eu
+    kubectl --kubeconfig={{ wave3_repair_kubeconfig }} -n {{ wave3_repair_namespace }} \
+      get configmap {{ wave3_repair_configmap }} -o jsonpath='{.data.ClusterConfiguration}' \
+      > {{ wave3_repair_work_dir }}/current.yaml
+    sed '/^apiServer: {}$/d' {{ wave3_repair_work_dir }}/current.yaml \
+      > {{ wave3_repair_work_dir }}/corrected.yaml
+  changed_when: false
+
+- name: Prove the proposed repair removes exactly one line and preserves required OIDC configuration
+  ansible.builtin.raw: |
+    set -eu
+    current={{ wave3_repair_work_dir }}/current.yaml
+    corrected={{ wave3_repair_work_dir }}/corrected.yaml
+    test "$(( $(wc -l < "$current") - $(wc -l < "$corrected") ))" -eq 1
+    test "$(grep -c '^apiServer:$' "$corrected")" -eq 1
+    test "$(grep -c '^apiServer: {}$' "$corrected" || true)" -eq 0
+    test "$(grep -c '^kubernetesVersion: {{ wave3_repair_expected_kubernetes_version }}$' "$corrected")" -eq 1
+    {% for arg in wave3_repair_required_apiserver_args %}
+    test "$(grep -c '^[[:space:]]*- name: {{ arg }}$' "$corrected")" -eq 1
+    {% endfor %}
+  changed_when: false
+
+- name: Show the exact proposed one-line kubeadm configuration repair
+  ansible.builtin.raw: >-
+    diff -u {{ wave3_repair_work_dir }}/current.yaml {{ wave3_repair_work_dir }}/corrected.yaml || true
+  changed_when: false
+  register: wave3_repair_diff
+
+- name: Print the proposed repair diff before mutation
+  ansible.builtin.debug:
+    var: wave3_repair_diff.stdout_lines
+
+- name: Validate corrected ClusterConfiguration with kubeadm
+  ansible.builtin.raw: >-
+    kubeadm config validate --config {{ wave3_repair_work_dir }}/corrected.yaml
+  changed_when: false
+
+- name: Upload the corrected ClusterConfiguration through kubeadm
+  ansible.builtin.raw: >-
+    kubeadm init phase upload-config kubeadm
+    --config {{ wave3_repair_work_dir }}/corrected.yaml
+  changed_when: true
+  register: wave3_repair_upload
+
+- name: Verify live kubeadm ConfigMap after repair
+  ansible.builtin.raw: |
+    set -eu
+    cfg="$(kubectl --kubeconfig={{ wave3_repair_kubeconfig }} -n {{ wave3_repair_namespace }} get configmap {{ wave3_repair_configmap }} -o jsonpath='{.data.ClusterConfiguration}')"
+    test "$(printf '%s\n' "$cfg" | grep -c '^apiServer:$')" -eq 1
+    test "$(printf '%s\n' "$cfg" | grep -c '^apiServer: {}$' || true)" -eq 0
+    {% for arg in wave3_repair_required_apiserver_args %}
+    test "$(printf '%s\n' "$cfg" | grep -c '^[[:space:]]*- name: {{ arg }}$')" -eq 1
+    {% endfor %}
+  changed_when: false
+
+- name: Confirm kube-apiserver static manifest was not changed by the ConfigMap repair
+  ansible.builtin.raw: sha256sum /etc/kubernetes/manifests/kube-apiserver.yaml | awk '{print $1}'
+  changed_when: false
+  register: wave3_repair_apiserver_manifest_after
+
+- name: Assert running API-server manifest is unchanged
+  ansible.builtin.assert:
+    that:
+      - (wave3_repair_apiserver_manifest_before.stdout | trim) == (wave3_repair_apiserver_manifest_after.stdout | trim)
+    fail_msg: >-
+      Unexpected kube-apiserver static-manifest drift detected. Stop Wave 3 and investigate before any further mutation.
+
+- name: Run kubeadm upgrade plan after repair
+  ansible.builtin.raw: kubeadm upgrade plan 2>&1
+  changed_when: false
+  failed_when: false
+  register: wave3_repair_upgrade_plan
+
+- name: Assert kubeadm now parses ClusterConfiguration cleanly
+  ansible.builtin.assert:
+    that:
+      - wave3_repair_upgrade_plan.rc == 0
+      - "'strict decoding error' not in (wave3_repair_upgrade_plan.stdout | lower)"
+      - "'already set in map' not in (wave3_repair_upgrade_plan.stdout | lower)"
+      - "'error unmarshaling configuration' not in (wave3_repair_upgrade_plan.stdout | lower)"
+    fail_msg: >-
+      The duplicate apiServer repair was applied but kubeadm still reports a configuration parsing problem. Stop Wave 3; do not proceed to package or Kubernetes mutation.
+
+- name: Show repair outcome and post-repair kubeadm plan
+  ansible.builtin.debug:
+    msg:
+      - "WAVE 3 KUBEADM CONFIG REPAIR: SUCCESS"
+      - "Removed only the duplicate empty top-level apiServer mapping; Authentik OIDC argument names were preserved"
+      - "Backup={{ wave3_repair_backup_dir }}/kubeadm-config-before-{{ wave3_repair_timestamp.stdout | trim }}.yaml"
+      - "kube-apiserver static manifest checksum unchanged={{ wave3_repair_apiserver_manifest_after.stdout | trim }}"
+      - "kubeadm upgrade plan={{ wave3_repair_upgrade_plan.stdout_lines | default([]) }}"
+      - "Next action: rerun playbooks/61-wave3-execution-gate.yml; no Kubernetes or Arch upgrade has been executed"

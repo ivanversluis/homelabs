@@ -15,25 +15,50 @@ jobs:
       - name: Send Discord notification for new PR
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          PR_TITLE="${{ github.event.pull_request.title }}"
-          PR_URL="${{ github.event.pull_request.html_url }}"
-          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          set -euo pipefail
 
-          curl -s -H "Content-Type: application/json" \
-            -d "{
-              \"embeds\": [{
-                \"title\": \"🔄 New PR: ${PR_TITLE}\",
-                \"url\": \"${PR_URL}\",
-                \"color\": 3447003,
-                \"fields\": [
-                  {\"name\": \"Author\", \"value\": \"${PR_AUTHOR}\", \"inline\": true},
-                  {\"name\": \"Repository\", \"value\": \"${{ github.repository }}\", \"inline\": true}
+          if [ -z "${DISCORD_WEBHOOK_URL}" ]; then
+            echo "DISCORD_WEBHOOK_URL secret is not configured; skipping Discord notification."
+            exit 0
+          fi
+
+          payload="$(jq -n \
+            --arg title "New PR: ${PR_TITLE}" \
+            --arg url "${PR_URL}" \
+            --arg author "${PR_AUTHOR}" \
+            --arg repository "${REPOSITORY}" \
+            '{
+              embeds: [{
+                title: $title,
+                url: $url,
+                color: 3447003,
+                fields: [
+                  {name: "Author", value: $author, inline: true},
+                  {name: "Repository", value: $repository, inline: true}
                 ],
-                \"footer\": {\"text\": \"Review and merge when ready\"}
+                footer: {text: "Review and merge when ready"}
               }]
-            }" \
-            "$DISCORD_WEBHOOK_URL"
+            }'
+          )"
+
+          if ! curl \
+            --fail-with-body \
+            --silent \
+            --show-error \
+            --retry 3 \
+            --retry-all-errors \
+            --retry-max-time 60 \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --data "${payload}" \
+            "${DISCORD_WEBHOOK_URL}"; then
+            echo "::warning::Discord notification failed after bounded retries."
+          fi
 
   daily-summary:
     name: Daily pending PR summary
@@ -45,6 +70,13 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+
+          if [ -z "${DISCORD_WEBHOOK_URL}" ]; then
+            echo "DISCORD_WEBHOOK_URL secret is not configured; skipping Discord notification."
+            exit 0
+          fi
+
           # Get open PRs
           PRS=$(gh pr list --repo "${{ github.repository }}" --state open --json number,title,url,createdAt --limit 20)
           COUNT=$(echo "$PRS" | jq length)
@@ -62,14 +94,31 @@ jobs:
 
           DESCRIPTION=$(echo "$PRS" | jq -r '.[] | "• [#\(.number) \(.title)](\(.url))"' | head -15)
 
-          curl -s -H "Content-Type: application/json" \
-            -d "{
-              \"embeds\": [{
-                \"title\": \"📋 ${COUNT} PRs pending review in homelabs\",
-                \"url\": \"https://github.com/${{ github.repository }}/pulls\",
-                \"description\": $(echo "$DESCRIPTION" | jq -Rs .),
-                \"color\": 15105570,
-                \"footer\": {\"text\": \"Daily summary - review and merge when ready\"}
+          payload="$(jq -n \
+            --arg title "${COUNT} PRs pending review in homelabs" \
+            --arg url "https://github.com/${{ github.repository }}/pulls" \
+            --arg description "${DESCRIPTION}" \
+            '{
+              embeds: [{
+                title: $title,
+                url: $url,
+                description: $description,
+                color: 15105570,
+                footer: {text: "Daily summary - review and merge when ready"}
               }]
-            }" \
-            "$DISCORD_WEBHOOK_URL"
+            }'
+          )"
+
+          if ! curl \
+            --fail-with-body \
+            --silent \
+            --show-error \
+            --retry 3 \
+            --retry-all-errors \
+            --retry-max-time 60 \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --data "${payload}" \
+            "${DISCORD_WEBHOOK_URL}"; then
+            echo "::warning::Discord notification failed after bounded retries."
+          fi

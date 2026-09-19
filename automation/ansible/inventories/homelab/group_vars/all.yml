@@ -1,0 +1,77 @@
+---
+# Never store passwords, private keys, or Vault tokens here or anywhere in this repo.
+# All secrets are supplied at runtime via --extra-vars, environment variables, or fetched
+# live from Vault — never persisted in inventory/group_vars.
+
+# Set to true only for the one-time admin break-glass bootstrap route
+# (scripts/lifecycle/bootstrap-control-tower.sh nodes --bootstrap-admin).
+control_tower_bootstrap: false
+
+ansible_user: "{{ 'admin' if control_tower_bootstrap else 'ansible' }}"
+ansible_become: true
+ansible_become_method: sudo
+
+# Populated per-run by scripts/lifecycle/bootstrap-control-tower.sh with the ephemeral
+# Vault-issued Ed25519 key/certificate pair. Left undefined on the admin bootstrap route,
+# which falls back to the operator's own SSH agent key.
+ansible_ssh_private_key_file: "{{ control_tower_ssh_private_key | default(omit) }}"
+ansible_ssh_extra_args: >-
+  {{ ('-o CertificateFile=' + control_tower_ssh_certificate)
+     if (control_tower_ssh_certificate | default('')) | length > 0 else '' }}
+
+# Dedicated automation identity created by roles/ssh_automation_account.
+automation_account_name: ansible
+automation_account_home: /home/ansible
+automation_account_shell: /bin/bash
+
+# Vault SSH secrets engine mount + signing role used by roles/vault_ssh_certificate
+# and referenced when validating certificates in roles/control_tower_validation.
+vault_ssh_mount_path: ssh-client-signer
+vault_ssh_role_name: homelab-ansible
+vault_ssh_allowed_principal: ansible
+vault_ssh_default_ttl: "30m"
+vault_ssh_max_ttl: "60m"
+
+
+# Recurring coordinated Arch Linux + Kubernetes maintenance target.
+# This is the reviewed target for the next lifecycle run. Update it only through
+# a dedicated PR after checking the live Arch package candidates, kubeadm support
+# path, Calico compatibility, Longhorn health, and recovery readiness.
+lifecycle_kubernetes_current_version: "v1.36.4"
+lifecycle_kubernetes_target_version: "v1.36.4"
+lifecycle_kubernetes_target_minor: "1.36"
+lifecycle_kubernetes_target_package_prefix: "1.36.4-"
+lifecycle_worker_canary: "k8s-worker02"
+lifecycle_expected_calico_version: "v3.32.1"
+lifecycle_expected_longhorn_manager_image: "docker.io/longhornio/longhorn-manager:v1.12.1"
+
+# Node SSH trust files installed by roles/ssh_automation_account.
+trusted_user_ca_keys_path: /etc/ssh/trusted-user-ca-keys.pem
+auth_principals_dir: /etc/ssh/auth_principals
+auth_principals_file: "{{ auth_principals_dir }}/ansible"
+sshd_config_d_path: /etc/ssh/sshd_config.d/60-homelab-automation.conf
+sshd_backup_dir: /root/ssh-control-tower-backups
+
+# Self-contained CPython interpreter deployed by playbooks/tasks/bootstrap-python.yml
+# ONLY when the node's system Python is missing or non-functional (e.g. the
+# glibc-ABI partial-upgrade class of bug discovered during the Wave -1c live
+# activation, 2026). Uses the glibc-linked "install_only_stripped" build (NOT
+# the musl "+static-full" build — that variant cannot dynamically load ANY
+# compiled Python extension module at all, per upstream docs, which breaks
+# modules that need lib-dynload extensions). The system-Python health probe intentionally
+# avoids deprecated/removed stdlib modules such as spwd so modern Arch Python releases are
+# not misclassified as broken. This build only requires glibc >= 2.17
+# (verified via `ldd`: libpthread/libdl/libutil/librt/libm/libc/ld-linux —
+# all satisfied by the node's glibc 2.43+, no relation to the newer-glibc
+# partial-upgrade issue that broke pacman's own python package), and it DOES
+# support extension loading, so deploying it never touches pacman/system
+# package state while remaining fully functional for every Ansible module we use.
+# Source: https://github.com/astral-sh/python-build-standalone releases.
+# Pinned deliberately to a release with STABLE (non-rc) CPython versions.
+standalone_python_release_tag: "20260814"
+standalone_python_version: "3.12.14"
+standalone_python_asset: "cpython-3.12.14+20260814-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
+standalone_python_url: "https://github.com/astral-sh/python-build-standalone/releases/download/{{ standalone_python_release_tag }}/cpython-3.12.14%2B20260814-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
+standalone_python_sha256: "5acfa3e9ba26b51ae161c83aff278da915b590d22373a424b2ba55b8afe91fcc"
+standalone_python_install_dir: /opt/homelab-ansible/python-standalone
+standalone_python_bin: "{{ standalone_python_install_dir }}/bin/python3.12"

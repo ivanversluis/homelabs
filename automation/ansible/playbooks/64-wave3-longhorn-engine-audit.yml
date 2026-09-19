@@ -1,0 +1,16 @@
+---
+# Historical/diagnostic engine-image audit retained for troubleshooting.
+# It was required to explain old Longhorn instance-manager leftovers during the 2026-09
+# catch-up upgrade and is not part of the normal recurring maintenance path.
+# Read-only audit after Wave 3 drain dry-runs exposed Longhorn instance-manager PDB blocks.
+# It determines whether the v1.11 instance managers still correspond to volumes/engines that
+# have not completed the v1.12.1 engine upgrade, or are expected live-upgrade leftovers that
+# only need an attach/detach cycle before Longhorn can clean them up.
+- name: Wave 3 Longhorn engine-image audit
+  hosts: control_plane
+  gather_facts: false
+  serial: 1
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  roles:
+    - wave3_longhorn_engine_audit

@@ -49,4 +49,5 @@ build/production/.env
 *.db
 
 # Private docs
+*.md-local.venv/
 *.md-local

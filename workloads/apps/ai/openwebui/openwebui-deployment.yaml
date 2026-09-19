@@ -1,0 +1,170 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openwebui
+  namespace: ai
+  labels:
+    app.kubernetes.io/name: openwebui
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: openwebui
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: openwebui
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+    spec:
+      nodeSelector:
+        node.longhorn.io/create-default-disk: "true"
+      securityContext:
+        fsGroup: 0
+      containers:
+        - name: openwebui
+          image: ghcr.io/open-webui/open-webui:v0.11.3
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            # Git/Vault are authoritative for application configuration. The DB
+            # remains persistent for users, chats, history and application data,
+            # but Admin UI configuration cannot override these ConfigVars.
+            - name: ENABLE_PERSISTENT_CONFIG
+              value: "false"
+
+            # LLM traffic always goes through Kong. The value below is the
+            # internal Kong client key, never the Anthropic upstream credential.
+            # Use the pass-through Anthropic OpenAI compatibility route; the
+            # legacy /v1 path still uses Kong ai-proxy and is intentionally not
+            # used after the Kong 3.9.3 response-decoder failure was isolated.
+            - name: ENABLE_OPENAI_API
+              value: "true"
+            - name: OPENAI_API_BASE_URL
+              value: "https://llm-gw.${DOMAIN}/openai/v1"
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-llm-gateway-key
+                  key: OPENAI_API_KEY
+            - name: ENABLE_OLLAMA_API
+              value: "false"
+
+            # Tool servers are rendered by External Secrets from Git topology +
+            # the Vault-backed MCP consumer key. No UI configuration is required.
+            - name: ENABLE_DIRECT_CONNECTIONS
+              value: "true"
+            - name: TOOL_SERVER_CONNECTIONS
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-tool-connections
+                  key: TOOL_SERVER_CONNECTIONS
+
+            # Authentication via Authentik OIDC.
+            - name: WEBUI_AUTH_TRUSTED_EMAIL_HEADER
+              value: ""
+            - name: ENABLE_LOGIN_FORM
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-oidc
+                  key: ENABLE_LOGIN_FORM
+            - name: DEFAULT_USER_ROLE
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-oidc
+                  key: DEFAULT_USER_ROLE
+            - name: ENABLE_OAUTH_SIGNUP
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-oidc
+                  key: ENABLE_OAUTH_SIGNUP
+            - name: OAUTH_PROVIDER_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-oidc
+                  key: OAUTH_PROVIDER_NAME
+            - name: OAUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-oidc
+                  key: OAUTH_CLIENT_ID
+            - name: OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-oidc
+                  key: OAUTH_CLIENT_SECRET
+            - name: OPENID_PROVIDER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-oidc
+                  key: OPENID_PROVIDER_URL
+            - name: OPENID_REDIRECT_URI
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-oidc
+                  key: OPENID_REDIRECT_URI
+            - name: OAUTH_MERGE_ACCOUNTS_BY_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-oidc
+                  key: OAUTH_MERGE_ACCOUNTS_BY_EMAIL
+            - name: OAUTH_SCOPES
+              value: "openid email profile"
+
+            - name: WEBUI_ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-admin
+                  key: admin-email
+            - name: WEBUI_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-admin
+                  key: admin-password
+
+            - name: WEBUI_NAME
+              value: "Homelab AI"
+            - name: WEBUI_URL
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-oidc
+                  key: WEBUI_URL
+            - name: DATA_DIR
+              value: "/app/backend/data"
+          volumeMounts:
+            - name: data
+              mountPath: /app/backend/data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            failureThreshold: 60
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 0
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 0
+            periodSeconds: 30
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: openwebui-data

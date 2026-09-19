@@ -1,0 +1,33 @@
+---
+- name: Require authoritative full-cluster completion gate
+  ansible.builtin.assert:
+    that:
+      - (ansible_play_hosts_all | sort) == (groups['k8s_homelab'] | sort)
+    fail_msg: >-
+      Wave 3 completion must inspect all k8s_homelab nodes. Run with limit=k8s_homelab.
+  run_once: true
+
+- name: Verify per-node Kubernetes package and service state
+  ansible.builtin.raw: |
+    set -e
+    systemctl is-active --quiet sshd
+    systemctl is-active --quiet containerd
+    systemctl is-active --quiet kubelet
+    test "$(kubeadm version -o short)" = '{{ wave3_completion_target_version }}'
+    test "$(kubelet --version | awk '{print $2}')" = '{{ wave3_completion_target_version }}'
+    for pkg in kubeadm kubelet kubectl; do
+      installed="$(pacman -Q "$pkg" | awk '{print $2}')"
+      printf '%s=%s\n' "$pkg" "$installed"
+      case "$installed" in
+        {{ wave3_completion_target_package_prefix }}*) ;;
+        *) exit 1 ;;
+      esac
+    done
+    printf 'kernel=%s\n' "$(uname -r)"
+    printf 'containerd=%s\n' "$(containerd --version)"
+  changed_when: false
+  register: wave3_completion_host
+
+- name: Show per-node Wave 3 completion evidence
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }}={{ wave3_completion_host.stdout_lines | default([]) }}"

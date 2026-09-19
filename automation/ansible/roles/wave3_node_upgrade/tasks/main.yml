@@ -1,0 +1,369 @@
+---
+- name: Require explicit approval, target allow-list, and supported mode
+  ansible.builtin.assert:
+    that:
+      - wave3_node_upgrade_approved | bool
+      - inventory_hostname in wave3_node_allowed_targets
+      - wave3_node_mode in ['worker', 'control-plane']
+      - wave3_node_target_version == lifecycle_kubernetes_target_version
+      - lifecycle_kubernetes_target_version.startswith('v' + lifecycle_kubernetes_target_minor + '.')
+      - lifecycle_kubernetes_target_package_prefix == ((lifecycle_kubernetes_target_version | regex_replace('^v', '')) + '-')
+    fail_msg: >-
+      Node maintenance is not explicitly approved, the host is not allow-listed, or the reviewed
+      lifecycle target/version/package-prefix settings are inconsistent. Stop before any mutation.
+
+- name: Verify control plane and platform baseline before host mutation
+  ansible.builtin.raw: |
+    set -e
+    server="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} version -o json | jq -r '.serverVersion.gitVersion')"
+    bad_nodes="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} get nodes -o json | jq -r '.items[] | select(([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | .metadata.name')"
+    bad_volumes="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} -n {{ wave3_node_longhorn_namespace }} get volumes.longhorn.io -o json | jq -r '.items[] | select(.status.robustness != "healthy") | .metadata.name')"
+    manager="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} -n {{ wave3_node_longhorn_namespace }} get daemonset longhorn-manager -o jsonpath='{.spec.template.spec.containers[?(@.name=="longhorn-manager")].image}')"
+    calico="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} get installation.operator.tigera.io default -o jsonpath='{.status.calicoVersion}')"
+    backup_target_url="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} -n {{ wave3_node_longhorn_namespace }} get backuptargets.longhorn.io {{ wave3_node_backup_target_name }} -o jsonpath='{.spec.backupTargetURL}')"
+    backup_target_available="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} -n {{ wave3_node_longhorn_namespace }} get backuptargets.longhorn.io {{ wave3_node_backup_target_name }} -o jsonpath='{.status.available}')"
+    printf 'server=%s\nbad_nodes=%s\nbad_volumes=%s\nlonghorn=%s\ncalico=%s\nbackup_target_url=%s\nbackup_target_available=%s\n' "$server" "$bad_nodes" "$bad_volumes" "$manager" "$calico" "$backup_target_url" "$backup_target_available"
+    test "$server" = '{{ wave3_node_target_version }}'
+    test -z "$bad_nodes"
+    test -z "$bad_volumes"
+    test "$manager" = '{{ wave3_node_expected_longhorn_manager_image }}'
+    test "$calico" = '{{ wave3_node_expected_calico_version }}'
+    test -n "$backup_target_url"
+    test "$backup_target_available" = true
+  delegate_to: "{{ wave3_node_control_plane }}"
+  changed_when: false
+  register: wave3_node_cluster_pre
+
+- name: Require previous worker canary at target when configured
+  ansible.builtin.raw: |
+    set -e
+    version="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} get node {{ wave3_node_required_prior_canary }} -o jsonpath='{.status.nodeInfo.kubeletVersion}')"
+    ready="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} get node {{ wave3_node_required_prior_canary }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')"
+    unsched="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} get node {{ wave3_node_required_prior_canary }} -o jsonpath='{.spec.unschedulable}')"
+    printf 'required_canary=%s version=%s ready=%s unschedulable=%s\n' '{{ wave3_node_required_prior_canary }}' "$version" "$ready" "${unsched:-false}"
+    test "$version" = '{{ wave3_node_target_version }}'
+    test "$ready" = True
+    test "${unsched:-false}" != true
+  delegate_to: "{{ wave3_node_control_plane }}"
+  changed_when: false
+  when: wave3_node_required_prior_canary | length > 0
+
+- name: Require all workers at target before control-plane host maintenance
+  ansible.builtin.raw: |
+    set -e
+    bad="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} get nodes -l '!node-role.kubernetes.io/control-plane' -o json | jq -r --arg target '{{ wave3_node_target_version }}' '.items[] | select(.status.nodeInfo.kubeletVersion != $target or ([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | (.metadata.name + "=" + .status.nodeInfo.kubeletVersion)')"
+    printf 'workers_not_ready_at_target=%s\n' "$bad"
+    test -z "$bad"
+  delegate_to: "{{ wave3_node_control_plane }}"
+  changed_when: false
+  when: wave3_node_require_all_workers_target | bool
+
+- name: Require fresh recovery checkpoint before control-plane host maintenance
+  ansible.builtin.raw: |
+    set -e
+    test -s '{{ wave3_node_checkpoint_marker }}'
+    . '{{ wave3_node_checkpoint_marker }}'
+    test -n "$ETCD_SNAPSHOT"
+    test -n "$SYSTEMBACKUP"
+    test -s "$ETCD_SNAPSHOT"
+    test -s "${ETCD_SNAPSHOT}.sha256"
+    sha256sum -c "${ETCD_SNAPSHOT}.sha256"
+    age=$(( $(date +%s) - $(stat -c %Y '{{ wave3_node_checkpoint_marker }}') ))
+    state="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} -n {{ wave3_node_longhorn_namespace }} get systembackups.longhorn.io "$SYSTEMBACKUP" -o jsonpath='{.status.state}')"
+    printf 'checkpoint_age_seconds=%s\nsystembackup=%s state=%s\n' "$age" "$SYSTEMBACKUP" "$state"
+    test "$age" -ge 0
+    test "$age" -le {{ wave3_node_checkpoint_max_age_seconds }}
+    test "$state" = Ready
+  changed_when: false
+  when: wave3_node_mode == 'control-plane'
+
+- name: Verify target node state before maintenance
+  ansible.builtin.raw: |
+    set -e
+    ready="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} get node {{ inventory_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')"
+    unsched="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} get node {{ inventory_hostname }} -o jsonpath='{.spec.unschedulable}')"
+    version="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} get node {{ inventory_hostname }} -o jsonpath='{.status.nodeInfo.kubeletVersion}')"
+    printf 'node=%s ready=%s unschedulable=%s kubelet=%s\n' '{{ inventory_hostname }}' "$ready" "${unsched:-false}" "$version"
+    test "$ready" = True
+  delegate_to: "{{ wave3_node_control_plane }}"
+  changed_when: false
+  register: wave3_node_pre_state
+
+- name: Verify control-tower workloads are not on worker target
+  ansible.builtin.raw: |
+    set -e
+    found=""
+    for ns in {{ wave3_node_control_tower_namespaces | join(' ') }}; do
+      names="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} -n "$ns" get pods --field-selector spec.nodeName={{ inventory_hostname }} -o json | jq -r '.items[].metadata.name')"
+      if [ -n "$names" ]; then
+        printf '%s\n' "$names" | sed "s#^#$ns/#"
+        found=1
+      fi
+    done
+    test -z "$found"
+  delegate_to: "{{ wave3_node_control_plane }}"
+  changed_when: false
+  when: wave3_node_mode == 'worker'
+
+- name: Verify pacman database and host prerequisites
+  ansible.builtin.raw: |
+    set -e
+    pacman -Dk
+    test "$(stat -fc %T /sys/fs/cgroup)" = cgroup2fs
+    test -z "$(swapon --show --noheadings 2>/dev/null || true)"
+    systemctl is-active --quiet sshd
+    systemctl is-active --quiet containerd
+    systemctl is-active --quiet kubelet
+  changed_when: false
+
+- name: Probe configured Arch repositories in an isolated pacman database
+  ansible.builtin.raw: |
+    set -e
+    probe='{{ wave3_node_repository_probe_dir }}'
+    rm -rf "$probe"
+    install -d -m 0755 "$probe" "$probe/local" "$probe/sync"
+    pacman -Sy --noconfirm --dbpath "$probe" >/dev/null
+    {% for pkg in wave3_node_kubernetes_packages %}
+    version="$(pacman -Si --dbpath "$probe" {{ pkg }} | awk -F ': ' '$1 ~ /^Version/ {gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); print $2; exit}')"
+    printf '{{ pkg }}=%s\n' "$version"
+    case "$version" in
+      {{ wave3_node_target_package_prefix }}*) ;;
+      *) echo 'Unexpected Kubernetes package candidate for {{ pkg }}' >&2; exit 1 ;;
+    esac
+    {% endfor %}
+  changed_when: false
+  register: wave3_node_repo_probe
+
+- name: Show pre-mutation evidence
+  ansible.builtin.debug:
+    msg:
+      - "Cluster={{ wave3_node_cluster_pre.stdout_lines | default([]) }}"
+      - "Node={{ wave3_node_pre_state.stdout_lines | default([]) }}"
+      - "Repository candidates={{ wave3_node_repo_probe.stdout_lines | default([]) }}"
+
+- name: Create maintenance marker directory
+  ansible.builtin.raw: >-
+    install -d -m 0700 '{{ wave3_node_maintenance_dir }}'
+  changed_when: true
+
+- name: Cordon worker for staged maintenance
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_node_kubeconfig }} cordon {{ inventory_hostname }}
+  delegate_to: "{{ wave3_node_control_plane }}"
+  changed_when: true
+  when: wave3_node_mode == 'worker'
+
+- name: Persist in-progress maintenance marker
+  ansible.builtin.raw: |
+    cat > '{{ wave3_node_maintenance_marker }}' <<'EOF'
+    WAVE3_NODE={{ inventory_hostname }}
+    MODE={{ wave3_node_mode }}
+    TARGET={{ wave3_node_target_version }}
+    STARTED_UTC=$(date -u +%Y%m%dT%H%M%SZ)
+    STATE=IN_PROGRESS
+    EOF
+    sed -i "s/STARTED_UTC=.*/STARTED_UTC=$(date -u +%Y%m%dT%H%M%SZ)/" '{{ wave3_node_maintenance_marker }}'
+    chmod 0600 '{{ wave3_node_maintenance_marker }}'
+  changed_when: true
+
+- name: Drain worker with staged normal eviction retries
+  ansible.builtin.raw: |
+    set -e
+    attempt=1
+    while [ "$attempt" -le {{ wave3_node_drain_attempts }} ]; do
+      echo "drain_attempt=$attempt"
+      if kubectl --kubeconfig={{ wave3_node_kubeconfig }} drain {{ inventory_hostname }} --ignore-daemonsets --delete-emptydir-data --timeout={{ wave3_node_drain_timeout }}; then
+        exit 0
+      fi
+      bad="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} -n {{ wave3_node_longhorn_namespace }} get volumes.longhorn.io -o json | jq -r '.items[] | select(.status.robustness != "healthy") | .metadata.name')"
+      printf 'longhorn_reconciling=%s\n' "$bad"
+      sleep 20
+      attempt=$((attempt + 1))
+    done
+    echo 'Normal drain did not complete; node remains cordoned. Do not bypass PDBs.' >&2
+    exit 1
+  delegate_to: "{{ wave3_node_control_plane }}"
+  changed_when: true
+  when: wave3_node_mode == 'worker'
+
+- name: Require Longhorn volume health before host package mutation
+  ansible.builtin.raw: |
+    set -e
+    elapsed=0
+    while [ "$elapsed" -lt {{ wave3_node_volume_stabilize_timeout_seconds }} ]; do
+      bad="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} -n {{ wave3_node_longhorn_namespace }} get volumes.longhorn.io -o json | jq -r '.items[] | select(.status.robustness != "healthy") | .metadata.name')"
+      if [ -z "$bad" ]; then echo 'all Longhorn volumes healthy'; exit 0; fi
+      printf 'waiting_for_volumes=%s\n' "$bad"
+      sleep 5
+      elapsed=$((elapsed + 5))
+    done
+    exit 1
+  delegate_to: "{{ wave3_node_control_plane }}"
+  changed_when: false
+  when: wave3_node_mode == 'worker'
+
+- name: Back up current pacman sync database before full synchronization
+  ansible.builtin.raw: |
+    set -e
+    rm -f '{{ wave3_node_pacman_sync_backup }}'
+    tar -C /var/lib/pacman -czf '{{ wave3_node_pacman_sync_backup }}' sync
+    chmod 0600 '{{ wave3_node_pacman_sync_backup }}'
+  changed_when: true
+
+- name: Perform full Arch Linux system upgrade
+  ansible.builtin.raw: pacman -Syu --noconfirm
+  changed_when: true
+  register: wave3_node_pacman_upgrade
+
+- name: Require exact Kubernetes package versions after Arch upgrade
+  ansible.builtin.raw: |
+    set -e
+    {% for pkg in wave3_node_kubernetes_packages %}
+    installed="$(pacman -Q {{ pkg }} | awk '{print $2}')"
+    printf '{{ pkg }}=%s\n' "$installed"
+    case "$installed" in
+      {{ wave3_node_target_package_prefix }}*) ;;
+      *) exit 1 ;;
+    esac
+    {% endfor %}
+    test "$(kubeadm version -o short)" = '{{ wave3_node_target_version }}'
+    test "$(kubelet --version | awk '{print $2}')" = '{{ wave3_node_target_version }}'
+  changed_when: false
+  register: wave3_node_versions_after_pacman
+
+- name: Apply kubeadm worker-node configuration upgrade
+  ansible.builtin.raw: kubeadm upgrade node
+  changed_when: true
+  when: wave3_node_mode == 'worker'
+  register: wave3_node_kubeadm_upgrade
+
+- name: Record pre-reboot evidence
+  ansible.builtin.debug:
+    msg:
+      - "pacman={{ wave3_node_pacman_upgrade.stdout_lines | default([]) }}"
+      - "versions={{ wave3_node_versions_after_pacman.stdout_lines | default([]) }}"
+      - "kubeadm node={{ wave3_node_kubeadm_upgrade.stdout_lines | default([]) }}"
+
+- name: Record boot ID before reboot
+  ansible.builtin.raw: cat /proc/sys/kernel/random/boot_id
+  changed_when: false
+  register: wave3_node_boot_id_before
+
+- name: Reboot upgraded host
+  ansible.builtin.raw: systemctl reboot
+  changed_when: true
+  failed_when: false
+
+- name: Reset SSH connection after reboot request
+  ansible.builtin.meta: reset_connection
+
+- name: Wait for upgraded host SSH port to return
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host | default(inventory_hostname) }}"
+    port: 22
+    delay: 10
+    sleep: 5
+    timeout: "{{ wave3_node_reboot_timeout_seconds }}"
+    state: started
+  delegate_to: localhost
+  become: false
+
+- name: Verify host services and binaries after reboot
+  ansible.builtin.raw: |
+    set -e
+    boot_id="$(cat /proc/sys/kernel/random/boot_id)"
+    test "$boot_id" != '{{ wave3_node_boot_id_before.stdout | trim }}'
+    systemctl is-active --quiet sshd
+    systemctl is-active --quiet containerd
+    systemctl is-active --quiet kubelet
+    test "$(kubeadm version -o short)" = '{{ wave3_node_target_version }}'
+    test "$(kubelet --version | awk '{print $2}')" = '{{ wave3_node_target_version }}'
+    printf 'boot_id=%s\n' "$boot_id"
+    printf 'kernel=%s\n' "$(uname -r)"
+    printf 'kubeadm=%s\n' "$(kubeadm version -o short)"
+    printf 'kubelet=%s\n' "$(kubelet --version | awk '{print $2}')"
+    printf 'containerd=%s\n' "$(containerd --version)"
+  changed_when: false
+  register: wave3_node_host_post
+
+- name: Wait for Kubernetes node and platform health after reboot
+  ansible.builtin.raw: |
+    set -e
+    elapsed=0
+    while [ "$elapsed" -lt {{ wave3_node_post_reboot_timeout_seconds }} ]; do
+      ready="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} get node {{ inventory_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || true)"
+      version="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} get node {{ inventory_hostname }} -o jsonpath='{.status.nodeInfo.kubeletVersion}' 2>/dev/null || true)"
+      bad_volumes="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} -n {{ wave3_node_longhorn_namespace }} get volumes.longhorn.io -o json 2>/dev/null | jq -r '.items[]? | select(.status.robustness != "healthy") | .metadata.name' || true)"
+      bad_tigera="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} get tigerastatus -o json 2>/dev/null | jq -r '.items[]? | select(([.status.conditions[]? | select(.type=="Available" and .status=="True")] | length) == 0 or ([.status.conditions[]? | select((.type=="Progressing" or .type=="Degraded") and .status=="True")] | length) > 0) | .metadata.name' || true)"
+      printf 'ready=%s version=%s bad_volumes=%s bad_tigera=%s\n' "$ready" "$version" "$bad_volumes" "$bad_tigera"
+      if [ "$ready" = True ] && [ "$version" = '{{ wave3_node_target_version }}' ] && [ -z "$bad_volumes" ] && [ -z "$bad_tigera" ]; then exit 0; fi
+      sleep 10
+      elapsed=$((elapsed + 10))
+    done
+    exit 1
+  delegate_to: "{{ wave3_node_control_plane }}"
+  changed_when: false
+  register: wave3_node_cluster_post_reboot
+
+- name: Verify Authentik OIDC remains configured on control-plane host
+  ansible.builtin.raw: |
+    set -e
+    config="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} -n kube-system get configmap kubeadm-config -o jsonpath='{.data.ClusterConfiguration}')"
+    for key in {{ wave3_node_required_apiserver_args | join(' ') }}; do
+      cfg_count="$(printf '%s\n' "$config" | grep -c "^[[:space:]]*- name: ${key}$" || true)"
+      manifest_count="$(grep -c -- "--${key}=" /etc/kubernetes/manifests/kube-apiserver.yaml || true)"
+      printf '%s config=%s manifest=%s\n' "$key" "$cfg_count" "$manifest_count"
+      test "$cfg_count" -eq 1
+      test "$manifest_count" -eq 1
+    done
+    test "$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} version -o json | jq -r '.serverVersion.gitVersion')" = '{{ wave3_node_target_version }}'
+  changed_when: false
+  when: wave3_node_mode == 'control-plane'
+
+- name: Uncordon successfully upgraded worker
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_node_kubeconfig }} uncordon {{ inventory_hostname }}
+  delegate_to: "{{ wave3_node_control_plane }}"
+  changed_when: true
+  when: wave3_node_mode == 'worker'
+
+- name: Require final cluster, Flux, and node health
+  ansible.builtin.raw: |
+    set -e
+    elapsed=0
+    while [ "$elapsed" -lt {{ wave3_node_post_uncordon_timeout_seconds }} ]; do
+      ready="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} get node {{ inventory_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')"
+      version="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} get node {{ inventory_hostname }} -o jsonpath='{.status.nodeInfo.kubeletVersion}')"
+      unsched="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} get node {{ inventory_hostname }} -o jsonpath='{.spec.unschedulable}')"
+      bad_nodes="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} get nodes -o json | jq -r '.items[] | select(([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | .metadata.name')"
+      bad_volumes="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} -n {{ wave3_node_longhorn_namespace }} get volumes.longhorn.io -o json | jq -r '.items[] | select(.status.robustness != "healthy") | .metadata.name')"
+      bad_ks="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} get kustomizations.kustomize.toolkit.fluxcd.io -A -o json | jq -r '.items[] | select((.spec.suspend // false) == false) | select(([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | (.metadata.namespace + "/" + .metadata.name)')"
+      bad_hr="$(kubectl --kubeconfig={{ wave3_node_kubeconfig }} get helmreleases.helm.toolkit.fluxcd.io -A -o json | jq -r '.items[] | select((.spec.suspend // false) == false) | select(([.status.conditions[]? | select(.type=="Ready" and .status=="True")] | length) == 0) | (.metadata.namespace + "/" + .metadata.name)')"
+      printf 'ready=%s version=%s unschedulable=%s bad_nodes=%s bad_volumes=%s bad_ks=%s bad_hr=%s\n' "$ready" "$version" "${unsched:-false}" "$bad_nodes" "$bad_volumes" "$bad_ks" "$bad_hr"
+      if [ "$ready" = True ] && [ "$version" = '{{ wave3_node_target_version }}' ] && [ -z "$bad_nodes" ] && [ -z "$bad_volumes" ] && [ -z "$bad_ks" ] && [ -z "$bad_hr" ]; then
+        if [ '{{ wave3_node_mode }}' != worker ] || [ "${unsched:-false}" != true ]; then
+          exit 0
+        fi
+      fi
+      sleep 10
+      elapsed=$((elapsed + 10))
+    done
+    exit 1
+  delegate_to: "{{ wave3_node_control_plane }}"
+  changed_when: false
+  register: wave3_node_final_health
+
+- name: Mark node maintenance complete
+  ansible.builtin.raw: |
+    sed -i 's/^STATE=.*/STATE=COMPLETE/' '{{ wave3_node_maintenance_marker }}'
+    printf 'COMPLETED_UTC=%s\n' "$(date -u +%Y%m%dT%H%M%SZ)" >> '{{ wave3_node_maintenance_marker }}'
+  changed_when: true
+
+- name: Show successful node upgrade evidence
+  ansible.builtin.debug:
+    msg:
+      - "WAVE 3 NODE UPGRADE: {{ inventory_hostname }} READY AT {{ wave3_node_target_version }}"
+      - "Host={{ wave3_node_host_post.stdout_lines | default([]) }}"
+      - "Post-reboot={{ wave3_node_cluster_post_reboot.stdout_lines | default([]) }}"
+      - "Final={{ wave3_node_final_health.stdout_lines | default([]) }}"
+      - "Maintenance marker={{ wave3_node_maintenance_marker }}"

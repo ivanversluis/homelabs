@@ -1,0 +1,23 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: kong-mcp-bootstrap
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./services/gateway/kong/mcp-gateway/bootstrap
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  dependsOn:
+    - name: ai
+  healthChecks:
+    - apiVersion: external-secrets.io/v1
+      kind: ExternalSecret
+      name: mcpo-api-key
+      namespace: ai
+    - apiVersion: external-secrets.io/v1
+      kind: ExternalSecret
+      name: mcp-inject-api-key-config
+      namespace: ai

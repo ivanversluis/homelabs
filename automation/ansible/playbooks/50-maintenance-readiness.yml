@@ -1,0 +1,66 @@
+---
+# Read-only maintenance-readiness preflight for the k8s-homelab control tower.
+# Answers one question: is the cluster healthy enough to enter or close a maintenance window?
+#
+# This playbook only ever reads state. It never cordons, drains, upgrades, or reboots
+# anything. It is the safety gate around the execution model documented in
+# docs/lifecycle/maintenance-plan.md:
+#   preflight -> cordon -> drain -> host maintenance -> reboot -> wait SSH -> wait Ready
+#   -> validate Calico -> validate Longhorn -> uncordon -> app/observability gate -> next node
+#
+# Runs over the same Vault-issued ephemeral SSH certificate -> ansible -> sudo route as
+# every other operational playbook (scripts/lifecycle/semaphore-control-tower-run.sh).
+# It reuses roles/control_tower_validation rather than re-implementing any Vault/SSH
+# certificate logic, and reuses each node's own root-readable kubeconfig for cluster-API
+# checks instead of introducing a new ServiceAccount/RBAC/Vault role.
+- name: Maintenance-readiness preflight (per-node + cluster-API checks)
+  hosts: k8s_homelab
+  gather_facts: false
+  serial: 1
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  pre_tasks:
+    - name: Ensure a functional Python 3 interpreter is selected
+      ansible.builtin.import_tasks: tasks/bootstrap-python.yml
+  roles:
+    - control_tower_validation
+    - maintenance_readiness
+
+- name: Maintenance-readiness report (aggregation and verdict)
+  # hosts is k8s_homelab (not localhost) + run_once so this play still runs when Semaphore
+  # passes --limit k8s_homelab: --limit filters implicit localhost out of every play, which
+  # would otherwise skip aggregation entirely ("no hosts matched").
+  hosts: k8s_homelab
+  connection: local
+  gather_facts: false
+  become: false
+  run_once: true
+  vars:
+    # These connection variables outrank group_vars/all.yml. The play keywords above are
+    # intentionally duplicated because inventory variables otherwise leak the remote-node
+    # sudo configuration into this controller-local play.
+    ansible_connection: local
+    ansible_become: false
+    maintenance_readiness_run_id: "{{ lookup('pipe', 'date -u +%Y%m%dT%H%M%SZ') }}"
+  tasks:
+    # bootstrap-python.yml sets this as a high-precedence host fact when a node needs the
+    # standalone interpreter. Because this play deliberately reuses that inventory host as
+    # its local context, reset the fact to the Python running Ansible in the controller.
+    - name: Bind report modules to the controller's Ansible Python
+      ansible.builtin.set_fact:
+        ansible_python_interpreter: "{{ ansible_playbook_python }}"
+
+    - name: Verify report execution is local and uses the controller Python
+      ansible.builtin.assert:
+        that:
+          - ansible_connection == 'local'
+          - not (ansible_become | bool)
+          - ansible_python_interpreter == ansible_playbook_python
+        fail_msg: >-
+          Refusing to generate the maintenance-readiness report: controller-side execution must use
+          ansible_connection=local, ansible_become=false, and Ansible's controller Python.
+
+    - name: Aggregate findings and render the readiness report
+      ansible.builtin.include_role:
+        name: maintenance_readiness
+        tasks_from: report.yml

@@ -1,0 +1,47 @@
+name: Lifecycle Ansible Syntax
+
+on:
+  pull_request:
+    paths:
+      - "automation/ansible/**"
+      - "scripts/lifecycle/**"
+      - ".github/workflows/lifecycle-ansible-syntax.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax:
+    name: Validate lifecycle automation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Ansible
+        run: |
+          python -m pip install --disable-pip-version-check "ansible-core>=2.18,<2.21"
+          ansible-galaxy collection install -r automation/ansible/requirements.yml
+
+      - name: Syntax-check all Ansible playbooks
+        working-directory: automation/ansible
+        run: |
+          set -euo pipefail
+          for playbook in playbooks/*.yml; do
+            echo "::group::$playbook"
+            ansible-playbook --syntax-check "$playbook"
+            echo "::endgroup::"
+          done
+
+      - name: Validate lifecycle shell entrypoints
+        run: |
+          set -euo pipefail
+          bash -n scripts/lifecycle/bootstrap-control-tower.sh
+          bash -n scripts/lifecycle/semaphore-control-tower-run.sh
+          bash -n scripts/lifecycle/validate-control-tower.sh

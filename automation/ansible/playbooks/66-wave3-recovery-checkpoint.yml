@@ -1,0 +1,12 @@
+---
+# Fresh recovery checkpoint immediately before the Wave 3 Kubernetes control-plane mutation.
+# This playbook does not drain or reboot any node and does not change Kubernetes versions.
+# It creates a local etcd snapshot plus a Longhorn SystemBackup with volumeBackupPolicy=always.
+- name: Wave 3 fresh recovery checkpoint
+  hosts: control_plane
+  gather_facts: false
+  serial: 1
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  roles:
+    - wave3_recovery_checkpoint

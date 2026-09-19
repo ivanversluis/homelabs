@@ -1,0 +1,15 @@
+---
+# Wave 1 preparation only. This playbook is read-only: it does not create backups, alter
+# Longhorn resources, suspend/reconcile Flux, or change the deployed Longhorn version.
+- name: Wave 1 Longhorn upgrade preparation gate
+  hosts: control_plane
+  gather_facts: false
+  serial: 1
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  pre_tasks:
+    - name: Ensure a functional Python 3 interpreter is selected
+      ansible.builtin.import_tasks: tasks/bootstrap-python.yml
+  roles:
+    - control_tower_validation
+    - longhorn_upgrade

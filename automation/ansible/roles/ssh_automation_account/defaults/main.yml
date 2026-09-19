@@ -1,0 +1,14 @@
+---
+automation_account_name: ansible
+automation_account_home: /home/ansible
+automation_account_shell: /bin/bash
+sudoers_file: /etc/sudoers.d/90-ansible
+trusted_user_ca_keys_path: /etc/ssh/trusted-user-ca-keys.pem
+auth_principals_dir: /etc/ssh/auth_principals
+auth_principals_file: "{{ auth_principals_dir }}/ansible"
+sshd_config_d_path: /etc/ssh/sshd_config.d/60-homelab-automation.conf
+sshd_backup_dir: /root/ssh-control-tower-backups
+
+# Supplied at runtime by roles/vault_ssh_certificate (fact vault_ssh_ca_public_key) or via
+# --extra-vars. Never committed to git.
+vault_ssh_ca_public_key: ""

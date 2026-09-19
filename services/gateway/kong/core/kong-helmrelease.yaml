@@ -1,0 +1,147 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kong
+  namespace: kong
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: kong
+      # Kong OSS 3.7+ ships with AI Gateway (ai-proxy plugin) built-in.
+      # Pin to a major.minor; Renovate will bump patch versions.
+      version: "3.4.*"
+      sourceRef:
+        kind: HelmRepository
+        name: kong
+        namespace: kong
+      interval: 12h
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 5
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 5
+  values:
+    # ─────────────────────────────────────────────
+    # Proxy (data plane) — MetalLB LoadBalancer IP
+    # ─────────────────────────────────────────────
+    proxy:
+      enabled: true
+      type: LoadBalancer
+      # IP is injected by Flux from the flux-domain-vars Secret (KONG_EXTERNAL_LB_IP).
+      # NOTE: do NOT use KONG_LB_IP here — that var is Kong's ClusterIP, used only
+      # by the CoreDNS split-brain hosts{} block. Requesting a ClusterIP as a
+      # MetalLB LoadBalancer IP is outside the homelab-pool range and leaves the
+      # Service stuck in <pending> forever.
+      # NOTE: only set loadBalancerIP — do NOT also add the
+      # metallb.universe.tf/loadBalancerIPs annotation. MetalLB rejects services
+      # that set both ("service can not have both metallb.io/loadBalancerIPs and
+      # svc.Spec.LoadBalancerIP"), which silently kept this Service in
+      # AllocationFailed for 65+ days before this was caught.
+      loadBalancerIP: ${KONG_EXTERNAL_LB_IP}
+      http:
+        enabled: true
+        servicePort: 80
+        containerPort: 8000
+      tls:
+        enabled: true
+        servicePort: 443
+        containerPort: 8443
+        # Kong terminates TLS; cert-manager issues the *.${DOMAIN}
+        # wildcard cert referenced in the Certificate resource below.
+        parameters:
+          - http2
+      externalTrafficPolicy: Local
+
+    # ─────────────────────────────────────────────
+    # Admin API — ClusterIP only (never exposed publicly)
+    # ─────────────────────────────────────────────
+    admin:
+      enabled: true
+      type: ClusterIP
+      http:
+        enabled: false  # disable plain HTTP admin
+      tls:
+        enabled: true
+        servicePort: 8444
+        containerPort: 8444
+
+    # ─────────────────────────────────────────────
+    # Ingress controller — watches Ingress resources
+    # ─────────────────────────────────────────────
+    ingressController:
+      enabled: true
+      ingressClass: kong
+      # Emit controller logs at info level; bump to debug when diagnosing.
+      env:
+        log_level: info
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          cpu: 200m
+          memory: 256Mi
+
+    # ─────────────────────────────────────────────
+    # Kong proxy environment
+    # ─────────────────────────────────────────────
+    env:
+      # Database-less (deck / CRD driven) — consistent with GitOps
+      database: "off"
+      # Trust X-Forwarded-For from cloudflared only (172.16.20.0/24 pod CIDR)
+      trusted_ips: "172.16.20.0/24,10.0.0.0/8"
+      # Default TLS protocol floor
+      ssl_protocols: "TLSv1.2 TLSv1.3"
+
+      # Upstream HTTPS certificate verification.
+      # Service-level `konghq.com/tls-verify: "true"` enables verification, but
+      # NGINX must also have a CA bundle configured or every verified HTTPS
+      # upstream fails with `unable to get local issuer certificate`.
+      # Kong 3.9.3's official Ubuntu image installs the system CA bundle here.
+      lua_ssl_trusted_certificate: "system"
+      nginx_proxy_proxy_ssl_trusted_certificate: "/etc/ssl/certs/ca-certificates.crt"
+      # Kong versions before 3.15 defaulted this verification depth to 1. Use the
+      # newer hardened default so normal public CA chains with intermediates work.
+      nginx_proxy_proxy_ssl_verify_depth: "5"
+
+      # Strip internal headers from upstream responses
+      headers: "off"
+      # Telemetry — send metrics to Prometheus via the built-in /metrics endpoint
+      prometheus_metrics: "on"
+      # AI Gateway — enable the AI plugins (available in Kong OSS >= 3.6)
+      plugins: "bundled"
+      # Azure OpenAI API key injected at runtime from ExternalSecret
+      # (see infra/kong/azure-ai-externalsecret.yaml)
+      azure_openai_key:
+        valueFrom:
+          secretKeyRef:
+            name: kong-azure-ai
+            key: api-key
+
+    # ─────────────────────────────────────────────
+    # TLS certificate for the proxy
+    # The Certificate resource (below) writes the wildcard cert into
+    # the secret "kong-tls-wildcard" in the kong namespace.
+    # ─────────────────────────────────────────────
+    secretVolumes:
+      - kong-tls-wildcard
+
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 512Mi
+
+    # ─────────────────────────────────────────────
+    # Prometheus scrape annotations
+    # ─────────────────────────────────────────────
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "8100"
+      prometheus.io/path: "/metrics"

@@ -1,0 +1,69 @@
+# Parallel Anthropic OpenAI-compatibility route.
+#
+# Safety goal: do not mutate the existing Ingress/ai-gateway while diagnosing the
+# Kong 3.9.3 ai-proxy response decoding failure. This route bypasses ai-proxy and
+# forwards OpenAI-compatible requests directly to Anthropic's compatibility API.
+#
+# Client endpoint:
+#   https://llm-gw.${DOMAIN}/openai/v1/chat/completions
+#
+# With strip-path=true, Kong removes /openai and sends:
+#   https://api.anthropic.com/v1/chat/completions
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: anthropic-openai-compat
+  namespace: kong
+  annotations:
+    konghq.com/protocol: "https"
+    konghq.com/host-header: "api.anthropic.com"
+    konghq.com/tls-verify: "true"
+    # Explicitly bind the public GTS Root R4 CA registered by kong-bootstrap.
+    # This makes the CA association visible on the Kong Service entity instead
+    # of relying only on the global NGINX trust store.
+    konghq.com/ca-certificates-configmaps: "anthropic-gts-root-r4"
+  labels:
+    app.kubernetes.io/name: anthropic-openai-compat
+    app.kubernetes.io/part-of: kong
+spec:
+  type: ExternalName
+  externalName: api.anthropic.com
+  ports:
+    - name: https
+      port: 443
+      targetPort: 443
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: anthropic-openai-compat
+  namespace: kong
+  annotations:
+    # normalize-model-claude:
+    #   Authorization: Bearer <internal Kong key> -> apikey
+    # ai-gateway-key-auth:
+    #   validates and removes the internal Kong credential
+    # anthropic-openai-auth:
+    #   injects Authorization: Bearer <real Anthropic API key>
+    # rate-limit-global:
+    #   retains the gateway's client-side traffic control
+    konghq.com/plugins: "normalize-model-claude,ai-gateway-key-auth,anthropic-openai-auth,rate-limit-global"
+    konghq.com/strip-path: "true"
+    konghq.com/preserve-host: "false"
+spec:
+  ingressClassName: kong
+  # Deliberately no tls stanza. llm-gw.${DOMAIN} is already registered against the
+  # wildcard certificate by the ai-gateway Ingress. Duplicating TLS/SNI
+  # declarations previously triggered KIC certificate-tag sync failures.
+  rules:
+    - host: llm-gw.${DOMAIN}
+      http:
+        paths:
+          - path: /openai
+            pathType: Prefix
+            backend:
+              service:
+                name: anthropic-openai-compat
+                port:
+                  number: 443

@@ -53,8 +53,8 @@ spec:
         - protocol: TCP
           port: 3000
 ---
-# Semaphore -> nodes via SSH (for Ansible playbooks).
-# NOTE: replace the ipBlock CIDR below with your actual node/host network.
+# Semaphore -> k8s-homelab nodes via SSH (for Ansible control-tower playbooks).
+# Explicit /32s only — never widen this to a subnet CIDR.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -68,10 +68,36 @@ spec:
   egress:
     - to:
         - ipBlock:
-            cidr: 192.168.0.0/24
+            cidr: 172.16.20.200/32   # k8s-master01
+        - ipBlock:
+            cidr: 172.16.20.201/32   # k8s-worker01
+        - ipBlock:
+            cidr: 172.16.20.202/32   # k8s-worker02
+        - ipBlock:
+            cidr: 172.16.20.203/32   # k8s-worker03
       ports:
         - protocol: TCP
           port: 22
+---
+# Semaphore -> Vault (short-lived SSH certificate issuance via Kubernetes auth)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-vault
+  namespace: semaphoreui
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: semaphore
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: vault
+      ports:
+        - protocol: TCP
+          port: 8200
 ---
 # Semaphore -> internet (Ansible Galaxy, git)
 apiVersion: networking.k8s.io/v1

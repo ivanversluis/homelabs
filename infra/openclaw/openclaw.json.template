@@ -1,0 +1,67 @@
+{
+  "gateway": {
+    "mode": "local",
+    "bind": "lan",
+    "auth": {
+      "mode": "token",
+      "token": {
+        "source": "env",
+        "provider": "default",
+        "id": "OPENCLAW_GATEWAY_TOKEN"
+      }
+    },
+    "controlUi": {
+      "dangerouslyAllowHostHeaderOriginFallback": false,
+      "allowedOrigins": []
+    }
+  },
+  "plugins": {
+    "allow": ["discord"]
+  },
+  "models": {
+    "mode": "replace",
+    "providers": {
+      "kong": {
+        "baseUrl": "https://llm-gw.${DOMAIN}/openai/v1",
+        "apiKey": {
+          "source": "env",
+          "provider": "default",
+          "id": "KONG_AI_GATEWAY_KEY"
+        },
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "claude-sonnet-4-6",
+            "name": "Claude Sonnet 4.6 via Kong",
+            "input": ["text"],
+            "contextWindow": 200000,
+            "maxTokens": 4096
+          }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "workspace": "/home/node/.openclaw/workspace",
+      "skipBootstrap": true,
+      "model": {
+        "primary": "kong/claude-sonnet-4-6"
+      }
+    }
+  },
+  "channels": {
+    "discord": {
+      "enabled": true,
+      "token": {
+        "source": "env",
+        "provider": "default",
+        "id": "DISCORD_TOKEN"
+      },
+      "dmPolicy": "allowlist",
+      "allowFrom": [],
+      "groupPolicy": "allowlist",
+      "guilds": {}
+    }
+  }
+}

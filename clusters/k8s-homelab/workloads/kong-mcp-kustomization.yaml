@@ -1,0 +1,20 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: kong-mcp-gateway
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./services/gateway/kong/mcp-gateway
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  dependsOn:
+    - name: kong
+    - name: ai
+    - name: kong-mcp-bootstrap
+  postBuild:
+    substituteFrom:
+      - kind: Secret
+        name: flux-domain-vars

@@ -1,0 +1,14 @@
+---
+# Longhorn v1.12.1 homelab scheduling constraint.
+# v1.12.1 supplies its own release images/arguments; only the homelab scheduling constraint
+# to keep Longhorn system-managed components on the homelab storage nodes.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: longhorn-manager
+  namespace: longhorn-system
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node.longhorn.io/create-default-disk: "true"

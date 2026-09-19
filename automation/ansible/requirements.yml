@@ -1,0 +1,10 @@
+---
+# Ansible Galaxy collections required by the Wave -1 control-tower playbooks/roles.
+# Install with: ansible-galaxy collection install -r requirements.yml
+collections:
+  - name: ansible.posix
+    version: ">=1.5.4"
+  - name: community.general
+    version: ">=8.6.0"
+  - name: community.hashi_vault
+    version: ">=6.2.0"

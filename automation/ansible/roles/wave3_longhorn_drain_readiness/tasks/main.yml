@@ -1,0 +1,110 @@
+---
+# Read-only evidence collection after Task 50 showed that kubectl drain --dry-run=server
+# times out only on Longhorn instance-manager PDBs. A server-side dry-run does not persist
+# the node cordon, so it cannot exercise Longhorn's normal cordon-triggered reconciliation.
+
+- name: Confirm all expected worker nodes exist and are Ready
+  ansible.builtin.raw: |
+    set -e
+    for node in {{ wave3_lh_drain_worker_nodes | join(' ') }}; do
+      ready="$(kubectl --kubeconfig={{ wave3_lh_drain_kubeconfig }} get node "$node" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')"
+      test "$ready" = "True"
+      printf '%s Ready=%s\n' "$node" "$ready"
+    done
+  changed_when: false
+  register: wave3_lh_drain_nodes_ready
+
+- name: Record Longhorn drain-related settings
+  ansible.builtin.raw: |
+    set -e
+    for setting in node-drain-policy detach-manually-attached-volumes-when-cordoned disable-scheduling-on-cordoned-node; do
+      value="$(kubectl --kubeconfig={{ wave3_lh_drain_kubeconfig }} -n {{ wave3_lh_drain_namespace }} get settings.longhorn.io "$setting" -o jsonpath='{.value}')"
+      printf '%s=%s\n' "$setting" "$value"
+    done
+  changed_when: false
+  register: wave3_lh_drain_settings
+
+- name: Assert the documented Longhorn node-drain policy is still active
+  ansible.builtin.assert:
+    that:
+      - "('node-drain-policy=' + wave3_lh_drain_expected_policy) in wave3_lh_drain_settings.stdout"
+    fail_msg: >-
+      The live Longhorn node-drain-policy no longer matches the Wave 3 baseline. Stop and
+      review the setting before testing any cordon or drain behavior.
+
+- name: Record Longhorn node scheduling and eviction state
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_lh_drain_kubeconfig }} -n {{ wave3_lh_drain_namespace }}
+    get nodes.longhorn.io
+    -o custom-columns=NAME:.metadata.name,ALLOW_SCHEDULING:.spec.allowScheduling,EVICTION_REQUESTED:.spec.evictionRequested
+  changed_when: false
+  register: wave3_lh_drain_longhorn_nodes
+
+- name: Record Longhorn volume state and replica requirements
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_lh_drain_kubeconfig }} -n {{ wave3_lh_drain_namespace }}
+    get volumes.longhorn.io
+    -o custom-columns=NAME:.metadata.name,STATE:.status.state,ROBUSTNESS:.status.robustness,CURRENT_NODE:.status.currentNodeID,REPLICAS:.spec.numberOfReplicas,DATA_LOCALITY:.spec.dataLocality
+  changed_when: false
+  register: wave3_lh_drain_volumes
+
+- name: Record Longhorn replica placement and health evidence
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_lh_drain_kubeconfig }} -n {{ wave3_lh_drain_namespace }}
+    get replicas.longhorn.io
+    -o custom-columns=NAME:.metadata.name,VOLUME:.spec.volumeName,NODE:.spec.nodeID,STATE:.status.currentState,HEALTHY_AT:.status.healthyAt,FAILED_AT:.status.failedAt
+  changed_when: false
+  register: wave3_lh_drain_replicas
+
+- name: Record Longhorn instance-manager placement and state
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_lh_drain_kubeconfig }} -n {{ wave3_lh_drain_namespace }}
+    get instancemanagers.longhorn.io
+    -o custom-columns=NAME:.metadata.name,NODE:.spec.nodeID,TYPE:.spec.type,STATE:.status.currentState,IMAGE:.spec.image
+  changed_when: false
+  register: wave3_lh_drain_instance_managers
+
+- name: Record Longhorn PDB state
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_lh_drain_kubeconfig }} -n {{ wave3_lh_drain_namespace }}
+    get poddisruptionbudgets.policy
+    -o custom-columns=NAME:.metadata.name,MIN_AVAILABLE:.spec.minAvailable,MAX_UNAVAILABLE:.spec.maxUnavailable,CURRENT_HEALTHY:.status.currentHealthy,DESIRED_HEALTHY:.status.desiredHealthy,DISRUPTIONS_ALLOWED:.status.disruptionsAllowed
+  changed_when: false
+  register: wave3_lh_drain_pdbs
+
+- name: Record Longhorn pods per worker
+  ansible.builtin.raw: >-
+    kubectl --kubeconfig={{ wave3_lh_drain_kubeconfig }} -n {{ wave3_lh_drain_namespace }}
+    get pods --field-selector spec.nodeName={{ item }}
+    -o custom-columns=NAME:.metadata.name,READY:.status.containerStatuses[*].ready,PHASE:.status.phase
+  changed_when: false
+  loop: "{{ wave3_lh_drain_worker_nodes }}"
+  loop_control:
+    label: "{{ item }}"
+  register: wave3_lh_drain_pods_by_node
+
+- name: Show Longhorn-aware drain evidence
+  ansible.builtin.debug:
+    msg:
+      - "Workers={{ wave3_lh_drain_nodes_ready.stdout_lines | default([]) }}"
+      - "Settings={{ wave3_lh_drain_settings.stdout_lines | default([]) }}"
+      - "Longhorn nodes={{ wave3_lh_drain_longhorn_nodes.stdout_lines | default([]) }}"
+      - "Volumes={{ wave3_lh_drain_volumes.stdout_lines | default([]) }}"
+      - "Replicas={{ wave3_lh_drain_replicas.stdout_lines | default([]) }}"
+      - "Instance managers={{ wave3_lh_drain_instance_managers.stdout_lines | default([]) }}"
+      - "PDBs={{ wave3_lh_drain_pdbs.stdout_lines | default([]) }}"
+
+- name: Show per-worker Longhorn pod placement
+  ansible.builtin.debug:
+    msg: "node={{ item.item }} pods={{ item.stdout_lines | default([]) }}"
+  loop: "{{ wave3_lh_drain_pods_by_node.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Show Wave 3 Longhorn drain-readiness verdict
+  ansible.builtin.debug:
+    msg:
+      - "WAVE 3 LONGHORN DRAIN READINESS: READ-ONLY EVIDENCE COLLECTED"
+      - "Task 50's server-side dry-run PDB failures are not treated as proof that a real cordoned node cannot drain, because the dry-run did not persist the cordon for Longhorn controllers to observe."
+      - "No node was cordoned, drained, evicted, or modified by this playbook."
+      - "Next safe step, after review of this output, is a separate reversible live-cordon probe on one worker only; it must uncordon in an always/finally path and must not evict workload pods."

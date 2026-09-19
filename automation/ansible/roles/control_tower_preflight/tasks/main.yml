@@ -1,0 +1,59 @@
+---
+# Read-only assertions — must never modify node state. Run before every Wave -1c step.
+- name: Gather effective sshd configuration
+  ansible.builtin.command: sshd -T
+  register: sshd_effective_config
+  changed_when: false
+
+- name: Assert PermitRootLogin baseline is preserved
+  ansible.builtin.assert:
+    that:
+      - "'permitrootlogin no' in sshd_effective_config.stdout_lines | map('lower') | list"
+    fail_msg: >-
+      PermitRootLogin has drifted from the required 'no' baseline on {{ inventory_hostname }}.
+      Wave -1 must never weaken this. Investigate before proceeding.
+    success_msg: "PermitRootLogin no confirmed on {{ inventory_hostname }}"
+
+- name: Assert global PasswordAuthentication baseline is preserved
+  ansible.builtin.assert:
+    that:
+      - "'passwordauthentication yes' in sshd_effective_config.stdout_lines | map('lower') | list"
+    fail_msg: >-
+      Global PasswordAuthentication has drifted from 'yes'. Wave -1 restricts password auth for
+      the ansible account only (via a Match block), never globally.
+    success_msg: "Global PasswordAuthentication yes confirmed on {{ inventory_hostname }}"
+
+- name: Confirm break-glass admin account exists
+  ansible.builtin.command: id "{{ preflight_admin_user }}"
+  register: admin_id_check
+  changed_when: false
+
+- name: Confirm admin is a member of wheel
+  ansible.builtin.command: id -nG "{{ preflight_admin_user }}"
+  register: admin_groups
+  changed_when: false
+  failed_when: "'wheel' not in admin_groups.stdout.split()"
+
+- name: Read sshd service state (check mode — no changes made)
+  ansible.builtin.systemd:
+    name: sshd
+  register: sshd_service_state
+  check_mode: true
+
+- name: Assert sshd service is enabled and running
+  ansible.builtin.assert:
+    that:
+      - sshd_service_state.status.ActiveState == 'active'
+      - sshd_service_state.status.UnitFileState in ['enabled', 'enabled-runtime', 'static']
+    fail_msg: "sshd is not active/enabled on {{ inventory_hostname }}"
+
+- name: Report available disk space on /
+  ansible.builtin.command: df -Ph /
+  register: disk_space
+  changed_when: false
+
+- name: Show preflight summary
+  ansible.builtin.debug:
+    msg:
+      - "Host: {{ inventory_hostname }} ({{ node_role | default('unknown') }})"
+      - "Disk /: {{ disk_space.stdout_lines[-1] }}"
