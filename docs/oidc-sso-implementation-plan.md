@@ -11,6 +11,7 @@
 | Headlamp | headlamp | `infra/headlamp` | `https://k8s.$DOMAIN/oidc/callback` | Yes (K8s RBAC via groups) | **Needed** |
 | Open WebUI | ai | `infra/openwebui` | `https://ai-chat.$DOMAIN/oauth/oidc/callback` | Partial (DEFAULT_USER_ROLE) | **Needed** |
 | Homepage | homepage | `apps/homepage` | `https://homepage.$DOMAIN/api/auth/callback/authentik` | No (dashboard) | **Needed** |
+| Linkding | linkding | `apps/linkding` | `https://bookmarks.$DOMAIN/oidc/callback/` | No (single-user) | **Done** (deployed; Authentik SSO validation in progress) |
 
 ### To Implement (Native OIDC Support Available)
 
@@ -20,7 +21,6 @@
 | N8N | n8n | `apps/n8n` | `https://n8n.$DOMAIN/rest/oauth2-credential/callback` | No (single-owner workflow) | SSO via env vars since v1.x |
 | SemaphoreUI | semaphoreui | `infra/semaphoreui` | `https://demo-semaphore.$DOMAIN/api/auth/oidc/redirect` | Yes (Admin/User teams) | Helm values for OIDC |
 | ArgoCD | argocd | `infra/argocd` | `https://demo-argocd.$DOMAIN/auth/callback` | Yes (Admin/ReadOnly via groups) | Helm values `configs.cm` |
-| Linkding | linkding | `apps/linkding` | `https://bookmarks.$DOMAIN/oidc/callback/` | No (single-user) | `LD_ENABLE_OIDC=True` since v1.31+ |
 
 ### Kong OIDC Proxy (No Native Auth)
 
@@ -54,7 +54,6 @@ These apps already have OIDC working manually. Terraform will take over IdP-side
 6. **N8N** — Terraform + K8s manifest updates (replace basic auth with OIDC)
 7. **SemaphoreUI** — Terraform + HelmRelease values update
 8. **ArgoCD** — Terraform + HelmRelease values update
-9. **Linkding** — Terraform + K8s manifest updates (add OIDC env vars)
 
 ### Phase 3: Kong OIDC Proxy
 
@@ -67,7 +66,7 @@ Add `allow-egress-to-kong` policy to all namespaces that need OIDC egress:
 - n8n (new)
 - semaphoreui (new)
 - argocd (new)
-- linkding (new)
+- linkding (already applied)
 
 Already have egress policies: homebox, headlamp, ai, observability, homepage
 
