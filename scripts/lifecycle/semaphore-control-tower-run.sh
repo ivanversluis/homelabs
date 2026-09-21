@@ -152,11 +152,11 @@ for entry in "${TARGET_NODES[@]}"; do
 done
 log "Host-key preflight passed for ${#TARGET_NODES[@]} target node(s)"
 
-HEALTH_JSON="$(curl -fsS --max-time 8 "$VAULT_ADDR/v1/sys/health?standbyok=true&perfstandbyok=true")" \
-  || fail "Vault health endpoint is not reachable from Semaphore"
-printf '%s' "$HEALTH_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); raise SystemExit(0 if d.get("initialized") and not d.get("sealed") else 1)' \
-  || fail "Vault is not initialized/unsealed"
-log "Vault is reachable and unsealed"
+VAULT_HEALTH_CHECK="$SCRIPT_DIR/check-vault-health.sh"
+[[ -r "$VAULT_HEALTH_CHECK" ]] || fail "Vault health checker is not readable at $VAULT_HEALTH_CHECK"
+if ! bash "$VAULT_HEALTH_CHECK" "$VAULT_ADDR"; then
+  fail "Vault health preflight failed"
+fi
 
 K8S_JWT="$(cat "$SA_TOKEN_FILE")"
 LOGIN_PAYLOAD="$(python3 -c 'import json,sys; print(json.dumps({"role":sys.argv[1],"jwt":sys.stdin.read().strip()}))' "$VAULT_K8S_ROLE" <<<"$K8S_JWT")"
