@@ -43,5 +43,10 @@ jobs:
         run: |
           set -euo pipefail
           bash -n scripts/lifecycle/bootstrap-control-tower.sh
+          bash -n scripts/lifecycle/check-vault-health.sh
           bash -n scripts/lifecycle/semaphore-control-tower-run.sh
+          bash -n scripts/lifecycle/tests/check-vault-health.sh
           bash -n scripts/lifecycle/validate-control-tower.sh
+
+      - name: Test Vault health classification
+        run: bash scripts/lifecycle/tests/check-vault-health.sh
