@@ -1,0 +1,33 @@
+name: Kustomize Render Validation
+
+on:
+  pull_request:
+    paths:
+      - "clusters/k8s-homelab/**"
+      - "infra/**"
+      - "platform/**"
+      - "services/**"
+      - "workloads/**"
+      - "scripts/validate-kustomizations.sh"
+      - ".github/workflows/kustomize-render.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    name: Render all Kustomizations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Show renderer version
+        run: kubectl version --client
+
+      - name: Validate render script syntax
+        run: bash -n scripts/validate-kustomizations.sh
+
+      - name: Render manifests with synthetic substitutions
+        run: bash scripts/validate-kustomizations.sh
