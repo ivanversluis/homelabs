@@ -11,6 +11,11 @@ if ! command -v "$KUBECTL_BIN" >/dev/null 2>&1; then
   exit 1
 fi
 
+declare -A expected_empty=(
+  [services]=1
+  [workloads/apps]=1
+)
+
 mapfile -d '' kustomizations < <(
   find \
     "$REPO_ROOT/clusters/k8s-homelab" \
@@ -39,6 +44,12 @@ for index in "${!kustomizations[@]}"; do
     --load-restrictor=LoadRestrictionsNone >"$rendered"
 
   if [[ ! -s "$rendered" ]]; then
+    if [[ -n "${expected_empty[$relative]:-}" ]]; then
+      echo "Expected empty ownership aggregator: $relative"
+      echo "::endgroup::"
+      continue
+    fi
+
     echo "ERROR: $relative rendered no resources" >&2
     exit 1
   fi
