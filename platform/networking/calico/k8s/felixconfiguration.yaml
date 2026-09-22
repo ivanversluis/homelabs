@@ -1,0 +1,12 @@
+---
+# Required for kubeadm clusters: the apiserver Service ClusterIP DNATs to a
+# real host-networked node IP, which Felix's implicit default (Drop) blocks
+# for workload-to-host traffic. Live-patched 2026-09-22 during the
+# local-path-provisioner incident; persisted here so it survives a Felix
+# config reset. See platform/README.md "Lessons learned".
+apiVersion: projectcalico.org/v3
+kind: FelixConfiguration
+metadata:
+  name: default
+spec:
+  defaultEndpointToHostAction: Accept

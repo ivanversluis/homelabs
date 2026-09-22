@@ -4,3 +4,4 @@ resources:
   # CRDs are applied first by the separate calico-crds Flux Kustomization.
   - vendor/v3.32.1/runtime
   - installation.yaml
+  - felixconfiguration.yaml
