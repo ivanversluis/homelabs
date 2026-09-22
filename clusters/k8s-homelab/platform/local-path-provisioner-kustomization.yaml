@@ -1,0 +1,20 @@
+---
+# Flux Kustomization for local-path-provisioner (platform storage layer).
+# Previously bootstrapped out-of-band and deliberately excluded from Flux
+# (see platform/kustomization.yaml history) — this meant the namespace's
+# zero-trust NetworkPolicy carve-out (local-path-netpol.yaml) was committed
+# to git but never actually applied, causing the provisioner to be blocked
+# by the zt-default-deny GlobalNetworkPolicy after a pod restart. Now
+# Flux-managed like every other platform storage component (see longhorn).
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: local-path-provisioner
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./platform/storage/local-path-provisioner
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

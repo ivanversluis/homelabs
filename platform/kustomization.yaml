@@ -6,5 +6,6 @@ resources:
   - security/external-secrets/
   - networking/network-policies/
 
-# local-path-provisioner is a pre-existing cluster deployment and remains
-# declarative/reference-only. See platform/storage/README.md and KubeVirt docs.
+# local-path-provisioner has its own dedicated Flux Kustomization
+# (clusters/k8s-homelab/platform/local-path-provisioner-kustomization.yaml),
+# like longhorn — not listed here. See platform/storage/README.md.

@@ -8,6 +8,7 @@ resources:
   - calico-crds-kustomization.yaml
   - calico-kustomization.yaml
   - longhorn-kustomization.yaml
+  - local-path-provisioner-kustomization.yaml
   - metallb-install-kustomization.yaml
   - metallb-config-kustomization.yaml
   - cert-manager-kustomization.yaml

@@ -1,12 +1,14 @@
 ---
 # local-path-provisioner configuration.
-# Volumes are created under /opt/local-path-provisioner on the node.
+# Volumes are created under /var/lib/k8s-storage on the node (matches the
+# path actually used on k8s-worker03 since 2026-05 — do not change without
+# migrating existing PV data, see debian-bookworm-dv PVC).
 # Since the provisioner Deployment is pinned to k8s-worker03 (nodeSelector),
 # ALL dynamically provisioned PVCs from the local-path-vms StorageClass
 # will land on k8s-worker03.
 #
-# The directory /opt/local-path-provisioner must exist on k8s-worker03 before
-# VMs can be provisioned. The deploy-kubevirt-local.sh script ensures this.
+# The directory /var/lib/k8s-storage must exist on k8s-worker03 before
+# VMs can be provisioned.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -18,7 +20,7 @@ data:
       "nodePathMap": [
         {
           "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES",
-          "paths": ["/opt/local-path-provisioner"]
+          "paths": ["/var/lib/k8s-storage"]
         }
       ]
     }

@@ -70,6 +70,11 @@ spec:
                 bus: virtio
           interfaces:
             - name: default
+              # Pinned: guest's cloud-init-cached netplan matches enp1s0 by this
+              # MAC. Without a pinned MAC, KubeVirt assigns a new random one on
+              # every restart, the match stops applying, and the guest NIC
+              # never comes up (no DHCP request is ever sent).
+              macAddress: "92:6e:9c:a7:bb:e8"
               masquerade: {}
               ports:
                 # KubeVirt masquerade binding only forwards ports listed here
