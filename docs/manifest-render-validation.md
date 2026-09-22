@@ -25,4 +25,6 @@ The domain is reserved for examples, and the addresses come from the TEST-NET-1 
 
 ## Scope and limits
 
-This check catches missing resources, invalid Kustomize structure, failed generators or patches, empty renders, and undocumented Flux substitutions. It does not apply resources, contact the Kubernetes API, fetch secrets, evaluate admission webhooks, or validate custom resources against CRDs. Runtime and admission behavior still require the component-specific validation described in its runbook.
+This check catches missing resources, invalid Kustomize structure, failed generators or patches, unexpected empty renders, and undocumented Flux substitutions. The `services/` and `workloads/apps/` aggregators are explicitly allowed to render empty because their resources are owned by dedicated Flux Kustomizations; any other empty root fails.
+
+The check does not apply resources, contact the Kubernetes API, fetch secrets, evaluate admission webhooks, or validate custom resources against CRDs. Runtime and admission behavior still require the component-specific validation described in its runbook.
