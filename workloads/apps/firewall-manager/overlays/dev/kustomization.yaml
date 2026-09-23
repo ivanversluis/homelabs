@@ -9,8 +9,10 @@ resources:
   - fm-db-data-longhorn-pvc.yaml
   - vault
 
-commonLabels:
-  environment: dev
+labels:
+  - pairs:
+      environment: dev
+    includeSelectors: true
 
 patches:
   - path: patches/configmap.yaml

@@ -15,8 +15,10 @@ resources:
   - worker.yaml
   - ingress.yaml
 
-commonLabels:
-  app: firewall-manager
+labels:
+  - pairs:
+      app: firewall-manager
+    includeSelectors: true
 
 # Images are set by overlays
 # images:
