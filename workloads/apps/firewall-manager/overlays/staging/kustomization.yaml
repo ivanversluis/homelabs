@@ -8,8 +8,10 @@ resources:
   - firewall-manager-netpol.yaml
   - vault
 
-commonLabels:
-  environment: staging
+labels:
+  - pairs:
+      environment: staging
+    includeSelectors: true
 
 # Staging-specific patches
 patches:

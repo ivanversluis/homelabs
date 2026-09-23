@@ -8,8 +8,10 @@ resources:
   - firewall-manager-netpol.yaml
   - vault
 
-commonLabels:
-  environment: production
+labels:
+  - pairs:
+      environment: production
+    includeSelectors: true
 
 patches:
   - path: patches/configmap.yaml

@@ -8,7 +8,7 @@ resources:
   # Ensures PVs survive PVC/namespace deletion (GitOps-safe).
   - config/longhorn-worker-sc.yaml
 
-patchesStrategicMerge:
-  - patches/default-setting.yaml
-  - patches/storageclass.yaml
-  - patches/manager-v1.12.1.yaml
+patches:
+  - path: patches/default-setting.yaml
+  - path: patches/storageclass.yaml
+  - path: patches/manager-v1.12.1.yaml
