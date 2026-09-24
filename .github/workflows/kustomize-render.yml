@@ -1,6 +1,17 @@
 name: Kustomize Render Validation
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "clusters/k8s-homelab/**"
+      - "infra/**"
+      - "platform/**"
+      - "services/**"
+      - "workloads/**"
+      - "scripts/validate-kustomizations.sh"
+      - ".github/workflows/kustomize-render.yml"
   pull_request:
     paths:
       - "clusters/k8s-homelab/**"
