@@ -1,6 +1,13 @@
 name: Lifecycle Ansible Syntax
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "automation/ansible/**"
+      - "scripts/lifecycle/**"
+      - ".github/workflows/lifecycle-ansible-syntax.yml"
   pull_request:
     paths:
       - "automation/ansible/**"
