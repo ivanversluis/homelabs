@@ -22,6 +22,8 @@ on:
       - "services/**"
       - "workloads/**"
       - "scripts/validate-kustomizations.sh"
+      - "scripts/validate-mutable-images.py"
+      - "scripts/mutable-image-allowlist.txt"
       - ".github/workflows/kustomize-render.yml"
   workflow_dispatch:
 
