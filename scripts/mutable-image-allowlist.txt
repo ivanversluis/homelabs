@@ -1,0 +1,29 @@
+# Known moving references on main. Keep entries sorted; duplicate lines represent
+# duplicate occurrences. New entries require review, and stale entries must be
+# removed when the corresponding reference is pinned.
+infra/headlamp/deployment.yaml|image=ghcr.io/headlamp-k8s/headlamp-plugin-flux:latest
+infra/headlamp/deployment.yaml|image=ghcr.io/headlamp-k8s/headlamp:latest
+platform/storage/local-path-provisioner/local-path-configmap.yaml|image=docker.io/busybox:stable
+services/gateway/kong/mcp-gateway/kubernetes-upstream/mcp-deployment.yaml|image=ghcr.io/open-webui/mcpo:latest
+services/gateway/kong/mcp-gateway/nmap-upstream/nmap-deployment.yaml|image=ghcr.io/ivanversluis/mcp-hub/mcp-nmap:latest
+services/identity/authentik/docker-stack/identity-authentik.yml|image=kong:latest
+services/identity/authentik/docker-stack/identity-authentik.yml|image=redis:alpine
+services/identity/authentik/k8s/authentik-redis-deployment.yaml|image=redis:alpine
+services/telemetry/home-exporters/daikin-prometheus-exporter/daikin-prometheus-exporter-deployment.yaml|image=ghcr.io/ivanversluis/iot-daikin-prometheus-exporter:main
+services/telemetry/home-exporters/daikin-prometheus-exporter/daikin-prometheus-exporter-deployment.yaml|image=ghcr.io/ivanversluis/iot-daikin-prometheus-exporter:main
+services/telemetry/home-exporters/dsmr-p1-prometheus-exporter/dsmr-p1-prometheus-exporter-deployment.yaml|image=ghcr.io/ivanversluis/iot-dsmr-p1-prometheus-exporter:latest
+services/telemetry/home-exporters/goodwe-prometheus-exporter/goodwe-prometheus-exporter-deployment.yaml|image=ghcr.io/ivanversluis/iot-goodwe-prometheus-exporter:main
+services/telemetry/home-exporters/shelly-prometheus-exporter/shelly-prometheus-exporter-deployment.yaml|image=ghcr.io/ivanversluis/iot-shelly-prometheus-exporter:main
+workloads/apps/firewall-manager/base/api.yaml|image=ghcr.io/ivanversluis/firewall-manager-api:latest
+workloads/apps/firewall-manager/base/webui.yaml|image=ghcr.io/ivanversluis/firewall-manager-webui:latest
+workloads/apps/firewall-manager/base/worker.yaml|image=ghcr.io/ivanversluis/firewall-manager-worker:latest
+workloads/apps/firewall-manager/overlays/dev/kustomization.yaml|newTag=dev
+workloads/apps/firewall-manager/overlays/dev/kustomization.yaml|newTag=dev
+workloads/apps/firewall-manager/overlays/dev/kustomization.yaml|newTag=dev
+workloads/apps/firewall-manager/overlays/prod/kustomization.yaml|newTag=latest
+workloads/apps/firewall-manager/overlays/prod/kustomization.yaml|newTag=latest
+workloads/apps/firewall-manager/overlays/prod/kustomization.yaml|newTag=latest
+workloads/apps/firewall-manager/overlays/staging/kustomization.yaml|newTag=staging
+workloads/apps/firewall-manager/overlays/staging/kustomization.yaml|newTag=staging
+workloads/apps/firewall-manager/overlays/staging/kustomization.yaml|newTag=staging
+workloads/apps/termix/termix-docker-compose.yml|image=ghcr.io/lukegus/termix:latest
