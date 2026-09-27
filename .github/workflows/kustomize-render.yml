@@ -11,6 +11,8 @@ on:
       - "services/**"
       - "workloads/**"
       - "scripts/validate-kustomizations.sh"
+      - "scripts/validate-mutable-images.py"
+      - "scripts/mutable-image-allowlist.txt"
       - ".github/workflows/kustomize-render.yml"
   pull_request:
     paths:
@@ -39,6 +41,9 @@ jobs:
 
       - name: Validate render script syntax
         run: bash -n scripts/validate-kustomizations.sh
+
+      - name: Validate mutable image baseline
+        run: python3 scripts/validate-mutable-images.py
 
       - name: Render manifests with synthetic substitutions
         run: bash scripts/validate-kustomizations.sh
