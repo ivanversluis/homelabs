@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "clusters/k8s-homelab/**"
+      - "clusters/**"
       - "infra/**"
       - "platform/**"
       - "services/**"
@@ -16,7 +16,7 @@ on:
       - ".github/workflows/kustomize-render.yml"
   pull_request:
     paths:
-      - "clusters/k8s-homelab/**"
+      - "clusters/**"
       - "infra/**"
       - "platform/**"
       - "services/**"
