@@ -52,18 +52,41 @@ def moving_image(image: str) -> bool:
     return name.rsplit(":", 1)[1].lower() in MOVING_TAGS
 
 
+def key_indent(line: str) -> int:
+    """Return the YAML key column, accounting for a leading list marker."""
+    stripped = line.lstrip()
+    return len(line) - len(stripped) + (2 if stripped.startswith("- ") else 0)
+
+
 def split_image_tag(lines: list[str], index: int) -> bool:
-    """Only treat tag as an image tag when a nearby sibling repository exists."""
-    current_indent = len(lines[index]) - len(lines[index].lstrip())
-    for previous in range(index - 1, max(-1, index - 9), -1):
-        candidate = lines[previous]
-        if not candidate.strip() or candidate.lstrip().startswith("#"):
-            continue
-        indent = len(candidate) - len(candidate.lstrip())
-        if indent < current_indent:
-            return False
-        if REPOSITORY.match(candidate):
-            return True
+    """Treat tag as an image tag only when repository is in the same mapping."""
+    current_line = lines[index]
+    current_indent = key_indent(current_line)
+    directions = (1,) if current_line.lstrip().startswith("- ") else (-1, 1)
+
+    for direction in directions:
+        position = index + direction
+        while 0 <= position < len(lines):
+            candidate = lines[position]
+            stripped = candidate.lstrip()
+            position += direction
+            if not candidate.strip() or stripped.startswith("#"):
+                continue
+
+            indent = key_indent(candidate)
+            if indent < current_indent:
+                break
+
+            starts_list_item = stripped.startswith("- ")
+            if direction > 0 and starts_list_item and indent == current_indent:
+                break
+
+            if indent == current_indent and REPOSITORY.match(candidate):
+                return True
+
+            if direction < 0 and starts_list_item and indent == current_indent:
+                break
+
     return False
 
 
