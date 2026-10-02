@@ -284,7 +284,7 @@ data:
           - "[STATUS] == 200"
           - "[CERTIFICATE_EXPIRATION] > 168h"
           - "[RESPONSE_TIME] < 3000"
-          - "[BODY] == pat(*Longhorn*)"
+          - "[BODY] == pat(*OK*)"
         alerts: *discord_alert
 
       - name: portainer-status
