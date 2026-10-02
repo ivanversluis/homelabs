@@ -29,3 +29,18 @@ spec:
     - default
   labels:
     schedule: weekly
+---
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: backup-monthly
+  namespace: longhorn-system
+spec:
+  task: backup
+  cron: "0 4 1 * *"
+  retain: 6
+  concurrency: 2
+  groups:
+    - default
+  labels:
+    schedule: monthly
