@@ -3,6 +3,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: n8n-pvc
   namespace: n8n
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
 spec:
   accessModes:
     - ReadWriteOnce

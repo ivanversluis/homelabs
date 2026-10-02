@@ -1,0 +1,31 @@
+# Volumes with no explicit recurring-job labels belong to the "default" group,
+# so these jobs cover every Longhorn PVC. Cron is evaluated in UTC.
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: backup-daily
+  namespace: longhorn-system
+spec:
+  task: backup
+  cron: "0 1 * * *"
+  retain: 7
+  concurrency: 2
+  groups:
+    - default
+  labels:
+    schedule: daily
+---
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: backup-weekly
+  namespace: longhorn-system
+spec:
+  task: backup
+  cron: "0 3 * * 0"
+  retain: 4
+  concurrency: 2
+  groups:
+    - default
+  labels:
+    schedule: weekly
