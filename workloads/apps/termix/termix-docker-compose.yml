@@ -1,6 +1,6 @@
 services:
   termix:
-    image: ghcr.io/lukegus/termix:latest
+    image: ghcr.io/lukegus/termix:2.7.1
     container_name: termix
     hostname: termix
     restart: unless-stopped
