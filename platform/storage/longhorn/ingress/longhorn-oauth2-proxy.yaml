@@ -57,6 +57,8 @@ spec:
             - --cookie-secure=true
             - --cookie-samesite=lax
             - --cookie-expire=8h
+            # Tokens aren't forwarded upstream; keeping them out of the cookie avoids oversized Set-Cookie headers (502).
+            - --session-cookie-minimal=true
             - --reverse-proxy=true
             - --skip-provider-button=true
             - --silence-ping-logging=true
