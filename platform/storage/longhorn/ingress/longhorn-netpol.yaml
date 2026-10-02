@@ -1,20 +1,34 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# Longhorn NetworkPolicies for OIDC-proxied access via Kong
-# ─────────────────────────────────────────────────────────────────────────────
-# Longhorn UI has no native auth. Kong handles OIDC authentication and proxies
-# authenticated requests to the Longhorn frontend.
-# ─────────────────────────────────────────────────────────────────────────────
+# longhorn-system is excluded from the global default-deny, so these policies
+# isolate only the UI and oauth2-proxy pods: Kong -> oauth2-proxy -> longhorn-ui.
 ---
-# Kong proxy -> Longhorn frontend (after OIDC validation)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-kong-ingress
+  name: longhorn-ui-allow-oauth2-proxy
   namespace: longhorn-system
 spec:
   podSelector:
     matchLabels:
       app: longhorn-ui
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: longhorn-oauth2-proxy
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: longhorn-oauth2-proxy-allow-kong
+  namespace: longhorn-system
+spec:
+  podSelector:
+    matchLabels:
+      app: longhorn-oauth2-proxy
   policyTypes: [Ingress]
   ingress:
     - from:
@@ -23,25 +37,4 @@ spec:
               kubernetes.io/metadata.name: kong
       ports:
         - protocol: TCP
-          port: 8000
----
-# Cloudflare Tunnel -> Longhorn frontend (direct tunnel route for demo-longhorn.${DOMAIN})
-# Service port 80 → targetPort 8000 (post-DNAT)
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-tunnel-ingress
-  namespace: longhorn-system
-spec:
-  podSelector:
-    matchLabels:
-      app: longhorn-ui
-  policyTypes: [Ingress]
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: cloudflared
-      ports:
-        - protocol: TCP
-          port: 8000
+          port: 4180

@@ -1,3 +1,9 @@
+# 32 bytes as required by oauth2-proxy for AES-256 cookie encryption.
+resource "random_password" "oauth2_proxy_cookie_secret" {
+  length  = 32
+  special = false
+}
+
 module "oidc" {
   source = "../../compositions/oidc-app"
 
@@ -12,10 +18,13 @@ module "oidc" {
     "Longhorn Admins" = "Users allowed to access Longhorn storage dashboard"
   }
   entitlements = {
-    "Longhorn Admins" = "Grants access to Longhorn UI via Kong OIDC proxy"
+    "Longhorn Admins" = "Grants access to Longhorn UI via oauth2-proxy"
   }
 
   vault_path_prefix = "infra"
+  extra_vault_data = {
+    OAUTH2_PROXY_COOKIE_SECRET = random_password.oauth2_proxy_cookie_secret.result
+  }
 
   cloudflare_account_id        = var.cloudflare_account_id
   cloudflare_tunnel_id         = var.cloudflare_tunnel_id

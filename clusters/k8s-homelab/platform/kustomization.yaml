@@ -9,6 +9,7 @@ resources:
   - calico-kustomization.yaml
   - longhorn-kustomization.yaml
   - longhorn-recurring-jobs-kustomization.yaml
+  - longhorn-ingress-kustomization.yaml
   - local-path-provisioner-kustomization.yaml
   - metallb-install-kustomization.yaml
   - metallb-config-kustomization.yaml

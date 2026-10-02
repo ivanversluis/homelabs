@@ -1,0 +1,102 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: longhorn-oauth2-proxy
+  namespace: longhorn-system
+  labels:
+    app: longhorn-oauth2-proxy
+spec:
+  type: ClusterIP
+  selector:
+    app: longhorn-oauth2-proxy
+  ports:
+    - name: http
+      port: 4180
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: longhorn-oauth2-proxy
+  namespace: longhorn-system
+  labels:
+    app: longhorn-oauth2-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: longhorn-oauth2-proxy
+  template:
+    metadata:
+      labels:
+        app: longhorn-oauth2-proxy
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.8.1
+          args:
+            - --provider=oidc
+            - --oidc-issuer-url=https://auth.${DOMAIN}/application/o/longhorn/
+            - --redirect-url=https://storage.${DOMAIN}/oauth2/callback
+            - --upstream=http://longhorn-frontend.longhorn-system.svc.cluster.local:80
+            - --http-address=0.0.0.0:4180
+            - --scope=openid profile email
+            - --email-domain=*
+            - --allowed-group=Longhorn Admins
+            - --code-challenge-method=S256
+            - --cookie-name=_longhorn_oauth2
+            - --cookie-secure=true
+            - --cookie-samesite=lax
+            - --cookie-expire=8h
+            - --reverse-proxy=true
+            - --skip-provider-button=true
+            - --silence-ping-logging=true
+          env:
+            - name: OAUTH2_PROXY_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: longhorn-oidc
+                  key: client-id
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: longhorn-oidc
+                  key: client-secret
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: longhorn-oidc
+                  key: cookie-secret
+          ports:
+            - name: http
+              containerPort: 4180
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
