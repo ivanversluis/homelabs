@@ -50,6 +50,8 @@ spec:
             - --scope=openid profile email
             - --email-domain=*
             - --allowed-group=Longhorn Admins
+            # Authentik's default email mapping emits email_verified=false; access is gated by group, not email.
+            - --insecure-oidc-allow-unverified-email=true
             - --code-challenge-method=S256
             - --cookie-name=_longhorn_oauth2
             - --cookie-secure=true
