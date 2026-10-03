@@ -161,6 +161,7 @@ module "vaultwarden" {
 module "gatus" {
   source = "./gatus"
 
+  domain                        = var.domain
   cloudflare_account_id         = local.cf.account_id
   cloudflare_zone_id            = var.cloudflare_zone_id
   cloudflare_tunnel_id          = var.cloudflare_tunnel_id

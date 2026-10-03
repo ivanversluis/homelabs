@@ -45,20 +45,35 @@ spec:
           env:
             - name: HOMEPAGE_ALLOWED_HOSTS
               value: "homepage.${DOMAIN}"
-            - name: PUID
-              value: "1000"
-            - name: PGID
-              value: "1000"
-            - name: HOMEPAGE_VAR_CLIENT_ID
+            - name: HOMEPAGE_EXTERNAL_URL
+              value: "https://homepage.${DOMAIN}"
+            - name: HOMEPAGE_AUTH_ENABLED
+              value: "true"
+            - name: HOMEPAGE_AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: homepage-oidc
+                  key: auth-secret
+            - name: HOMEPAGE_OIDC_NAME
+              value: "Authentik"
+            - name: HOMEPAGE_OIDC_ISSUER
+              value: "https://auth.${DOMAIN}/application/o/homepage/"
+            - name: HOMEPAGE_OIDC_CLIENT_ID
               valueFrom:
                 secretKeyRef:
                   name: homepage-oidc
                   key: client-id
-            - name: HOMEPAGE_VAR_CLIENT_SECRET
+            - name: HOMEPAGE_OIDC_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: homepage-oidc
                   key: client-secret
+            - name: HOMEPAGE_OIDC_AUTO_LOGIN
+              value: "true"
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
           volumeMounts:
             - name: config
               mountPath: /app/config

@@ -15,9 +15,9 @@ These components are platform dependencies. Application PVCs and VM workloads re
 |---|---|---|
 | `longhorn/k8s/` | `longhorn` | Vendored Longhorn v1.12.1, settings patches, `longhorn-worker` StorageClass |
 | `longhorn/recurring-jobs/` | `longhorn-recurring-jobs` (dependsOn `longhorn`) | Scheduled backups to the backup target |
-| `longhorn/ingress/` | `longhorn-ingress` (dependsOn `longhorn`, `kong`; `${DOMAIN}` substitution) | Authenticated UI at `storage.${DOMAIN}` |
+| `longhorn/oauth2-proxy/` | `longhorn-ingress` (dependsOn `longhorn`, `kong`; `${DOMAIN}` substitution) | Authenticated UI at `storage.${DOMAIN}` using the shared oauth2-proxy base |
 
-`recurring-jobs/` and `ingress/` are separate reconciliation boundaries because their resources are
+`recurring-jobs/` and `oauth2-proxy/` are separate reconciliation boundaries because their resources are
 validated by admission webhooks (Longhorn, Kong) that only exist after their dependencies are ready.
 
 ## StorageClasses
@@ -83,10 +83,11 @@ LAN ─────────────────────────�
                                                           group "Longhorn Admins")  oauth2-proxy allowed)
 ```
 
-- **oauth2-proxy** (`longhorn/ingress/`) performs the OIDC login against Authentik
+- **oauth2-proxy** (`longhorn/oauth2-proxy/`) performs the OIDC login against Authentik
   (`https://auth.${DOMAIN}/application/o/longhorn/`) and only admits members of `Longhorn Admins`.
-  Kong OSS does not ship the `openid-connect` plugin (Enterprise-only), which is why the earlier
-  Kong-plugin approach never worked.
+  The Deployment and Service come from `platform/security/oauth2-proxy/base`; the Longhorn overlay only
+  supplies issuer, callback, upstream, group, cookie and secret wiring. Kong OSS does not ship the
+  `openid-connect` plugin (Enterprise-only), which is why the proxy layer is required.
 - **Credentials**: Vault `infra/longhorn` (`OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`,
   `OAUTH2_PROXY_COOKIE_SECRET`), written by Terraform
   (`automation/infra-as-code/terraform/deployments/longhorn`) and synced by the

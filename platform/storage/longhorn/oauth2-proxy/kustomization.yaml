@@ -1,0 +1,65 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: longhorn-system
+namePrefix: longhorn-
+resources:
+  - ../../../security/oauth2-proxy/base
+  - externalsecret.yaml
+  - networkpolicy.yaml
+  - ingress.yaml
+patches:
+  - target:
+      kind: Deployment
+      name: oauth2-proxy
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: --oidc-issuer-url=https://auth.${DOMAIN}/application/o/longhorn/
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: --redirect-url=https://storage.${DOMAIN}/oauth2/callback
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: --upstream=http://longhorn-frontend.longhorn-system.svc.cluster.local:80
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: "--allowed-group=Longhorn Admins"
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: --cookie-name=_longhorn_oauth2
+      - op: add
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: OAUTH2_PROXY_CLIENT_ID
+            valueFrom:
+              secretKeyRef:
+                name: longhorn-oidc
+                key: client-id
+          - name: OAUTH2_PROXY_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: longhorn-oidc
+                key: client-secret
+          - name: OAUTH2_PROXY_COOKIE_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: longhorn-oidc
+                key: cookie-secret
+      # Migration compatibility: this Deployment already exists with the legacy
+      # selector. Deployment selectors are immutable, so preserve it exactly.
+      - op: replace
+        path: /spec/selector/matchLabels
+        value:
+          app: longhorn-oauth2-proxy
+      - op: add
+        path: /spec/template/metadata/labels/app
+        value: longhorn-oauth2-proxy
+  - target:
+      kind: Service
+      name: oauth2-proxy
+    patch: |-
+      # Keep the existing Service selector aligned with the deployed pod label.
+      - op: replace
+        path: /spec/selector
+        value:
+          app: longhorn-oauth2-proxy
