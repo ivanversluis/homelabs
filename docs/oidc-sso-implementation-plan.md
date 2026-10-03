@@ -26,7 +26,7 @@
 
 | App | Namespace | Subdomain | Service Port | Notes |
 |-----|-----------|-----------|-------------|-------|
-| Longhorn | longhorn-system | `storage.$DOMAIN` | 8000 (frontend) | Kong OIDC plugin on route |
+| Longhorn | longhorn-system | `storage.$DOMAIN` | 4180 (oauth2-proxy) | oauth2-proxy in front of the UI (Kong OSS has no OIDC plugin) |
 
 ### Not Applicable
 
@@ -57,7 +57,7 @@ These apps already have OIDC working manually. Terraform will take over IdP-side
 
 ### Phase 3: Kong OIDC Proxy
 
-10. **Longhorn** — Kong Ingress + OIDC plugin + Terraform for Authentik provider
+10. **Longhorn** — Kong Ingress + oauth2-proxy + Terraform for Authentik provider (see `platform/storage/README.md`)
 
 ### Phase 4: Network Policies (Zero Trust)
 

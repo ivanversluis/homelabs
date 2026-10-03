@@ -223,7 +223,7 @@ data:
 
       - name: vault-sys-health
         group: 10-platform
-        url: "https://demo-vault.${DOMAIN}/v1/sys/health"
+        url: "https://vault.${DOMAIN}/v1/sys/health"
         interval: 60s
         client: *cloudflare_client
         ui: *safe_public_ui
@@ -237,7 +237,7 @@ data:
 
       - name: semaphore-ui
         group: 10-platform
-        url: "https://demo-semaphoreui.${DOMAIN}/"
+        url: "https://semaphoreui.${DOMAIN}/"
         interval: 60s
         client: *cloudflare_client
         ui: *safe_public_ui
@@ -276,7 +276,7 @@ data:
 
       - name: longhorn-ui
         group: 40-storage
-        url: "https://storage.${DOMAIN}/"
+        url: "https://storage.${DOMAIN}/ping"
         interval: 60s
         client: *cloudflare_client
         ui: *safe_public_ui
@@ -284,7 +284,7 @@ data:
           - "[STATUS] == 200"
           - "[CERTIFICATE_EXPIRATION] > 168h"
           - "[RESPONSE_TIME] < 3000"
-          - "[BODY] == pat(*Longhorn*)"
+          - "[BODY] == pat(*OK*)"
         alerts: *discord_alert
 
       - name: portainer-status

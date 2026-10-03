@@ -1,0 +1,23 @@
+# storage.${DOMAIN} -> Kong -> oauth2-proxy (Authentik OIDC) -> longhorn-frontend.
+# Kong OSS has no openid-connect plugin, so authentication is done by oauth2-proxy.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: longhorn-oidc
+  namespace: longhorn-system
+  annotations:
+    konghq.com/strip-path: "false"
+    konghq.com/read-timeout: "3600000"
+spec:
+  ingressClassName: kong
+  rules:
+    - host: "storage.${DOMAIN}"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: longhorn-oauth2-proxy
+                port:
+                  number: 4180
