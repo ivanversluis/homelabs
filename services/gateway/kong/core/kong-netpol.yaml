@@ -356,6 +356,14 @@ spec:
           port: 8080   # openwebui (post-DNAT container port)
         - protocol: TCP
           port: 8000   # kubernetes-mcpo (post-DNAT container port)
+    # monitoring — oauth2-proxy in front of the Gatus UI
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 4180   # gatus-oauth2-proxy container port
     # longhorn-system — oauth2-proxy in front of the Longhorn UI
     - to:
         - namespaceSelector:

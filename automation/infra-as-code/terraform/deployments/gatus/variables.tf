@@ -1,3 +1,9 @@
+variable "domain" {
+  description = "Base domain used for the Gatus OIDC redirect URI and launch URL"
+  type        = string
+  sensitive   = true
+}
+
 variable "cloudflare_account_id" {
   description = "Cloudflare account ID"
   type        = string

@@ -10,7 +10,7 @@
 | Homebox | homebox | `apps/homebox` | `https://homebox.$DOMAIN/api/v1/users/login/oidc/callback` | No (single-user) | **Needed** |
 | Headlamp | headlamp | `infra/headlamp` | `https://k8s.$DOMAIN/oidc/callback` | Yes (K8s RBAC via groups) | **Needed** |
 | Open WebUI | ai | `infra/openwebui` | `https://ai-chat.$DOMAIN/oauth/oidc/callback` | Partial (DEFAULT_USER_ROLE) | **Needed** |
-| Homepage | homepage | `apps/homepage` | `https://homepage.$DOMAIN/api/auth/callback/authentik` | No (dashboard) | **Needed** |
+| Homepage | homepage | `apps/homepage` | `https://homepage.$DOMAIN/api/auth/callback/homepage-oidc` | No (dashboard) | **Done** |
 | Linkding | linkding | `apps/linkding` | `https://bookmarks.$DOMAIN/oidc/callback/` | No (single-user) | **Done** (deployed; Authentik SSO validation in progress) |
 
 ### To Implement (Native OIDC Support Available)
@@ -22,11 +22,12 @@
 | SemaphoreUI | semaphoreui | `infra/semaphoreui` | `https://demo-semaphore.$DOMAIN/api/auth/oidc/redirect` | Yes (Admin/User teams) | Helm values for OIDC |
 | ArgoCD | argocd | `infra/argocd` | `https://demo-argocd.$DOMAIN/auth/callback` | Yes (Admin/ReadOnly via groups) | Helm values `configs.cm` |
 
-### Kong OIDC Proxy (No Native Auth)
+### oauth2-proxy (No Native Auth)
 
 | App | Namespace | Subdomain | Service Port | Notes |
 |-----|-----------|-----------|-------------|-------|
-| Longhorn | longhorn-system | `storage.$DOMAIN` | 4180 (oauth2-proxy) | oauth2-proxy in front of the UI (Kong OSS has no OIDC plugin) |
+| Longhorn | longhorn-system | `storage.$DOMAIN` | 4180 (oauth2-proxy) | Shared oauth2-proxy base + Longhorn overlay; `Longhorn Admins` group |
+| Gatus | monitoring | `gatus.$DOMAIN` | 4180 (oauth2-proxy) | Shared oauth2-proxy base + Gatus overlay; `Gatus Users` group |
 
 ### Not Applicable
 
@@ -55,9 +56,10 @@ These apps already have OIDC working manually. Terraform will take over IdP-side
 7. **SemaphoreUI** — Terraform + HelmRelease values update
 8. **ArgoCD** — Terraform + HelmRelease values update
 
-### Phase 3: Kong OIDC Proxy
+### Phase 3: oauth2-proxy for Apps Without Native OIDC
 
-10. **Longhorn** — Kong Ingress + oauth2-proxy + Terraform for Authentik provider (see `platform/storage/README.md`)
+9. **Longhorn** — shared oauth2-proxy base + Longhorn overlay + Authentik provider (see `platform/storage/README.md`)
+10. **Gatus** — shared oauth2-proxy base + Gatus overlay + Authentik provider and `Gatus Users` access group
 
 ### Phase 4: Network Policies (Zero Trust)
 
