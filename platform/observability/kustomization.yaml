@@ -24,6 +24,7 @@ resources:
   - grafana/alerting-contact-points-configmap.yaml
   - grafana/alerting-notification-policies-configmap.yaml
   - grafana/alerting-rules-time-sync-configmap.yaml
+  - grafana/alerting-rules-node-resources-configmap.yaml
   - grafana/dashboard-overview-configmap.yaml
   - grafana/dashboard-golden-signals-configmap.yaml
   - grafana/dashboard-red-method-configmap.yaml
@@ -31,6 +32,7 @@ resources:
   - grafana/dashboard-hashicorp-vault-configmap.yaml
   - grafana/dashboard-kubernetes-platform-configmap.yaml
   - grafana/dashboard-kubernetes-nodes-configmap.yaml
+  - grafana/dashboard-kubernetes-node-resources-configmap.yaml
   - grafana/dashboard-kubernetes-time-sync-configmap.yaml
   - grafana/dashboard-dns-overview-configmap.yaml
   - grafana/dashboard-coredns-configmap.yaml
@@ -77,3 +79,4 @@ configMapGenerator:
       labels:
         app.kubernetes.io/name: prometheus
         app.kubernetes.io/component: alerts
+

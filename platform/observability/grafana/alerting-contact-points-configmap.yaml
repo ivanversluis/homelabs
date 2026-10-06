@@ -16,20 +16,18 @@ data:
         receivers:
           - uid: discord-primary
             type: discord
+            disableResolveMessage: false
             settings:
               url: $GRAFANA_DISCORD_WEBHOOK_URL
               title: "[Homelab][{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}"
               message: |
-                {{- if gt (len .Alerts.Firing) 0 -}}
-                Firing: {{ len .Alerts.Firing }}
-                {{- range .Alerts.Firing }}
-                - {{ .Labels.alertname }} on {{ .Labels.instance }} ({{ .Labels.severity }})
-                  {{ .Annotations.summary }}
-                {{- end }}
-                {{- end }}
-                {{- if gt (len .Alerts.Resolved) 0 }}
-                Resolved: {{ len .Alerts.Resolved }}
-                {{- range .Alerts.Resolved }}
-                - {{ .Labels.alertname }} on {{ .Labels.instance }}
-                {{- end }}
+                {{ range .Alerts }}
+                [{{ .Status | toUpper }}] {{ .Labels.alertname }}
+                Instance: {{ .Labels.instance }}{{ if .Labels.node }} | Node: {{ .Labels.node }}{{ end }}
+                Severity: {{ .Labels.severity }}
+                {{ .Annotations.summary }}
+                {{ if .Annotations.description }}{{ .Annotations.description }}{{ end }}
+                {{ if .DashboardURL }}Dashboard: {{ .DashboardURL }}{{ end }}
+                {{ if .PanelURL }}Panel: {{ .PanelURL }}{{ end }}
+                {{ if .GeneratorURL }}Alert: {{ .GeneratorURL }}{{ end }}
                 {{- end }}

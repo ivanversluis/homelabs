@@ -26,4 +26,3 @@ workloads/apps/firewall-manager/overlays/prod/kustomization.yaml|newTag=latest
 workloads/apps/firewall-manager/overlays/staging/kustomization.yaml|newTag=staging
 workloads/apps/firewall-manager/overlays/staging/kustomization.yaml|newTag=staging
 workloads/apps/firewall-manager/overlays/staging/kustomization.yaml|newTag=staging
-workloads/apps/termix/termix-docker-compose.yml|image=ghcr.io/lukegus/termix:latest

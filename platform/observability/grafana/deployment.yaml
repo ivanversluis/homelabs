@@ -27,7 +27,7 @@ spec:
         runAsGroup: 472
       containers:
         - name: grafana
-          image: grafana/grafana:13.2.2
+          image: grafana/grafana:13.2.3
           ports:
             - name: http
               containerPort: 3000
@@ -103,6 +103,10 @@ spec:
               mountPath: /etc/grafana/provisioning/alerting/notification-policies.yaml
               subPath: notification-policies.yaml
               readOnly: true
+            - name: alerting-rules-node-resources
+              mountPath: /etc/grafana/provisioning/alerting/rules-node-resources.yaml
+              subPath: rules-node-resources.yaml
+              readOnly: true
             - name: alerting-rules-time-sync
               mountPath: /etc/grafana/provisioning/alerting/rules-time-sync.yaml
               subPath: rules-time-sync.yaml
@@ -130,6 +134,10 @@ spec:
             - name: dashboard-kubernetes-platform
               mountPath: /etc/grafana/provisioning/dashboards/kubernetes-platform-overview.json
               subPath: kubernetes-platform-overview.json
+              readOnly: true
+            - name: dashboard-kubernetes-node-resources
+              mountPath: /etc/grafana/provisioning/dashboards/kubernetes-node-resource-capacity.json
+              subPath: kubernetes-node-resource-capacity.json
               readOnly: true
             - name: dashboard-kubernetes-nodes
               mountPath: /etc/grafana/provisioning/dashboards/kubernetes-node-health.json
@@ -218,6 +226,9 @@ spec:
         - name: alerting-notification-policies
           configMap:
             name: grafana-alerting-notification-policies
+        - name: alerting-rules-node-resources
+          configMap:
+            name: grafana-alerting-rules-node-resources
         - name: alerting-rules-time-sync
           configMap:
             name: grafana-alerting-rules-time-sync
@@ -239,6 +250,9 @@ spec:
         - name: dashboard-kubernetes-platform
           configMap:
             name: grafana-dashboard-kubernetes-platform
+        - name: dashboard-kubernetes-node-resources
+          configMap:
+            name: grafana-dashboard-kubernetes-node-resources
         - name: dashboard-kubernetes-nodes
           configMap:
             name: grafana-dashboard-kubernetes-nodes
