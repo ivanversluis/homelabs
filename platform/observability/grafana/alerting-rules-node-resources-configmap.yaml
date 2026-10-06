@@ -1,0 +1,250 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-alerting-rules-node-resources
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: alerting
+data:
+  rules-node-resources.yaml: |
+    apiVersion: 1
+    groups:
+    - orgId: 1
+      name: node-resources
+      folder: Homelab
+      interval: 1m
+      rules:
+      - uid: node_cpu_usage_high
+        title: NodeCPUUsageHigh
+        condition: C
+        data:
+        - refId: A
+          relativeTimeRange:
+            from: 300
+            to: 0
+          datasourceUid: prometheus
+          model:
+            datasource:
+              type: prometheus
+              uid: prometheus
+            editorMode: code
+            expr: 100 * (1 - avg by(instance, node) (rate(node_cpu_seconds_total{job="node-exporter",mode="idle"}[5m])))
+            instant: true
+            intervalMs: 1000
+            maxDataPoints: 43200
+            range: false
+            refId: A
+        - refId: B
+          relativeTimeRange:
+            from: 0
+            to: 0
+          datasourceUid: __expr__
+          model:
+            datasource:
+              type: __expr__
+              uid: __expr__
+            expression: A
+            intervalMs: 1000
+            maxDataPoints: 43200
+            reducer: last
+            refId: B
+            type: reduce
+        - refId: C
+          relativeTimeRange:
+            from: 0
+            to: 0
+          datasourceUid: __expr__
+          model:
+            conditions:
+            - evaluator:
+                params:
+                - 90
+                type: gt
+              operator:
+                type: and
+              query:
+                params:
+                - C
+              reducer:
+                params: []
+                type: last
+              type: query
+            datasource:
+              type: __expr__
+              uid: __expr__
+            expression: B
+            intervalMs: 1000
+            maxDataPoints: 43200
+            refId: C
+            type: threshold
+        noDataState: NoData
+        execErrState: Alerting
+        for: 30m
+        labels:
+          severity: warning
+          component: node-resources
+          engine: grafana
+        annotations:
+          summary: CPU usage is high on {{ $labels.instance }}
+          description: 'CPU usage has remained > 90% for 30m. Current usage: {{ printf
+            "%.1f" $values.B.Value }}%. Node: {{ $labels.node }}; instance: {{ $labels.instance
+            }}.'
+          __dashboardUid__: k8s-node-resource-capacity
+          __panelId__: '1'
+      - uid: node_memory_usage_high
+        title: NodeMemoryUsageHigh
+        condition: C
+        data:
+        - refId: A
+          relativeTimeRange:
+            from: 300
+            to: 0
+          datasourceUid: prometheus
+          model:
+            datasource:
+              type: prometheus
+              uid: prometheus
+            editorMode: code
+            expr: max by(instance, node) (100 * (1 - (node_memory_MemAvailable_bytes{job="node-exporter"}
+              / node_memory_MemTotal_bytes{job="node-exporter"})))
+            instant: true
+            intervalMs: 1000
+            maxDataPoints: 43200
+            range: false
+            refId: A
+        - refId: B
+          relativeTimeRange:
+            from: 0
+            to: 0
+          datasourceUid: __expr__
+          model:
+            datasource:
+              type: __expr__
+              uid: __expr__
+            expression: A
+            intervalMs: 1000
+            maxDataPoints: 43200
+            reducer: last
+            refId: B
+            type: reduce
+        - refId: C
+          relativeTimeRange:
+            from: 0
+            to: 0
+          datasourceUid: __expr__
+          model:
+            conditions:
+            - evaluator:
+                params:
+                - 85
+                type: gt
+              operator:
+                type: and
+              query:
+                params:
+                - C
+              reducer:
+                params: []
+                type: last
+              type: query
+            datasource:
+              type: __expr__
+              uid: __expr__
+            expression: B
+            intervalMs: 1000
+            maxDataPoints: 43200
+            refId: C
+            type: threshold
+        noDataState: NoData
+        execErrState: Alerting
+        for: 4h
+        labels:
+          severity: warning
+          component: node-resources
+          engine: grafana
+        annotations:
+          summary: Memory usage is high on {{ $labels.instance }}
+          description: 'Memory usage has remained > 85% for 4h. Current usage: {{ printf
+            "%.1f" $values.B.Value }}%. Node: {{ $labels.node }}; instance: {{ $labels.instance
+            }}.'
+          __dashboardUid__: k8s-node-resource-capacity
+          __panelId__: '2'
+      - uid: node_root_disk_usage_high
+        title: NodeRootDiskUsageHigh
+        condition: C
+        data:
+        - refId: A
+          relativeTimeRange:
+            from: 300
+            to: 0
+          datasourceUid: prometheus
+          model:
+            datasource:
+              type: prometheus
+              uid: prometheus
+            editorMode: code
+            expr: max by(instance, node) (100 * (1 - (node_filesystem_avail_bytes{job="node-exporter",mountpoint="/",fstype!~"tmpfs|overlay"}
+              / node_filesystem_size_bytes{job="node-exporter",mountpoint="/",fstype!~"tmpfs|overlay"})))
+            instant: true
+            intervalMs: 1000
+            maxDataPoints: 43200
+            range: false
+            refId: A
+        - refId: B
+          relativeTimeRange:
+            from: 0
+            to: 0
+          datasourceUid: __expr__
+          model:
+            datasource:
+              type: __expr__
+              uid: __expr__
+            expression: A
+            intervalMs: 1000
+            maxDataPoints: 43200
+            reducer: last
+            refId: B
+            type: reduce
+        - refId: C
+          relativeTimeRange:
+            from: 0
+            to: 0
+          datasourceUid: __expr__
+          model:
+            conditions:
+            - evaluator:
+                params:
+                - 70
+                type: gt
+              operator:
+                type: and
+              query:
+                params:
+                - C
+              reducer:
+                params: []
+                type: last
+              type: query
+            datasource:
+              type: __expr__
+              uid: __expr__
+            expression: B
+            intervalMs: 1000
+            maxDataPoints: 43200
+            refId: C
+            type: threshold
+        noDataState: NoData
+        execErrState: Alerting
+        for: 4h
+        labels:
+          severity: warning
+          component: node-resources
+          engine: grafana
+        annotations:
+          summary: Root disk usage is high on {{ $labels.instance }}
+          description: 'Root disk usage has remained > 70% for 4h. Current usage: {{ printf
+            "%.1f" $values.B.Value }}%. Node: {{ $labels.node }}; instance: {{ $labels.instance
+            }}.'
+          __dashboardUid__: k8s-node-resource-capacity
+          __panelId__: '3'
