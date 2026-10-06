@@ -11,10 +11,10 @@ Classify Kubernetes content by architectural responsibility, not by installation
 - `services/` - shared runtime/data-plane capabilities consumed by clients, workloads, or platform components.
 - `workloads/apps/` - application/use-case workloads primarily consumed by a user.
 - `workloads/vms/` - KubeVirt virtual-machine workloads.
-- `clusters/k8s-homelab/platform/` - dedicated platform Flux reconciliation objects.
-- `clusters/k8s-homelab/services/` - dedicated shared-service Flux reconciliation objects.
-- `clusters/k8s-homelab/workloads/` - dedicated workload Flux reconciliation objects.
-- `clusters/synology/` - Synology-specific desired state and legacy/container-service definitions. This tree is not part of the `k8s-homelab` Flux root unless explicitly wired in a future change.
+- `compute/eliteboxes/platform/` - dedicated platform Flux reconciliation objects.
+- `compute/eliteboxes/services/` - dedicated shared-service Flux reconciliation objects.
+- `compute/eliteboxes/workloads/` - dedicated workload Flux reconciliation objects.
+- `compute/synology/` - Synology-specific desired state and legacy/container-service definitions. This tree is not part of the `k8s-homelab` Flux root unless explicitly wired in a future change.
 
 Wave 3 canonical examples:
 
@@ -23,9 +23,9 @@ Wave 3 canonical examples:
 - AI/Open WebUI + MCP use case: `workloads/apps/ai/`
 - OpenClaw Kubernetes operations agent: `infra/openclaw/`
 - Kubernetes management UIs/tools such as Headlamp and Portainer: `infra/`
-- Legacy Synology Portainer Compose definition: `clusters/synology/workloads/apps/portainer/`
+- Legacy Synology Portainer Compose definition: `compute/synology/workloads/apps/portainer/`
 
-Do not recreate the legacy roots `apps/`, `vms/`, `clusters/k8s-homelab/apps/`, `infra/kong/`, `infra/ai/`, or `infra/home-exporters/` after their migration waves.
+Do not recreate the legacy roots `apps/`, `vms/`, `compute/eliteboxes/apps/`, `infra/kong/`, `infra/ai/`, or `infra/home-exporters/` after their migration waves.
 
 Repository paths and Vault secret paths are separate contracts. Do not rename existing Vault keys merely because a manifest moved. In particular, Wave 3 does not rename existing `infra/kong`, `infra/home-exporters`, or AI-related Vault keys.
 
@@ -80,7 +80,7 @@ If the answer is yes or uncertain, stop and split/stage the reconciliation befor
 - `identity-ingress` remains the same Flux object and still targets `./services/identity/kong-ingress`.
 - `ai` source path is `./workloads/apps/ai` and still depends on `kong`.
 - No Namespace, PVC, Deployment, Service, NetworkPolicy, ExternalSecret, HelmRelease, Kong CR, or other live resource should change semantically due to Wave 3.
-- `clusters/synology/workloads/apps/portainer/` is repository organization only and must not be added to the `k8s-homelab` Flux root.
+- `compute/synology/workloads/apps/portainer/` is repository organization only and must not be added to the `k8s-homelab` Flux root.
 - `infra/openclaw/` remains infrastructure because it is a Kubernetes operations agent; do not move it to workloads as part of Wave 3.
 
 ## External Source Safety Policy

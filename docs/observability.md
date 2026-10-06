@@ -118,13 +118,13 @@ The cluster-wide policy baseline is in `platform/networking/network-policies/`.
 The standalone observability stack is reconciled through:
 
 ```text
-clusters/k8s-homelab/platform/observability-kustomization.yaml
+compute/eliteboxes/platform/observability-kustomization.yaml
 ```
 
 The kube-prometheus-stack monitoring plane is reconciled through:
 
 ```text
-clusters/k8s-homelab/platform/monitoring-kustomization.yaml
+compute/eliteboxes/platform/monitoring-kustomization.yaml
 ```
 
 The RouterOS integration, including its Gatus KongConsumer, lives under `services/gateway/kong/api-gateway/routeros-upstream/`. Its bootstrap Flux reconciliation waits for the ExternalSecret-generated credentials before the route, plugins, and consumer are applied.

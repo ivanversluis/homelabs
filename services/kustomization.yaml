@@ -3,6 +3,6 @@ kind: Kustomization
 resources: []
 # identity/authentik/k8s, tunnel/cloudflare/k8s, dns/unbound/k8s and
 # dns/pihole/k8s are managed exclusively by dedicated Flux Kustomizations
-# (clusters/k8s-homelab/services/*-kustomization.yaml) with force: false, so
+# (compute/eliteboxes/services/*-kustomization.yaml) with force: false, so
 # the force-enabled root flux-system Kustomization cannot delete and recreate
 # their persistent data.

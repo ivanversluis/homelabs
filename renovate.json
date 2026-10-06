@@ -29,7 +29,7 @@
       "/(^|/)infra/.+\\.ya?ml$/",
       "/(^|/)services/.+\\.ya?ml$/",
       "/(^|/)workloads/.+\\.ya?ml$/",
-      "/(^|/)clusters/.+\\.ya?ml$/"
+      "/(^|/)compute/.+\\.ya?ml$/"
     ]
   },
 
@@ -39,7 +39,7 @@
       "/(^|/)workloads/.+\\.ya?ml$/",
       "/(^|/)services/.+\\.ya?ml$/",
       "/(^|/)infra/.+\\.ya?ml$/",
-      "/(^|/)clusters/.+\\.ya?ml$/"
+      "/(^|/)compute/.+\\.ya?ml$/"
     ]
   },
 
