@@ -7,3 +7,4 @@ resources:
   - gatus-externalsecret.yaml
   - gatus-networkpolicy.yaml
   - gatus-helmrelease.yaml
+  - oauth2-proxy/

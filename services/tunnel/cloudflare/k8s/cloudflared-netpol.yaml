@@ -188,13 +188,6 @@ spec:
     - to:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: longhorn-system
-      ports:
-        - protocol: TCP
-          port: 8000  # container port (service 80 → pod 8000, CNI evaluates post-DNAT)
-    - to:
-        - namespaceSelector:
-            matchLabels:
               kubernetes.io/metadata.name: default
       ports:
         - protocol: TCP
@@ -241,11 +234,3 @@ spec:
       ports:
         - protocol: TCP
           port: 80
-    # Gatus — status monitoring dashboard (post-DNAT: service 80 → pod 8080)
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: monitoring
-      ports:
-        - protocol: TCP
-          port: 8080

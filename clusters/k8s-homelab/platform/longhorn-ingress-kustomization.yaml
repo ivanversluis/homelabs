@@ -1,6 +1,6 @@
 ---
 # Authenticated Longhorn UI at storage.${DOMAIN} (Kong -> oauth2-proxy -> Longhorn).
-# Separate from the longhorn boundary because it needs ${DOMAIN} substitution and Kong.
+# Separate from the longhorn boundary because oauth2-proxy needs ${DOMAIN} substitution and Kong.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
@@ -12,7 +12,7 @@ spec:
   prune: true
   wait: true
   timeout: 5m
-  path: ./platform/storage/longhorn/ingress
+  path: ./platform/storage/longhorn/oauth2-proxy
   sourceRef:
     kind: GitRepository
     name: flux-system

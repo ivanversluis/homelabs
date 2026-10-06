@@ -11,23 +11,8 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: cloudflared
-          podSelector:
-            matchLabels:
-              app: cloudflare-tunnel
-      ports:
-        - protocol: TCP
-          port: 8080
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: monitoring
-      ports:
-        - protocol: TCP
-          port: 8080
+    # User-facing traffic is admitted by oauth2-proxy/networkpolicy.yaml.
+    # Prometheus scraping remains direct from observability.
     - from:
         - namespaceSelector:
             matchLabels:

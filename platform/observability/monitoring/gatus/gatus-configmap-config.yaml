@@ -81,7 +81,7 @@ data:
 
       - name: homepage
         group: 30-apps
-        url: "https://homepage.${DOMAIN}/"
+        url: "https://homepage.${DOMAIN}/api/healthcheck"
         interval: 60s
         client: *cloudflare_client
         ui: *safe_public_ui
@@ -89,7 +89,6 @@ data:
           - "[STATUS] == 200"
           - "[CERTIFICATE_EXPIRATION] > 168h"
           - "[RESPONSE_TIME] < 2000"
-          - "[BODY] == pat(*Homepage*)"
         alerts: *discord_alert
 
       - name: homebox

@@ -33,13 +33,14 @@ APPS[grafana]="observability:grafana:grafana-oidc:grafana:/login/generic_oauth"
 APPS[homebox]="homebox:homebox:homebox-oidc:homebox:/api/v1/users/login/oidc/callback"
 APPS[headlamp]="headlamp:headlamp:headlamp-oidc:headlamp:/oidc/callback"
 APPS[openwebui]="ai:openwebui:openwebui-oidc:openwebui:/oauth/oidc/callback"
-APPS[homepage]="homepage:homepage:homepage-oidc:homepage:/api/auth/callback/authentik"
+APPS[homepage]="homepage:homepage:homepage-oidc:homepage:/api/auth/callback/homepage-oidc"
 APPS[forgejo]="forgejo:forgejo:forgejo-oidc:forgejo:/user/oauth2/authentik/callback"
 APPS[n8n]="n8n:n8n:n8n-oidc:n8n:/rest/oauth2-credential/callback"
 APPS[linkding]="linkding:linkding:linkding-oidc:linkding:/oidc/callback/"
 APPS[semaphoreui]="semaphoreui:semaphoreui:semaphoreui-oidc:semaphoreui:/api/auth/oidc/redirect"
 APPS[argocd]="argocd:argocd-server:argocd-oidc:argocd:/auth/callback"
-APPS[longhorn]="longhorn-system:longhorn-ui:longhorn-oidc:longhorn:/oauth2/callback"
+APPS[longhorn]="longhorn-system:longhorn-oauth2-proxy:longhorn-oidc:longhorn:/oauth2/callback"
+APPS[gatus]="monitoring:gatus-oauth2-proxy:gatus-oidc:gatus:/oauth2/callback"
 APPS[portainer]="portainer:portainer:portainer-oidc:portainer:/"
 APPS[termix]="termix:termix:termix-oidc:termix:/users/oidc/callback"
 
@@ -88,7 +89,7 @@ for app in "${!APPS[@]}"; do
     discovery_url="https://auth.${DOMAIN}/application/o/${slug}/.well-known/openid-configuration"
 
     # Containers without wget — use curl or external check
-    if [[ "$deploy" == "argocd-server" || "$deploy" == "portainer" || "$deploy" == "longhorn-ui" ]]; then
+    if [[ "$deploy" == "argocd-server" || "$deploy" == "portainer" || "$deploy" == "longhorn-oauth2-proxy" || "$deploy" == "gatus-oauth2-proxy" ]]; then
         result=$(curl -sk --max-time 5 "$discovery_url" 2>/dev/null | head -c 50 || echo "FAILED")
     else
         # Try wget first, fall back to curl (openwebui has curl only)

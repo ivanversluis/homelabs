@@ -1,3 +1,8 @@
+resource "random_password" "homepage_auth_secret" {
+  length  = 48
+  special = false
+}
+
 module "oidc" {
   source = "../../compositions/oidc-app"
 
@@ -6,12 +11,15 @@ module "oidc" {
   subdomain = "homepage"
   domain    = var.domain
 
-  redirect_uris = ["https://homepage.${var.domain}/api/auth/callback/authentik"]
+  redirect_uris = ["https://homepage.${var.domain}/api/auth/callback/homepage-oidc"]
 
   groups       = {}
   entitlements = {}
 
   vault_path_prefix = "apps"
+  extra_vault_data = {
+    HOMEPAGE_AUTH_SECRET = random_password.homepage_auth_secret.result
+  }
 
   cloudflare_account_id        = var.cloudflare_account_id
   cloudflare_tunnel_id         = var.cloudflare_tunnel_id
