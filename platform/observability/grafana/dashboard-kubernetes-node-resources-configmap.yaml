@@ -14,7 +14,7 @@ data:
       "title": "Kubernetes Node Resource Capacity",
       "id": null,
       "schemaVersion": 39,
-      "version": 1,
+      "version": 2,
       "editable": true,
       "graphTooltip": 1,
       "tags": [
@@ -123,7 +123,7 @@ data:
               "editorMode": "code",
               "expr": "100 * (1 - avg by(instance, node) (rate(node_cpu_seconds_total{job=\"node-exporter\",mode=\"idle\"}[5m])))",
               "refId": "A",
-              "legendFormat": "{{node}} ({{instance}})",
+              "legendFormat": "{{node}}",
               "instant": true,
               "range": false
             }
@@ -191,7 +191,7 @@ data:
               "editorMode": "code",
               "expr": "max by(instance, node) (100 * (1 - (node_memory_MemAvailable_bytes{job=\"node-exporter\"} / node_memory_MemTotal_bytes{job=\"node-exporter\"})))",
               "refId": "A",
-              "legendFormat": "{{node}} ({{instance}})",
+              "legendFormat": "{{node}}",
               "instant": true,
               "range": false
             }
@@ -259,7 +259,7 @@ data:
               "editorMode": "code",
               "expr": "max by(instance, node) (100 * (1 - (node_filesystem_avail_bytes{job=\"node-exporter\",mountpoint=\"/\",fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{job=\"node-exporter\",mountpoint=\"/\",fstype!~\"tmpfs|overlay\"})))",
               "refId": "A",
-              "legendFormat": "{{node}} ({{instance}})",
+              "legendFormat": "{{node}}",
               "instant": true,
               "range": false
             }
@@ -340,7 +340,7 @@ data:
               "editorMode": "code",
               "expr": "100 * (1 - avg by(instance, node) (rate(node_cpu_seconds_total{job=\"node-exporter\",mode=\"idle\"}[5m])))",
               "refId": "A",
-              "legendFormat": "{{node}} ({{instance}})",
+              "legendFormat": "{{node}}",
               "instant": false,
               "range": true
             }
@@ -421,7 +421,7 @@ data:
               "editorMode": "code",
               "expr": "max by(instance, node) (100 * (1 - (node_memory_MemAvailable_bytes{job=\"node-exporter\"} / node_memory_MemTotal_bytes{job=\"node-exporter\"})))",
               "refId": "A",
-              "legendFormat": "{{node}} ({{instance}})",
+              "legendFormat": "{{node}}",
               "instant": false,
               "range": true
             }
@@ -502,7 +502,7 @@ data:
               "editorMode": "code",
               "expr": "max by(instance, node) (100 * (1 - (node_filesystem_avail_bytes{job=\"node-exporter\",mountpoint=\"/\",fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{job=\"node-exporter\",mountpoint=\"/\",fstype!~\"tmpfs|overlay\"})))",
               "refId": "A",
-              "legendFormat": "{{node}} ({{instance}})",
+              "legendFormat": "{{node}}",
               "instant": false,
               "range": true
             }
@@ -563,7 +563,7 @@ data:
               },
               "expr": "min by(instance, node) (node_filesystem_avail_bytes{job=\"node-exporter\",mountpoint=\"/\",fstype!~\"tmpfs|overlay\"}) / 1024^3",
               "refId": "A",
-              "legendFormat": "{{node}} ({{instance}})",
+              "legendFormat": "{{node}}",
               "instant": true,
               "range": false
             }

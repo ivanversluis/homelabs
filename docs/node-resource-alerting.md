@@ -4,8 +4,11 @@ Issue: [#305](https://github.com/ivanversluis/homelabs/issues/305).
 
 The **Homelab / Kubernetes Node Resource Capacity** dashboard (`k8s-node-resource-capacity`)
 shows current CPU, memory and root filesystem utilization, 24-hour histories, and
-available root space in GiB. Legends include the exporter-provided node label and
-instance. The existing Kubernetes Node Health and time-sync resources remain provisioned.
+available root space in GiB. Legends show only the Kubernetes node name (for example,
+`k8s-master01`). Prometheus sets the `node` label from `__meta_kubernetes_pod_node_name`,
+the node hosting the exporter pod, rather than the exporter pod's own name.
+The `instance` address remains available in the metric labels and alert details.
+The existing Kubernetes Node Health and time-sync resources remain provisioned.
 
 | Rule | Condition | Pending period | Evaluation |
 | --- | --- | --- | --- |
@@ -47,6 +50,21 @@ The added mounts change the pod template, so the initial deployment restarts
 Grafana automatically. Subsequent edits to these static `subPath` ConfigMaps
 require `kubectl rollout restart deployment/grafana -n observability` after Flux
 has applied them. File-provisioned rules/contact points are managed in Git.
+
+When deploying the hostname-label correction, the generated Prometheus ConfigMap
+hash changes and triggers a Prometheus rollout. Restart Grafana after Flux has
+applied the dashboard ConfigMap so its static `subPath` mount picks up the legends:
+
+```bash
+kubectl rollout status deployment/prometheus -n observability
+kubectl rollout restart deployment/grafana -n observability
+kubectl rollout status deployment/grafana -n observability
+```
+
+Current panels show hostnames after the next successful scrape. Historical samples
+retain the old exporter-name label, so the history panels can show old and new
+series together until the selected time range is entirely after the change. The
+new label values create new alert instances and restart their pending periods.
 
 1. Open **Dashboards → Homelab → Kubernetes Node Resource Capacity**. Check all
    nodes appear and the three history panels show data. Confirm warning lines at

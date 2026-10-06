@@ -197,7 +197,8 @@ scrape_configs:
       - source_labels: [__meta_kubernetes_service_name]
         regex: kube-prometheus-stack-prometheus-node-exporter
         action: keep
-      - source_labels: [__meta_kubernetes_endpoint_address_target_name]
+      # Use the host running the exporter, rather than the exporter pod name.
+      - source_labels: [__meta_kubernetes_pod_node_name]
         target_label: node
       - source_labels: [__meta_kubernetes_namespace]
         target_label: namespace
