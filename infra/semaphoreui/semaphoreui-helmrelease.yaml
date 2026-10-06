@@ -30,6 +30,10 @@ spec:
       repository: semaphoreui/semaphore
       tag: "v2.19.14"
 
+    # All recurring operational schedules are expressed in local homelab time.
+    extraEnvVariables:
+      SEMAPHORE_SCHEDULE_TIMEZONE: Europe/Amsterdam
+
     # Dedicated identity for Vault Kubernetes-auth (control-tower SSH certificate issuance).
     # Bound only to a Vault role scoped to namespace semaphoreui — see
     # automation/ansible/roles/vault_ssh_certificate.

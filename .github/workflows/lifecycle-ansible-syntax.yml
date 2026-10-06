@@ -7,11 +7,15 @@ on:
     paths:
       - "automation/ansible/**"
       - "scripts/lifecycle/**"
+      - "infra/semaphoreui/semaphoreui-helmrelease.yaml"
+      - "docs/lifecycle/containerd-image-prune.md"
       - ".github/workflows/lifecycle-ansible-syntax.yml"
   pull_request:
     paths:
       - "automation/ansible/**"
       - "scripts/lifecycle/**"
+      - "infra/semaphoreui/semaphoreui-helmrelease.yaml"
+      - "docs/lifecycle/containerd-image-prune.md"
       - ".github/workflows/lifecycle-ansible-syntax.yml"
   workflow_dispatch:
 
@@ -51,9 +55,14 @@ jobs:
           set -euo pipefail
           bash -n scripts/lifecycle/bootstrap-control-tower.sh
           bash -n scripts/lifecycle/check-vault-health.sh
+          bash -n scripts/lifecycle/configure-semaphore-image-prune.sh
           bash -n scripts/lifecycle/semaphore-control-tower-run.sh
+          bash -n scripts/lifecycle/tests/configure-semaphore-image-prune.sh
           bash -n scripts/lifecycle/tests/check-vault-health.sh
           bash -n scripts/lifecycle/validate-control-tower.sh
 
       - name: Test Vault health classification
         run: bash scripts/lifecycle/tests/check-vault-health.sh
+
+      - name: Test Semaphore image-prune provisioning
+        run: bash scripts/lifecycle/tests/configure-semaphore-image-prune.sh

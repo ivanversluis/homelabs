@@ -1,0 +1,146 @@
+---
+# Safe weekly cleanup for unused CRI images.
+# Runs through scripts/lifecycle/semaphore-control-tower-run.sh so every run uses
+# a short-lived Vault-issued SSH certificate and the existing ansible -> sudo route.
+- name: Homelab Ops weekly containerd image prune
+  hosts: k8s_homelab
+  gather_facts: false
+  serial: 1
+  any_errors_fatal: true
+
+  vars:
+    containerd_cri_endpoint: unix:///run/containerd/containerd.sock
+
+  tasks:
+    - name: Verify crictl and containerd before cleanup
+      ansible.builtin.raw: |
+        set -eu
+
+        if ! command -v crictl >/dev/null 2>&1; then
+          echo "ERROR: crictl is not installed on {{ inventory_hostname }}" >&2
+          exit 1
+        fi
+
+        if ! systemctl is-active --quiet containerd; then
+          echo "ERROR: containerd is not active on {{ inventory_hostname }}" >&2
+          systemctl --no-pager --full status containerd >&2 || true
+          exit 1
+        fi
+
+        if ! crictl --runtime-endpoint {{ containerd_cri_endpoint | quote }} info >/dev/null; then
+          echo "ERROR: CRI health check failed for {{ containerd_cri_endpoint }} on {{ inventory_hostname }}" >&2
+          exit 1
+        fi
+
+        echo "CRI preflight passed on {{ inventory_hostname }}"
+      become: true
+      vars:
+        ansible_become: true
+      register: containerd_prune_preflight
+      changed_when: false
+
+    - name: Collect usage before image cleanup
+      ansible.builtin.raw: |
+        set -eu
+        root_used_bytes="$(df -B1P --output=used / | tail -n 1 | tr -d '[:space:]')"
+        containerd_used_bytes="$(du -sB1 /var/lib/containerd | awk '{print $1}')"
+        image_count="$(crictl --runtime-endpoint {{ containerd_cri_endpoint | quote }} images -q | sort -u | wc -l | tr -d '[:space:]')"
+        running_container_count="$(crictl --runtime-endpoint {{ containerd_cri_endpoint | quote }} ps -q | wc -l | tr -d '[:space:]')"
+
+        echo "===== BEFORE cleanup: {{ inventory_hostname }} ====="
+        df -hP /
+        du -sh /var/lib/containerd
+        echo "root_used_bytes=$root_used_bytes"
+        echo "containerd_used_bytes=$containerd_used_bytes"
+        echo "image_count=$image_count"
+        echo "running_container_count=$running_container_count"
+      become: true
+      vars:
+        ansible_become: true
+      register: containerd_prune_before
+      changed_when: false
+
+    - name: Print usage before image cleanup
+      ansible.builtin.debug:
+        msg: "{{ containerd_prune_before.stdout_lines }}"
+
+    - name: Prune unused CRI images
+      ansible.builtin.raw: |
+        set -eu
+        crictl --runtime-endpoint {{ containerd_cri_endpoint | quote }} rmi --prune
+      become: true
+      vars:
+        ansible_become: true
+      register: containerd_prune_result
+      changed_when: "'Deleted:' in containerd_prune_result.stdout"
+
+    - name: Verify containerd and collect usage after image cleanup
+      ansible.builtin.raw: |
+        set -eu
+
+        if ! systemctl is-active --quiet containerd; then
+          echo "ERROR: containerd stopped during cleanup on {{ inventory_hostname }}" >&2
+          systemctl --no-pager --full status containerd >&2 || true
+          exit 1
+        fi
+
+        crictl --runtime-endpoint {{ containerd_cri_endpoint | quote }} info >/dev/null
+
+        root_used_bytes="$(df -B1P --output=used / | tail -n 1 | tr -d '[:space:]')"
+        containerd_used_bytes="$(du -sB1 /var/lib/containerd | awk '{print $1}')"
+        image_count="$(crictl --runtime-endpoint {{ containerd_cri_endpoint | quote }} images -q | sort -u | wc -l | tr -d '[:space:]')"
+        running_container_count="$(crictl --runtime-endpoint {{ containerd_cri_endpoint | quote }} ps -q | wc -l | tr -d '[:space:]')"
+
+        echo "===== AFTER cleanup: {{ inventory_hostname }} ====="
+        df -hP /
+        du -sh /var/lib/containerd
+        echo "root_used_bytes=$root_used_bytes"
+        echo "containerd_used_bytes=$containerd_used_bytes"
+        echo "image_count=$image_count"
+        echo "running_container_count=$running_container_count"
+      become: true
+      vars:
+        ansible_become: true
+      register: containerd_prune_after
+      changed_when: false
+
+    - name: Parse before and after byte counters
+      ansible.builtin.set_fact:
+        containerd_prune_root_before_bytes: >-
+          {{ containerd_prune_before.stdout_lines
+             | select('match', '^root_used_bytes=')
+             | first
+             | regex_replace('^root_used_bytes=', '')
+             | int }}
+        containerd_prune_root_after_bytes: >-
+          {{ containerd_prune_after.stdout_lines
+             | select('match', '^root_used_bytes=')
+             | first
+             | regex_replace('^root_used_bytes=', '')
+             | int }}
+        containerd_prune_store_before_bytes: >-
+          {{ containerd_prune_before.stdout_lines
+             | select('match', '^containerd_used_bytes=')
+             | first
+             | regex_replace('^containerd_used_bytes=', '')
+             | int }}
+        containerd_prune_store_after_bytes: >-
+          {{ containerd_prune_after.stdout_lines
+             | select('match', '^containerd_used_bytes=')
+             | first
+             | regex_replace('^containerd_used_bytes=', '')
+             | int }}
+      changed_when: false
+
+    - name: Print cleanup result and reclaimed capacity
+      ansible.builtin.debug:
+        msg:
+          - "Prune output: {{ containerd_prune_result.stdout_lines | default([]) }}"
+          - "{{ containerd_prune_after.stdout_lines }}"
+          - >-
+            Root filesystem reclaimed MiB:
+            {{ ((containerd_prune_root_before_bytes | int - containerd_prune_root_after_bytes | int) / 1048576) | round(1) }}
+          - >-
+            /var/lib/containerd reclaimed MiB:
+            {{ ((containerd_prune_store_before_bytes | int - containerd_prune_store_after_bytes | int) / 1048576) | round(1) }}
+
