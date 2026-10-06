@@ -38,6 +38,8 @@ playbooks/
   70-wave3-control-plane-host-upgrade.yml control-plane host maintenance
   71-wave3-completion-gate.yml       final per-node + cluster gate
   90-control-tower-validation.yml    full validation, ansible-certificate route
+  95-disk-report.yml                 read-only node filesystem report
+  96-containerd-image-prune.yml      weekly CRI-native unused-image cleanup, serial per node
 ```
 
 ## Two SSH routes
@@ -60,6 +62,11 @@ ansible-playbook playbooks/00-control-tower-preflight.yml
 
 Prefer driving these playbooks through `scripts/lifecycle/bootstrap-control-tower.sh`, which
 wires up the correct route, ephemeral credentials, and validation for each stage.
+
+The recurring containerd image-prune task is provisioned idempotently in Semaphore by
+`scripts/lifecycle/configure-semaphore-image-prune.sh`. See
+[`../../docs/lifecycle/containerd-image-prune.md`](../../docs/lifecycle/containerd-image-prune.md)
+for its schedule, output, and manual run procedure.
 
 ## Non-negotiables
 

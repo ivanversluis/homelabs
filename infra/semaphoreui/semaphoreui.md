@@ -21,6 +21,12 @@ Deployed via Flux HelmRelease with a dedicated PostgreSQL database. Secrets mana
 ## Stack
 Helm (FluxCD HelmRelease)
 
+## Operational schedules
+
+Semaphore evaluates recurring jobs in `Europe/Amsterdam`. The weekly containerd image cleanup is
+managed by `scripts/lifecycle/configure-semaphore-image-prune.sh` and runs Sunday at 04:00 by
+default. See `docs/lifecycle/containerd-image-prune.md` for provisioning and manual-run details.
+
 ## LLD
 - Namespace: semaphoreui
 - Image: semaphoreui/semaphore:v2.18.2
