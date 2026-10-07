@@ -83,7 +83,7 @@ tf-init: ## Terraform init (single root module)
 tf-plan: ## Terraform plan (all OIDC apps)
 	@cd $(TF_DIR) && terraform plan
 
-tf-apply: ## Terraform apply with auto-approve
+tf-apply: ## Terraform apply (requires confirmation)
 	@cd $(TF_DIR) && terraform apply
 
 tf-destroy: ## Terraform destroy (requires confirmation)
