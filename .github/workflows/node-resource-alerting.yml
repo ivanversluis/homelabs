@@ -1,10 +1,13 @@
-name: Node resource alerting validation
+name: Grafana dashboard and alerting validation
 
 on:
   pull_request:
     paths:
       - platform/observability/grafana/**
       - platform/observability/kustomization.yaml
+      - platform/observability/prometheus/prometheus.yml
+      - scripts/test-grafana-dashboards.py
+      - scripts/test-grafana-provisioning.py
       - scripts/test-node-resource-alerting.py
       - .github/workflows/node-resource-alerting.yml
   push:
@@ -12,6 +15,9 @@ on:
     paths:
       - platform/observability/grafana/**
       - platform/observability/kustomization.yaml
+      - platform/observability/prometheus/prometheus.yml
+      - scripts/test-grafana-dashboards.py
+      - scripts/test-grafana-provisioning.py
       - scripts/test-node-resource-alerting.py
       - .github/workflows/node-resource-alerting.yml
   workflow_dispatch:
@@ -30,5 +36,9 @@ jobs:
           sudo apt-get install -y --no-install-recommends prometheus python3-yaml
       - name: Test dashboard wiring and resource alert semantics
         run: python3 scripts/test-node-resource-alerting.py
+      - name: Validate all dashboards and query regressions
+        run: python3 scripts/test-grafana-dashboards.py
+      - name: Smoke-test provisioning with the configured Grafana image
+        run: python3 scripts/test-grafana-provisioning.py
       - name: Render observability manifests
         run: kubectl kustomize platform/observability > /tmp/observability.yaml

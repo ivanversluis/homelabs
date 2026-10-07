@@ -130,7 +130,10 @@ scrape_configs:
         labels:
           service: 'daikin-prometheus-exporter'
           app: 'home-climate'
-    scrape_interval: 10m
+    # Read cached metrics between API polls. A 10m scrape interval exceeds the
+    # default 5m lookback and causes alternating gaps in instant queries.
+    # This does not increase the exporter's 600s Onecta API poll frequency.
+    scrape_interval: 30s
     scrape_timeout: 10s
 
   # DSMR P1 smart meter exporter (home-exporters namespace)
@@ -185,6 +188,35 @@ scrape_configs:
         labels:
           service: 'kube-state-metrics'
           app: 'kubernetes'
+
+  # Container usage for the managed Kubernetes Workloads dashboard. Scrape
+  # through the API server with the existing ServiceAccount nodes/proxy access,
+  # rather than exposing kubelet ports or disabling TLS verification.
+  - job_name: 'kubernetes-cadvisor'
+    scheme: https
+    authorization:
+      credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      - target_label: __address__
+        replacement: kubernetes.default.svc:443
+      - source_labels: [__meta_kubernetes_node_name]
+        target_label: __metrics_path__
+        replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+      - source_labels: [__meta_kubernetes_node_name]
+        target_label: node
+      - source_labels: [__meta_kubernetes_node_name]
+        target_label: instance
+    metric_relabel_configs:
+      # Keep only the four metric families used by the workload dashboard.
+      - source_labels: [__name__]
+        regex: container_cpu_usage_seconds_total|container_memory_working_set_bytes|container_network_receive_bytes_total|container_network_transmit_bytes_total
+        action: keep
+    scrape_interval: 30s
+    scrape_timeout: 15s
 
   # Node exporter metrics from kube-prometheus-stack
   - job_name: 'node-exporter'
