@@ -19,7 +19,7 @@ platform/observability/
 
 The two Prometheus planes are intentionally distinct:
 
-- `observability` namespace: a **plain Prometheus** deployment using static `scrape_configs` from `platform/observability/prometheus/configmap.yaml`.
+- `observability` namespace: a **plain Prometheus** deployment using `scrape_configs` from `platform/observability/prometheus/prometheus.yml`.
 - `monitoring` namespace: kube-prometheus-stack/Prometheus Operator, which consumes `ServiceMonitor` CRDs.
 
 Moving both deployment units below `platform/observability/` changes repository ownership only; it does not merge their runtime behavior.
@@ -76,31 +76,33 @@ flowchart TD
 Static scrape jobs are defined in:
 
 ```text
-platform/observability/prometheus/configmap.yaml
+platform/observability/prometheus/prometheus.yml
 ```
 
 `ServiceMonitor` resources do not configure this Prometheus instance. They are consumed by the separate kube-prometheus-stack instance under `platform/observability/monitoring/`.
 
-After changing the standalone Prometheus ConfigMap, reload or restart Prometheus:
+Kustomize generates a hashed ConfigMap from this file; changes roll Prometheus
+automatically. Verify the updated deployment after Flux reconciliation:
 
 ```bash
-kubectl exec -n observability deploy/prometheus -- \
-  wget -qO- http://localhost:9090/-/reload --post-data=
-
-# or
-kubectl rollout restart deployment/prometheus -n observability
+kubectl rollout status deployment/prometheus -n observability
 ```
 
 ## Dashboards and alerting
 
-DNS dashboards are provisioned from ConfigMaps under `platform/observability/grafana/`:
+The [dashboard catalogue](grafana-dashboards.md) describes folder navigation,
+metrics contracts, imported-dashboard migration and local/live validation.
+Dashboard JSON lives under `platform/observability/grafana/dashboards/`; Kustomize
+generates ConfigMaps and Grafana projects them into five domain folders.
+
+DNS dashboards include:
 
 - DNS Overview
 - CoreDNS Health
 - Pi-hole Client Visibility
 - Unbound Recursive Resolver
 
-Alert rules are stored in `platform/observability/prometheus/alerts-configmap.yaml` and cover CoreDNS error/latency conditions plus Pi-hole and Unbound exporter/upstream failures.
+Prometheus alert rules are stored in `platform/observability/prometheus/prometheus-alerts.yml` and cover CoreDNS error/latency conditions plus Pi-hole and Unbound exporter/upstream failures. Grafana's provisioned alert rules remain under `platform/observability/grafana/`.
 
 ## Network-policy requirements
 

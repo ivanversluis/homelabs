@@ -22,7 +22,7 @@ data:
     enabled = false
 
     [dashboards]
-    default_home_dashboard_path = /etc/grafana/provisioning/dashboards/fm-golden-signals.json
+    default_home_dashboard_path = /var/lib/grafana/dashboards/homelab-overview.json
 
     [analytics]
     reporting_enabled = false
