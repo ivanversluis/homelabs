@@ -88,23 +88,34 @@ objects = list(yaml.safe_load_all(rendered))
 cms = {o['metadata']['name']: o for o in objects if o['kind'] == 'ConfigMap'}
 deployment = next(o for o in objects if o['kind'] == 'Deployment' and o['metadata']['name'] == 'grafana')
 spec = deployment['spec']['template']['spec']
-volume = next(v for v in spec['volumes'] if v['name'] == 'dashboards')
-mount = next(m for m in spec['containers'][0]['volumeMounts'] if m['name'] == 'dashboards')
-assert mount['mountPath'] == provider['options']['path'] and mount['readOnly']
-assert 'subPath' not in mount, 'Directory projection must update atomically'
+mounts = {m['name']: m for m in spec['containers'][0]['volumeMounts']}
 mounted = {}
 folders = set()
-for source in volume['projected']['sources']:
-    configmap = source['configMap']
-    assert re.search(r'-[a-z0-9]{10}$', configmap['name']), 'Dashboard hashes must trigger rollouts'
-    cm = cms[configmap['name']]
-    for item in configmap['items']:
-        dashboard = json.loads(cm['data'][item['key']])
-        uid = dashboard['uid']
-        assert uid not in mounted
-        mounted[uid] = dashboard
-        if '/' in item['path']: folders.add(item['path'].split('/')[0])
-        assert Path(item['path']).name == paths[uid].name
+for volume in spec['volumes']:
+    if volume['name'].startswith('dashboards-') and 'projected' in volume:
+        mount = mounts[volume['name']]
+        assert mount['readOnly'] and 'subPath' not in mount
+        assert Path(mount['mountPath']).parent == Path(provider['options']['path'])
+        folders.add(Path(mount['mountPath']).name)
+        sources = volume['projected']['sources']
+    elif volume['name'] == 'dashboard-homelab-overview':
+        mount = mounts[volume['name']]
+        assert mount['readOnly'] and mount['subPath'] == 'homelab-overview.json'
+        assert mount['mountPath'] == provider['options']['path'] + '/homelab-overview.json'
+        sources = [{'configMap': {**volume['configMap'], 'items': [{'key': 'homelab-overview.json', 'path': 'homelab-overview.json'}]}}]
+    else:
+        continue
+    for source in sources:
+        configmap = source['configMap']
+        assert re.search(r'-[a-z0-9]{10}$', configmap['name']), 'Dashboard hashes must trigger rollouts'
+        cm = cms[configmap['name']]
+        for item in configmap['items']:
+            assert '/' not in item['path'], 'Projection must have file symlinks, not folder symlinks'
+            dashboard = json.loads(cm['data'][item['key']])
+            uid = dashboard['uid']
+            assert uid not in mounted
+            mounted[uid] = dashboard
+            assert item['path'] == paths[uid].name
 assert mounted == dashboards, 'Every dashboard must be rendered and mounted exactly once'
 assert folders == {'Kubernetes', 'DNS', 'Home', 'Firewall Manager', 'Platform Services'}
 
