@@ -10,7 +10,7 @@ https://github.com/headlamp-k8s/headlamp
 https://ghcr.io/headlamp-k8s/headlamp
 
 ## Latest version
-latest
+v0.45.0
 
 ## Objective
 As home-admin I want a modern Kubernetes web UI to visualize cluster resources, manage workloads, and monitor Flux GitOps reconciliation status.
@@ -23,9 +23,9 @@ Kubernetes Deployment (Kustomize via Flux)
 
 ## LLD
 - Namespace: headlamp
-- Image: ghcr.io/headlamp-k8s/headlamp:latest
+- Image: ghcr.io/headlamp-k8s/headlamp:v0.45.0
 - Port: tcp/80 (Service) → container port 4466
-- Plugins: Flux plugin (initContainer from ghcr.io/headlamp-k8s/headlamp-plugin-flux)
+- Plugins: Flux plugin (initContainer from ghcr.io/headlamp-k8s/headlamp-plugin-flux:v0.7.0)
 - Auth: Authentik OIDC
 - RBAC: dedicated ServiceAccount, ClusterRole, ClusterRoleBinding
 - Dependencies: ExternalSecret (Vault) for OIDC credentials
