@@ -1,8 +1,6 @@
 # Known moving references on main. Keep entries sorted; duplicate lines represent
 # duplicate occurrences. New entries require review, and stale entries must be
 # removed when the corresponding reference is pinned.
-infra/headlamp/deployment.yaml|image=ghcr.io/headlamp-k8s/headlamp-plugin-flux:latest
-infra/headlamp/deployment.yaml|image=ghcr.io/headlamp-k8s/headlamp:latest
 platform/storage/local-path-provisioner/local-path-configmap.yaml|image=docker.io/busybox:stable
 services/gateway/kong/mcp-gateway/kubernetes-upstream/mcp-deployment.yaml|image=ghcr.io/open-webui/mcpo:latest
 services/gateway/kong/mcp-gateway/nmap-upstream/nmap-deployment.yaml|image=ghcr.io/ivanversluis/mcp-hub/mcp-nmap:latest
