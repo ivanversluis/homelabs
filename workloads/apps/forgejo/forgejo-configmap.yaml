@@ -22,5 +22,5 @@ data:
   # Existing local users (e.g. ivan) can still log in with password as fallback
   FORGEJO__service__ALLOW_ONLY_EXTERNAL_REGISTRATION: "true"
   FORGEJO__service__ENABLE_NOTIFY_MAIL: "false"
-  # Disable local auth
-  FORGEJO__service__ENABLE_PASSWORD_SIGNIN_FORM: "false"
+  # Disable local username/password sign-in (OIDC only)
+  FORGEJO__service__ENABLE_INTERNAL_SIGNIN: "false"
