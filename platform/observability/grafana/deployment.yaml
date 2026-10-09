@@ -111,8 +111,24 @@ spec:
               mountPath: /etc/grafana/provisioning/alerting/rules-time-sync.yaml
               subPath: rules-time-sync.yaml
               readOnly: true
-            - name: dashboards
-              mountPath: /var/lib/grafana/dashboards
+            - name: dashboards-dns
+              mountPath: /var/lib/grafana/dashboards/DNS
+              readOnly: true
+            - name: dashboards-home
+              mountPath: /var/lib/grafana/dashboards/Home
+              readOnly: true
+            - name: dashboards-firewall-manager
+              mountPath: /var/lib/grafana/dashboards/Firewall Manager
+              readOnly: true
+            - name: dashboards-platform-services
+              mountPath: /var/lib/grafana/dashboards/Platform Services
+              readOnly: true
+            - name: dashboards-kubernetes
+              mountPath: /var/lib/grafana/dashboards/Kubernetes
+              readOnly: true
+            - name: dashboard-homelab-overview
+              mountPath: /var/lib/grafana/dashboards/homelab-overview.json
+              subPath: homelab-overview.json
               readOnly: true
             - name: data
               mountPath: /var/lib/grafana
@@ -159,114 +175,124 @@ spec:
         - name: alerting-rules-time-sync
           configMap:
             name: grafana-alerting-rules-time-sync
-        - name: dashboards
+        - name: dashboards-dns
           projected:
             sources:
               - configMap:
                   name: grafana-dashboard-coredns
                   items:
                     - key: coredns.json
-                      path: DNS/coredns.json
+                      path: coredns.json
               - configMap:
                   name: grafana-dashboard-dns-overview
                   items:
                     - key: dns-overview.json
-                      path: DNS/dns-overview.json
-              - configMap:
-                  name: grafana-dashboard-dsmr-energy
-                  items:
-                    - key: dsmr-energy.json
-                      path: Home/dsmr-energy.json
-              - configMap:
-                  name: grafana-dashboard-golden-signals
-                  items:
-                    - key: fm-golden-signals.json
-                      path: Firewall Manager/fm-golden-signals.json
-              - configMap:
-                  name: grafana-dashboard-hashicorp-vault
-                  items:
-                    - key: hashicorp-vault.json
-                      path: Platform Services/hashicorp-vault.json
-              - configMap:
-                  name: grafana-dashboard-home-climate
-                  items:
-                    - key: home-climate.json
-                      path: Home/home-climate.json
-              - configMap:
-                  name: grafana-dashboard-home-energy
-                  items:
-                    - key: home-energy.json
-                      path: Home/home-energy.json
-              - configMap:
-                  name: grafana-dashboard-kubernetes-node-resources
-                  items:
-                    - key: kubernetes-node-resource-capacity.json
-                      path: Kubernetes/kubernetes-node-resource-capacity.json
-              - configMap:
-                  name: grafana-dashboard-kubernetes-nodes
-                  items:
-                    - key: kubernetes-node-health.json
-                      path: Kubernetes/kubernetes-node-health.json
-              - configMap:
-                  name: grafana-dashboard-kubernetes-platform
-                  items:
-                    - key: kubernetes-platform-overview.json
-                      path: Kubernetes/kubernetes-platform-overview.json
-              - configMap:
-                  name: grafana-dashboard-kubernetes-time-sync
-                  items:
-                    - key: kubernetes-time-sync.json
-                      path: Kubernetes/kubernetes-time-sync.json
-              - configMap:
-                  name: grafana-dashboard-overview
-                  items:
-                    - key: firewall-manager-overview.json
-                      path: Firewall Manager/firewall-manager-overview.json
+                      path: dns-overview.json
               - configMap:
                   name: grafana-dashboard-pihole-client
                   items:
                     - key: pihole-client.json
-                      path: DNS/pihole-client.json
+                      path: pihole-client.json
               - configMap:
                   name: grafana-dashboard-pihole
                   items:
                     - key: pihole.json
-                      path: DNS/pihole.json
-              - configMap:
-                  name: grafana-dashboard-prometheus-storage
-                  items:
-                    - key: prometheus-storage.json
-                      path: Platform Services/prometheus-storage.json
-              - configMap:
-                  name: grafana-dashboard-red-method
-                  items:
-                    - key: fm-red-method.json
-                      path: Firewall Manager/fm-red-method.json
-              - configMap:
-                  name: grafana-dashboard-shelly
-                  items:
-                    - key: shelly-devices.json
-                      path: Home/shelly-devices.json
+                      path: pihole.json
               - configMap:
                   name: grafana-dashboard-unbound
                   items:
                     - key: unbound.json
-                      path: DNS/unbound.json
+                      path: unbound.json
+        - name: dashboards-home
+          projected:
+            sources:
+              - configMap:
+                  name: grafana-dashboard-dsmr-energy
+                  items:
+                    - key: dsmr-energy.json
+                      path: dsmr-energy.json
+              - configMap:
+                  name: grafana-dashboard-home-climate
+                  items:
+                    - key: home-climate.json
+                      path: home-climate.json
+              - configMap:
+                  name: grafana-dashboard-home-energy
+                  items:
+                    - key: home-energy.json
+                      path: home-energy.json
+              - configMap:
+                  name: grafana-dashboard-shelly
+                  items:
+                    - key: shelly-devices.json
+                      path: shelly-devices.json
+        - name: dashboards-firewall-manager
+          projected:
+            sources:
+              - configMap:
+                  name: grafana-dashboard-golden-signals
+                  items:
+                    - key: fm-golden-signals.json
+                      path: fm-golden-signals.json
+              - configMap:
+                  name: grafana-dashboard-overview
+                  items:
+                    - key: firewall-manager-overview.json
+                      path: firewall-manager-overview.json
+              - configMap:
+                  name: grafana-dashboard-red-method
+                  items:
+                    - key: fm-red-method.json
+                      path: fm-red-method.json
               - configMap:
                   name: grafana-dashboard-use-method
                   items:
                     - key: fm-use-method.json
-                      path: Firewall Manager/fm-use-method.json
+                      path: fm-use-method.json
+        - name: dashboards-platform-services
+          projected:
+            sources:
+              - configMap:
+                  name: grafana-dashboard-hashicorp-vault
+                  items:
+                    - key: hashicorp-vault.json
+                      path: hashicorp-vault.json
+              - configMap:
+                  name: grafana-dashboard-prometheus-storage
+                  items:
+                    - key: prometheus-storage.json
+                      path: prometheus-storage.json
+        - name: dashboards-kubernetes
+          projected:
+            sources:
+              - configMap:
+                  name: grafana-dashboard-kubernetes-node-resources
+                  items:
+                    - key: kubernetes-node-resource-capacity.json
+                      path: kubernetes-node-resource-capacity.json
+              - configMap:
+                  name: grafana-dashboard-kubernetes-nodes
+                  items:
+                    - key: kubernetes-node-health.json
+                      path: kubernetes-node-health.json
+              - configMap:
+                  name: grafana-dashboard-kubernetes-platform
+                  items:
+                    - key: kubernetes-platform-overview.json
+                      path: kubernetes-platform-overview.json
+              - configMap:
+                  name: grafana-dashboard-kubernetes-time-sync
+                  items:
+                    - key: kubernetes-time-sync.json
+                      path: kubernetes-time-sync.json
               - configMap:
                   name: grafana-dashboard-kubernetes-workloads
                   items:
                     - key: kubernetes-workloads.json
-                      path: Kubernetes/kubernetes-workloads.json
-              - configMap:
-                  name: grafana-dashboard-homelab-overview
-                  items:
-                    - key: homelab-overview.json
-                      path: homelab-overview.json
+                      path: kubernetes-workloads.json
+        - name: dashboard-homelab-overview
+          configMap:
+            name: grafana-dashboard-homelab-overview
         - name: data
           persistentVolumeClaim:
             claimName: grafana-data

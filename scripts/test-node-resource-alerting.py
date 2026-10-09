@@ -61,11 +61,11 @@ for name, key, filename in [('alerting-rules-node-resources', 'rules-node-resour
     assert mount['mountPath'].endswith('/' + key)
 generator = next(g for g in yaml.safe_load((BASE / 'kustomization.yaml').read_text())['configMapGenerator'] if g['name'] == 'grafana-dashboard-kubernetes-node-resources')
 assert generator['files'] == ['kubernetes-node-resource-capacity.json=grafana/dashboards/kubernetes/kubernetes-node-resource-capacity.json']
-source = next(s['configMap'] for s in volumes['dashboards']['projected']['sources'] if s['configMap']['name'] == generator['name'])
-assert source['items'] == [{'key': 'kubernetes-node-resource-capacity.json', 'path': 'Kubernetes/kubernetes-node-resource-capacity.json'}]
-mount = next(m for m in mounts if m['name'] == 'dashboards')
+source = next(s['configMap'] for s in volumes['dashboards-kubernetes']['projected']['sources'] if s['configMap']['name'] == generator['name'])
+assert source['items'] == [{'key': 'kubernetes-node-resource-capacity.json', 'path': 'kubernetes-node-resource-capacity.json'}]
+mount = next(m for m in mounts if m['name'] == 'dashboards-kubernetes')
 assert mount['readOnly'] and 'subPath' not in mount
-assert mount['mountPath'] == '/var/lib/grafana/dashboards'
+assert mount['mountPath'] == '/var/lib/grafana/dashboards/Kubernetes'
 contact = yaml.safe_load(read('alerting-contact-points-configmap.yaml')['data']['contact-points.yaml'])['contactPoints'][0]
 receiver = contact['receivers'][0]
 assert contact['name'] == 'discord-primary' and receiver['disableResolveMessage'] is False

@@ -11,6 +11,8 @@ data:
   FORGEJO__server__HTTP_PORT: "3000"
   FORGEJO__server__START_SSH_SERVER: "false"
   FORGEJO__server__ROOT_URL: "https://forgejo.${DOMAIN}"
+  # Read by the postStart hook in the Deployment (not a Forgejo setting)
+  OIDC_DISCOVER_URL: "https://auth.${DOMAIN}/application/o/forgejo/.well-known/openid-configuration"
   # OAuth2 / OIDC via Authentik — auth source registered in DB via gitea admin auth add-oauth
   # Disable legacy OpenID 2.0 sign-in (shows "Enter your OpenID URI" prompt — not OIDC)
   FORGEJO__openid__ENABLE_OPENID_SIGNIN: "false"
@@ -20,3 +22,5 @@ data:
   # Existing local users (e.g. ivan) can still log in with password as fallback
   FORGEJO__service__ALLOW_ONLY_EXTERNAL_REGISTRATION: "true"
   FORGEJO__service__ENABLE_NOTIFY_MAIL: "false"
+  # Disable local username/password sign-in (OIDC only)
+  FORGEJO__service__ENABLE_INTERNAL_SIGNIN: "false"

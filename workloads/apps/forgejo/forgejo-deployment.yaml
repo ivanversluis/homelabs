@@ -64,6 +64,25 @@ spec:
                 secretKeyRef:
                   name: forgejo-oidc
                   key: client-secret
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    # Idempotent: create or update the DB-stored auth source; never fail the pod.
+                    for i in $(seq 1 60); do
+                      wget -qO- http://localhost:3000/api/healthz >/dev/null 2>&1 && break
+                      sleep 5
+                    done
+                    ID=$(gitea admin auth list 2>/dev/null | awk '$2=="authentik"{print $1}')
+                    if [ -n "$ID" ]; then
+                      gitea admin auth update-oauth --id "$ID" --key "$FORGEJO__OIDC_CLIENT_ID" --secret "$FORGEJO__OIDC_CLIENT_SECRET" --auto-discover-url "$OIDC_DISCOVER_URL"
+                    else
+                      gitea admin auth add-oauth --name authentik --provider openidConnect --key "$FORGEJO__OIDC_CLIENT_ID" --secret "$FORGEJO__OIDC_CLIENT_SECRET" --auto-discover-url "$OIDC_DISCOVER_URL"
+                    fi
+                    exit 0
           readinessProbe:
             httpGet:
               path: /api/healthz

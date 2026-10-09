@@ -25,7 +25,18 @@ cms = {o['metadata']['name']: o for o in objects if o['kind'] == 'ConfigMap'}
 deployment = next(o for o in objects if o['kind'] == 'Deployment' and o['metadata']['name'] == 'grafana')
 spec = deployment['spec']['template']['spec']
 image = spec['containers'][0]['image']
-projected = next(v for v in spec['volumes'] if v['name'] == 'dashboards')['projected']['sources']
+mounts = {m['name']: m for m in spec['containers'][0]['volumeMounts']}
+projected = []
+for volume in spec['volumes']:
+    if volume['name'].startswith('dashboards-') and 'projected' in volume:
+        folder = Path(mounts[volume['name']]['mountPath']).name
+        for source in volume['projected']['sources']:
+            source = json.loads(json.dumps(source))
+            for item in source['configMap']['items']:
+                item['path'] = folder + '/' + item['path']
+            projected.append(source)
+    elif volume['name'] == 'dashboard-homelab-overview':
+        projected.append({'configMap': {'name': volume['configMap']['name'], 'items': [{'key': 'homelab-overview.json', 'path': 'homelab-overview.json'}]}})
 expected = {}
 with tempfile.TemporaryDirectory() as temp:
     root = Path(temp)
@@ -46,6 +57,20 @@ with tempfile.TemporaryDirectory() as temp:
             path.write_text(text)
             model = json.loads(text)
             expected[model['uid']] = (model, path.parent.name if path.parent != dashboard_dir else None, item['path'])
+    # Match Kubernetes AtomicWriter's projected-volume layout. Inside each
+    # mounted folder, visible files are symlinks into ..data. This catches
+    # providers that load a flat copy but fail to traverse real mounts.
+    for folder in list(dashboard_dir.iterdir()):
+        if not folder.is_dir():
+            continue  # The home page is a resolved subPath file mount.
+        generation = folder / '..test-generation'
+        generation.mkdir()
+        for entry in list(folder.iterdir()):
+            if entry == generation:
+                continue
+            entry.rename(generation / entry.name)
+            entry.symlink_to(Path('..data') / entry.name)
+        (folder / '..data').symlink_to(generation.name, target_is_directory=True)
     # Copied files must be readable by the image's non-root Grafana user.
     for path in root.rglob('*'):
         path.chmod(0o755 if path.is_dir() else 0o644)

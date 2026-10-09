@@ -41,7 +41,7 @@ jobs:
           cd "$validation_tools_dir"
           curl -fsSLO https://github.com/prometheus/prometheus/releases/download/v3.5.0/prometheus-3.5.0.linux-amd64.tar.gz
           curl -fsSLO https://github.com/prometheus/prometheus/releases/download/v3.5.0/sha256sums.txt
-          grep ' prometheus-3.5.0.linux-amd64.tar.gz$' sha256sums.txt | sha256sum --check
+          awk '$2 == "prometheus-3.5.0.linux-amd64.tar.gz"' sha256sums.txt | sha256sum --check
           tar -xzf prometheus-3.5.0.linux-amd64.tar.gz --strip-components=1 prometheus-3.5.0.linux-amd64/promtool
           echo "$validation_tools_dir" >> "$GITHUB_PATH"
       - name: Test dashboard wiring and resource alert semantics

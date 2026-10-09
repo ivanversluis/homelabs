@@ -73,6 +73,9 @@ for uid, dashboard in dashboards.items():
                 assert target['instant'] and target['range'] is False
             if target.get('expr'):
                 expr = expand(target['expr'])
+                for selector in re.findall(r'\{([^{}]+)\}', expr):
+                    jobs = re.findall(r'\bjob="([^"]+)"', selector)
+                    assert len(set(jobs)) <= 1, f'{uid}/{panel["id"]}: contradictory job matchers'
                 rules.append({'record': f'dashboard_query_{len(rules)}', 'expr': expr})
     # Both top-level navigation and panel data links must resolve to managed UIDs.
     for match in re.finditer(r'/d/([\w-]+)', json.dumps(dashboard)):
@@ -85,23 +88,34 @@ objects = list(yaml.safe_load_all(rendered))
 cms = {o['metadata']['name']: o for o in objects if o['kind'] == 'ConfigMap'}
 deployment = next(o for o in objects if o['kind'] == 'Deployment' and o['metadata']['name'] == 'grafana')
 spec = deployment['spec']['template']['spec']
-volume = next(v for v in spec['volumes'] if v['name'] == 'dashboards')
-mount = next(m for m in spec['containers'][0]['volumeMounts'] if m['name'] == 'dashboards')
-assert mount['mountPath'] == provider['options']['path'] and mount['readOnly']
-assert 'subPath' not in mount, 'Directory projection must update atomically'
+mounts = {m['name']: m for m in spec['containers'][0]['volumeMounts']}
 mounted = {}
 folders = set()
-for source in volume['projected']['sources']:
-    configmap = source['configMap']
-    assert re.search(r'-[a-z0-9]{10}$', configmap['name']), 'Dashboard hashes must trigger rollouts'
-    cm = cms[configmap['name']]
-    for item in configmap['items']:
-        dashboard = json.loads(cm['data'][item['key']])
-        uid = dashboard['uid']
-        assert uid not in mounted
-        mounted[uid] = dashboard
-        if '/' in item['path']: folders.add(item['path'].split('/')[0])
-        assert Path(item['path']).name == paths[uid].name
+for volume in spec['volumes']:
+    if volume['name'].startswith('dashboards-') and 'projected' in volume:
+        mount = mounts[volume['name']]
+        assert mount['readOnly'] and 'subPath' not in mount
+        assert Path(mount['mountPath']).parent == Path(provider['options']['path'])
+        folders.add(Path(mount['mountPath']).name)
+        sources = volume['projected']['sources']
+    elif volume['name'] == 'dashboard-homelab-overview':
+        mount = mounts[volume['name']]
+        assert mount['readOnly'] and mount['subPath'] == 'homelab-overview.json'
+        assert mount['mountPath'] == provider['options']['path'] + '/homelab-overview.json'
+        sources = [{'configMap': {**volume['configMap'], 'items': [{'key': 'homelab-overview.json', 'path': 'homelab-overview.json'}]}}]
+    else:
+        continue
+    for source in sources:
+        configmap = source['configMap']
+        assert re.search(r'-[a-z0-9]{10}$', configmap['name']), 'Dashboard hashes must trigger rollouts'
+        cm = cms[configmap['name']]
+        for item in configmap['items']:
+            assert '/' not in item['path'], 'Projection must have file symlinks, not folder symlinks'
+            dashboard = json.loads(cm['data'][item['key']])
+            uid = dashboard['uid']
+            assert uid not in mounted
+            mounted[uid] = dashboard
+            assert item['path'] == paths[uid].name
 assert mounted == dashboards, 'Every dashboard must be rendered and mounted exactly once'
 assert folders == {'Kubernetes', 'DNS', 'Home', 'Firewall Manager', 'Platform Services'}
 
@@ -137,6 +151,12 @@ def check(expr, value, labels='{}'):
 # Different exporter labels reproduce the previous empty-vector subtraction.
 # A distractor pod/room proves filtering; POD/empty containers must not count.
 input_series = [
+    {'series': 'kube_node_status_condition{job="kube-state-metrics",node="worker01",condition="Ready",status="true"}', 'values': '1+0x10'},
+    {'series': 'kube_node_status_condition{job="kube-state-metrics",node="worker02",condition="Ready",status="true"}', 'values': '0+0x10'},
+    {'series': 'kube_node_status_condition{job="other",node="ignore",condition="Ready",status="true"}', 'values': '1+0x10'},
+    {'series': 'kube_node_info{job="kube-state-metrics",node="worker01"}', 'values': '1+0x10'},
+    {'series': 'kube_node_info{job="kube-state-metrics",node="worker02"}', 'values': '1+0x10'},
+    {'series': 'kube_node_info{job="other",node="ignore"}', 'values': '1+0x10'},
     {'series': 'goodwe_power_watts{job="goodwe-prometheus-exporter",instance="goodwe:9100",inverter="roof"}', 'values': '1000+0x10'},
     {'series': 'dsmr_electricity_power_export_kw{job="dsmr-p1-prometheus-exporter",instance="meter:9100"}', 'values': '0.2+0x10'},
     {'series': 'daikin_last_scrape_success_timestamp{job="daikin-prometheus-exporter"}', 'values': '1700000000+0x10'},
@@ -153,6 +173,8 @@ input_series = [
     {'series': 'container_memory_working_set_bytes{job="kubernetes-cadvisor",namespace="other",pod="other",container="api"}', 'values': '900+0x10'},
 ]
 checks = [
+    check(query('k8s-platform-overview', 1), 1),
+    check(query('k8s-platform-overview', 2), 2),
     check(query('dsmr-energy', 24, 2), 800),
     check(query('dsmr-energy', 29), 80),
     check(query('home-climate', 10), 1700000000000, '{job="daikin-prometheus-exporter"}'),

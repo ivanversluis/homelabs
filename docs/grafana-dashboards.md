@@ -25,11 +25,16 @@ in Grafana, so UI edits cannot silently diverge from Git.
 The existing logical ConfigMap names, dashboard UIDs and alert-linked panel IDs are
 preserved. Content hashes are enabled, and Kustomize rewrites the Deployment's
 projected ConfigMap references. A dashboard edit therefore updates the Grafana pod
-template and triggers a rollout. The directory projection replaces individual
-`subPath` dashboard mounts, which previously required manual restarts to update.
+template and triggers a rollout. Five folder projections replace individual
+dashboard `subPath` mounts, which previously required manual restarts to update.
+The root home-page JSON uses a single hashed `subPath` mount; its changes also
+trigger a rollout.
 
 Grafana's file provider reads `/var/lib/grafana/dashboards` with
-`foldersFromFilesStructure: true`. Projection paths use readable folder names;
+`foldersFromFilesStructure: true`. Each folder is mounted separately with
+file-level symlinks. A single projection with nested folder symlinks does not work
+with Grafana's folder traversal; the smoke test reproduces Kubernetes's actual
+AtomicWriter symlink layout. Mount paths use readable folder names;
 the provider YAML itself stays under `/etc/grafana/provisioning/dashboards`.
 These are different directories: provider YAML must not be scanned as dashboard
 JSON. All resources remain in the existing observability Flux ownership boundary.

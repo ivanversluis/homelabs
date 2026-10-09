@@ -68,7 +68,7 @@
       },
       "targets": [
         {
-          "expr": "sum(kube_node_status_condition{job=\"node-exporter\",job=\"kube-state-metrics\",condition=\"Ready\",status=\"true\"})",
+          "expr": "sum(kube_node_status_condition{job=\"kube-state-metrics\",condition=\"Ready\",status=\"true\"})",
           "refId": "A",
           "datasource": {
             "type": "prometheus",
@@ -129,7 +129,7 @@
       },
       "targets": [
         {
-          "expr": "count(kube_node_info{job=\"node-exporter\",job=\"kube-state-metrics\"})",
+          "expr": "count(kube_node_info{job=\"kube-state-metrics\"})",
           "refId": "A",
           "datasource": {
             "type": "prometheus",
