@@ -7,7 +7,7 @@ Move workload source files into a single architectural parent without changing l
 ```text
 apps/ -> workloads/apps/
 vms/  -> workloads/vms/
-clusters/k8s-homelab/apps/ -> clusters/k8s-homelab/workloads/
+compute/eliteboxes/apps/ -> compute/eliteboxes/workloads/
 ```
 
 This is intentionally a **path-only migration**. Existing Flux `Kustomization` names and Argo CD application identities must not change.
@@ -34,7 +34,7 @@ test ! -e apps
 test ! -e vms
 test -d workloads/apps
 test -d workloads/vms
-test -d clusters/k8s-homelab/workloads
+test -d compute/eliteboxes/workloads
 ```
 
 Search for stale repository-path references. Classify matches carefully: Vault keys such as `apps/<component>` are data contracts and must not be changed just because the repository moved.
@@ -51,7 +51,7 @@ Any operational reference to the old repository locations must be fixed. Histori
 Render the cluster root and every moved workload path:
 
 ```bash
-kustomize build clusters/k8s-homelab >/tmp/wave2-cluster.yaml
+kustomize build compute/eliteboxes >/tmp/wave2-cluster.yaml
 
 for p in \
   workloads/apps/homepage \

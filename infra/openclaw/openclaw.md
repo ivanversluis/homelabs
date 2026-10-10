@@ -74,7 +74,7 @@ Available Azure models: `azure/gpt-4o-mini`, `azure/phi-4`.
 ```bash
 kubectl kustomize infra/openclaw >/dev/null
 kubectl kustomize infra >/dev/null
-kubectl kustomize clusters/k8s-homelab >/dev/null
+kubectl kustomize compute/eliteboxes >/dev/null
 ```
 
 ## Discord troubleshooting

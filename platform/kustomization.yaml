@@ -7,5 +7,5 @@ resources:
   - networking/network-policies/
 
 # local-path-provisioner has its own dedicated Flux Kustomization
-# (clusters/k8s-homelab/platform/local-path-provisioner-kustomization.yaml),
+# (compute/eliteboxes/platform/local-path-provisioner-kustomization.yaml),
 # like longhorn — not listed here. See platform/storage/README.md.

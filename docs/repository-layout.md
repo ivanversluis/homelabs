@@ -12,7 +12,7 @@ The primary rule is:
 
 | Area | Responsibility | Examples |
 |---|---|---|
-| `clusters/` | Environment-specific desired state, reconciliation wiring, and boundaries | `clusters/k8s-homelab/`, `clusters/synology/` |
+| `compute/` | Environment-specific desired state, reconciliation wiring, and boundaries | `compute/eliteboxes/`, `compute/pi4/`, `compute/synology/` |
 | `platform/` | Kubernetes system capabilities and cluster-wide controllers | Calico, MetalLB, Longhorn, CoreDNS, KubeVirt, CDI, cert-manager, External Secrets, observability |
 | `infra/` | Homelab operations and management control plane | Vault, Argo CD, Headlamp, Portainer, SemaphoreUI, OpenClaw |
 | `services/` | Shared runtime/data-plane services consumed by clients, workloads, or platform components | Kong, Authentik, Pi-hole, Unbound, Cloudflare Tunnel, telemetry exporters |
@@ -99,13 +99,17 @@ workloads/
 
 `workloads/vms/` contains VM workload definitions; the KubeVirt/CDI runtime remains under `platform/virtualization/`.
 
-## Cluster/environment categories
+## Compute/environment categories
 
-`clusters/k8s-homelab/` contains the Flux/Argo wiring for the Kubernetes cluster.
+`compute/eliteboxes/` contains the Flux/Argo wiring for the Kubernetes cluster.
 
-`clusters/synology/` contains Synology-specific desired state and container-service definitions. It is deliberately separate from the Kubernetes Flux root. Wave 3 places the legacy Synology Portainer Compose definition at `clusters/synology/workloads/apps/portainer/` while the remaining Synology service model is evaluated.
+`compute/pi4/` is reserved for a future Raspberry Pi 4 Kubernetes rebuild and has no active GitOps entrypoint yet. There is no shared `compute/kustomization.yaml`: each cluster reconciles only its own environment directory.
 
-Nothing under `clusters/synology/` is automatically reconciled by Kubernetes Flux unless a future change explicitly designs and wires such a mechanism.
+`compute/synology/` contains Synology-specific desired state and container-service definitions. It is deliberately separate from the Kubernetes Flux root. Wave 3 places the legacy Synology Portainer Compose definition at `compute/synology/workloads/apps/portainer/` while the remaining Synology service model is evaluated.
+
+Nothing under `compute/synology/` is automatically reconciled by Kubernetes Flux unless a future change explicitly designs and wires such a mechanism.
+
+The move into `compute/` preserves the existing Flux object names and child inventories. See [the compute migration runbook](lifecycle/compute-layout-migration.md) for the live root-path cutover and future Flux/Semaphore onboarding.
 
 ## Classification test
 
@@ -116,13 +120,13 @@ Use these questions in order when adding or moving a component:
 3. **Is it a shared runtime/data-plane capability consumed by multiple clients, workloads, or platform components?** Put it in `services/`.
 4. **Is it a user/application use case that consumes those shared capabilities?** Put it in `workloads/apps/`.
 5. **Is it a VM workload rather than the virtualization runtime itself?** Put it in `workloads/vms/`.
-6. **Is it environment-specific desired state outside the Kubernetes cluster, such as Synology Container Manager configuration?** Put it under the matching `clusters/<environment>/` tree.
+6. **Is it environment-specific desired state or deployment wiring, such as a cluster entrypoint or Synology Container Manager configuration?** Put it under the matching `compute/<environment>/` tree.
 
 Installation mechanism is not a classification criterion. A HelmRelease, operator, controller, DaemonSet, Deployment, or CRD can belong to any category depending on architectural role.
 
 ## GitOps ownership
 
-The Kubernetes root cluster entrypoint is `clusters/k8s-homelab/kustomization.yaml`.
+The Kubernetes root cluster entrypoint is `compute/eliteboxes/kustomization.yaml`.
 
 Components with special ordering, substitution, state, or safety requirements keep dedicated Flux `Kustomization` objects in the matching cluster category.
 
@@ -166,4 +170,4 @@ Completed: application and VM workload sources moved into `workloads/apps/` and 
 
 ### Wave 3 - responsibility classification
 
-Kong moves to shared services, home exporters move to telemetry services, the AI stack moves to application workloads, cluster reconciliation files are filed with their matching categories, and the legacy Synology Portainer definition moves under `clusters/synology/`. Existing Kubernetes Flux ownership remains unchanged. Validation is documented in `docs/lifecycle/wave3-classification.md`.
+Kong moves to shared services, home exporters move to telemetry services, the AI stack moves to application workloads, cluster reconciliation files are filed with their matching categories, and the legacy Synology Portainer definition moves under `compute/synology/`. Existing Kubernetes Flux ownership remains unchanged. Validation is documented in `docs/lifecycle/wave3-classification.md`.

@@ -13,7 +13,7 @@ This guide covers:
 - `flux` CLI installed
 - GitHub repo exists: `https://github.com/ivanversluis/homelabs`
 - Branch: `main`
-- Flux path in repo: `clusters/k8s-homelab`
+- Flux path in repo: `compute/eliteboxes`
 
 Quick checks:
 
@@ -54,7 +54,7 @@ kubectl get ns flux-system -w
 ## 3. Bootstrap Flux from GitHub
 
 From repo root, confirm this file includes `flux-system`:
-- `clusters/k8s-homelab/kustomization.yaml`
+- `compute/eliteboxes/kustomization.yaml`
 
 Expected:
 
@@ -72,7 +72,7 @@ flux bootstrap github \
   --owner=ivanversluis \
   --repository=homelabs \
   --branch=main \
-  --path=clusters/k8s-homelab \
+  --path=compute/eliteboxes \
   --personal \
   --private=false
 ```
@@ -90,7 +90,7 @@ flux bootstrap github \
   --owner=ivanversluis \
   --repository=homelabs \
   --branch=main \
-  --path=clusters/k8s-homelab \
+  --path=compute/eliteboxes \
   --personal \
   --private=false \
   --token-auth
