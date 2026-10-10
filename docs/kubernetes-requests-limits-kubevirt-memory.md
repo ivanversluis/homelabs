@@ -184,6 +184,19 @@ lsmod | grep virtio_balloon || true
 
 `nproc` reports usable CPUs in the guest, not CPU cores dedicated on the host. `MemAvailable` estimates guest memory available for new processes (including reclaimable guest cache). A missing `lsmod` entry does **not** prove the driver is absent: it can be built into the kernel or device support may not be active. Do not expect guest `MemFree` to equal host RAM reclaimed.
 
+### 4b. Check Free Page Reporting configuration (no VM restart)
+
+The virtio memory-balloon device can report free guest pages back to the host when **FPR is available and enabled**. Reporting freed pages is *not* the same as host-driven balloon inflation. Debian 12's Linux kernel is new enough for the Linux FPR feature, but the VM/cluster configuration and actual device behavior still matter. Examine these settings **without changing them**:
+
+~~~bash
+kubectl -n kubevirt get kv kubevirt -o json | \
+  jq '.spec.configuration.virtualMachineOptions // {}'
+kubectl -n vms get vmi debian-bookworm -o json | \
+  jq '{autoattachMemBalloon: .spec.domain.devices.autoattachMemBalloon}'
+~~~
+
+An absent setting is not proof that FPR is working. To corroborate reclamation, compare the VM's guest available memory with QEMU resident memory at idle and during normal workload variation, preferably through the KubeVirt metrics below. **Do not disable caches, introduce artificial memory pressure, or change balloon settings on a live VM just to test this.**
+
 ### 5. Optional Grafana/Prometheus cross-check
 
 Your repository includes metrics-server, Prometheus and Grafana. If kube-state-metrics and cAdvisor expose the following series, compare a memory **request**, **limit**, and **working-set usage** for the VM launcher:
@@ -201,6 +214,22 @@ container_memory_working_set_bytes{namespace="vms",container="compute"}
 ~~~
 
 Filter by the current launcher `pod` label to avoid including older/other VMs. These measures answer different questions. The `kubectl` checks above remain authoritative for resource specification and Pod events.
+
+When KubeVirt's `virt-handler` targets are scraped, you can also inspect these **guest and virtualization-specific** series (shown with the KubeVirt `name` and `namespace` labels):
+
+~~~promql
+kubevirt_vmi_memory_resident_bytes{namespace="vms",name="debian-bookworm"}
+~~~
+
+~~~promql
+kubevirt_vmi_memory_usable_bytes{namespace="vms",name="debian-bookworm"}
+~~~
+
+~~~promql
+kubevirt_vmi_launcher_memory_overhead_bytes{namespace="vms",name="debian-bookworm"}
+~~~
+
+The first shows **domain process resident memory**, the second guest-reported reclaimable memory, and the third an estimate of virtualization overhead. **They are not three interchangeable measures of Pod memory.** A missing series may mean its exporter is not scraped, not necessarily a VM problem. [KubeVirt metrics reference](https://kubevirt.io/monitoring/metrics.html).
 
 ## Safe hands-on lab: see how a Namespace changes defaults and quotas
 
