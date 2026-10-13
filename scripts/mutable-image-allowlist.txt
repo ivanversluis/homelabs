@@ -2,7 +2,6 @@
 # duplicate occurrences. New entries require review, and stale entries must be
 # removed when the corresponding reference is pinned.
 platform/storage/local-path-provisioner/local-path-configmap.yaml|image=docker.io/busybox:stable
-services/gateway/kong/mcp-gateway/kubernetes-upstream/mcp-deployment.yaml|image=ghcr.io/open-webui/mcpo:latest
 services/gateway/kong/mcp-gateway/nmap-upstream/nmap-deployment.yaml|image=ghcr.io/ivanversluis/mcp-hub/mcp-nmap:latest
 services/identity/authentik/docker-stack/identity-authentik.yml|image=kong:latest
 services/identity/authentik/docker-stack/identity-authentik.yml|image=redis:alpine
