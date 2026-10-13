@@ -28,7 +28,7 @@ spec:
 
     image:
       repository: semaphoreui/semaphore
-      tag: "v2.19.14"
+      tag: "v2.19.16"
 
     # All recurring operational schedules are expressed in local homelab time.
     extraEnvVariables:
