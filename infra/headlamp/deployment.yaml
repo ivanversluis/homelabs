@@ -35,7 +35,7 @@ spec:
       # app
       containers:
         - name: headlamp
-          image: ghcr.io/headlamp-k8s/headlamp:v0.45.0
+          image: ghcr.io/headlamp-k8s/headlamp:v0.46.0
           imagePullPolicy: IfNotPresent
           args:
             - -in-cluster
