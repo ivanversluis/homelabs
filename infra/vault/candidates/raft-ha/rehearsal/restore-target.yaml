@@ -1,0 +1,154 @@
+# Issue #256: manual-only synthetic snapshot restore TARGET.
+# APPLY ONLY AFTER restore-isolation.yaml. Never deploy into namespace vault or
+# vault-raft-rehearsal. No Service, ServiceAccount token, Flux or Helm release.
+# Source snapshot stays in the operator's private backup directory until copied
+# explicitly into the target. NEVER embed secrets, tokens or snapshots in Git.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-restore-config
+  namespace: vault-raft-restore-test
+data:
+  restore.hcl: |
+    ui = false
+    disable_mlock = true
+    # Loopback-only API and Raft cluster listener: no remote client path.
+    api_addr = "http://127.0.0.1:8200"
+    cluster_addr = "https://127.0.0.1:8201"
+    listener "tcp" {
+      tls_disable = 1
+      address = "127.0.0.1:8200"
+      cluster_address = "127.0.0.1:8201"
+    }
+    storage "raft" {
+      path = "/vault/data/raft"
+      # Matches a voter ID in the 3-node source snapshot. A single-node
+      # snapshot restore may still require isolated peers.json quorum recovery.
+      node_id = "vault-1"
+    }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vault-restore-data
+  namespace: vault-raft-restore-test
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn-worker
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: vault-restore
+  namespace: vault-raft-restore-test
+  labels:
+    app: vault-restore
+    app.kubernetes.io/part-of: vault-raft-restore-test
+spec:
+  restartPolicy: Always
+  automountServiceAccountToken: false
+  enableServiceLinks: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 100
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                  - k8s-worker01
+                  - k8s-worker02
+                  - k8s-worker03
+  initContainers:
+    - name: prepare-raft-directory
+      image: busybox:1.36
+      imagePullPolicy: IfNotPresent
+      command: ["/bin/sh", "-ec"]
+      args:
+        - |
+          mkdir -p /vault/data/raft
+          chmod 0700 /vault/data/raft
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: ["ALL"]
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 100m
+          memory: 64Mi
+      volumeMounts:
+        - name: data
+          mountPath: /vault/data
+  containers:
+    - name: vault
+      image: hashicorp/vault:2.0.4
+      imagePullPolicy: IfNotPresent
+      command: ["/bin/sh", "-ec"]
+      args:
+        - "exec vault server -config=/config/restore.hcl"
+      env:
+        - name: VAULT_ADDR
+          value: http://127.0.0.1:8200
+        - name: HOME
+          value: /home/vault
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: ["ALL"]
+      resources:
+        requests:
+          cpu: 250m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+      # An uninitialized/sealed server returns exit code 2; readiness
+      # must remain false until initialized and unsealed. No liveness probe
+      # during the restore experiment to prevent premature restarts.
+      readinessProbe:
+        exec:
+          command:
+            - /bin/sh
+            - -ec
+            - vault status >/dev/null
+        initialDelaySeconds: 15
+        periodSeconds: 10
+        timeoutSeconds: 5
+        failureThreshold: 6
+      volumeMounts:
+        - name: config
+          mountPath: /config
+          readOnly: true
+        - name: data
+          mountPath: /vault/data
+        - name: tmp
+          mountPath: /tmp
+        - name: home
+          mountPath: /home/vault
+  volumes:
+    - name: config
+      configMap:
+        name: vault-restore-config
+    - name: data
+      persistentVolumeClaim:
+        claimName: vault-restore-data
+    - name: tmp
+      emptyDir: {}
+    - name: home
+      emptyDir: {}
