@@ -26,6 +26,7 @@ configMapGenerator:
 
 patches:
   - path: openclaw-gitops-config-patch.yaml
+  - path: openclaw-state-migration-patch.yaml
   # openclaw-config keeps AGENTS.md and k8s-monitor.js. Its historical
   # openclaw.json is deliberately removed from the rendered object so there is
   # exactly one active Git-owned runtime config source.
