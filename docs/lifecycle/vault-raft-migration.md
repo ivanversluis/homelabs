@@ -1,10 +1,22 @@
 # Vault #256 — gated file-to-Raft HA migration
 
-**Status: ready for migration rehearsal, NOT cleared for production cutover.** Confirmed live evidence provided by operator (2026-10-19): Vault 2.0.4, initialized/unsealed, standalone `file` backend on k8s-master01 with retained local-path PV, three healthy workers, healthy Longhorn CSI/backups, manual Shamir custody selected. Git currently deploys Helm chart 0.34.1 and still declares standalone file storage. The three-member configuration lives in `infra/vault/candidates/raft-ha/helmrelease.yaml`, intentionally **outside** all GitOps Kustomizations.
+**Status as of 2026-10-19: synthetic file -> Raft HA, failover and independent snapshot verification PASSED; isolated snapshot restore target staged but NOT initialized; production cutover NOT APPROVED.** The operator confirmed Vault 2.0.4, existing standalone `file` backend on k8s-master01 with retained local-path PV, healthy Longhorn/workers and manual Shamir custody. Git still deploys chart 0.34.1 in production standalone mode. The candidate `infra/vault/candidates/raft-ha/helmrelease.yaml` remains **excluded from live GitOps Kustomizations**.
+
+**Detailed engineering report and tomorrow's exact recovery checkpoint:** [Vault migration rehearsal — 2026-10-19](./vault-raft-migration-rehearsal-2026-10-19.md). The [rehearsal README](../../infra/vault/candidates/raft-ha/rehearsal/README.md) remains the procedural manifest guide. Review [PR #355](https://github.com/ivanversluis/homelabs/pull/355) before merging; its current scope now includes Helm RBAC isolation, Raft directory initialization, Calico rehearsal policy, isolated restore manifests and evidence.
 
 ## Recovery objective and limits
 
 **Proposed, pending owner acceptance:** withstand loss of one worker/member (Raft majority 2/3); 30–60 minute RTO with manual Shamir unseal; 24h RPO with successful daily **off-cluster Raft snapshots**. Quorum does not auto-unseal a restarted sealed member. Two simultaneous failures lose quorum. Longhorn's two replicas per PVC and Raft's three independent data sets serve different purposes. Backups and Shamir shares must not share a single failure domain.
+
+## Rehearsal checkpoint and still-open blockers (2026-10-19)
+
+**Observed complete:** synthetic cold backup, offline `vault operator migrate`, three independent Longhorn Raft voters, manual Shamir unseal, KV/policy/userpass/SSH CA readback, successful leader failover and return to three healthy voters (Autopilot Healthy=true, Failure Tolerance=1). Raft snapshot index 153/term 4 transferred off-cluster with matching SHA-256 `1332b62341b992e108927524df2170d5232616a8f35ca52abf971e45f7c42e15`.
+
+**Safe stop:** a separate `vault-raft-restore-test` target was created with an independent 10Gi PVC, loopback listener and denied network access. Its Vault 2.0.4 status is `Initialized=false`, `Sealed=true`. **Do not run init, restore, peer recovery or cleanup until the next supervised session.** Original 3-voter rehearsal remains healthy. Read-only resume commands and mandatory gates are in the linked field report.
+
+**Critical remaining gates:** (1) initialize, restore and verify the snapshot in the isolated disposable target, including restored seal-key handling and possible isolated lost-quorum recovery; (2) rehearse original file cold-backup rollback; (3) fix probe-induced liveness restarts using startup grace and one-at-a-time validation; (4) verify production Kubernetes-auth RBAC/TokenReview, ESO, SSH signing and Semaphore, plus monitoring; (5) deploy/test off-cluster daily snapshot automation and settle RTO/RPO, custody and maintenance decisions. **The production cutover is not cleared.**
+
+**Operational warning:** do not use legacy `scripts/vault-post-deploy.sh` to perform this migration or HA recovery; it assumes a single Vault pod and may initialize/handle key material. Use the review helper `scripts/lifecycle/vault-unseal-ha.sh` and interactive, threshold-held shares only after confirming `Initialized=true`.
 
 ## Hard preparation gates
 
