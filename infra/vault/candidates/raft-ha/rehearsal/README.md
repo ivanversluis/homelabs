@@ -99,6 +99,19 @@
     ```
 
     Confirm matching remote and local SHA-256 hashes. The local copy is *independent of the running Kubernetes pods*, but does not by itself prove disaster recoverability. The separate **destructive** snapshot-restore validation must take place on an **empty, disposable, isolated** Vault/Raft cluster after documenting the restore prerequisites, original synthetic unseal-key handling and suitable storage; never overwrite the active three-voter rehearsal cluster.
+
+    **Observed 2026-10-19 snapshot validation — PASSED:** active server `vault-1`; `snapshot inspect` reported `ID=bolt-snapshot`, index **153**, term **4**, version **1**, total **27.7KB**. The private off-cluster copy `$HOME/vault-rehearsal-backups/raft-ha-20261019.snap` has file mode `0600`, non-zero size (~27KiB) and an exact SHA-256 match to the original file in the pod:
+
+    ```text
+    1332b62341b992e108927524df2170d5232616a8f35ca52abf971e45f7c42e15
+    ```
+
+    **Restore preflight / mandatory gates:**
+    - Verify `kubectl config current-context`, file hash, and that source rehearsal Autopilot is still healthy. Capture a recovery record before destructive testing.
+    - Restore only in a **new** namespace (e.g. `vault-raft-restore-test`) with a **new** empty Longhorn PVC and a dedicated Vault instance. Enforce deny-all ingress and egress with **no connectivity to source rehearsal or production Vault**. Make API access only via `kubectl exec` into the isolated pod. Never run `vault operator raft snapshot restore` in namespaces `vault` or `vault-raft-rehearsal`.
+    - Follow HashiCorp's restore procedure: initialize/unseal the empty *target* using **temporary new synthetic shares**, authenticate with the temporary target root token, copy and checksum the snapshot into the **target**, then and **only then** perform the documented force-restore; after restore use the **original snapshot source synthetic Shamir shares**, not the temporary target shares. Never store or publish shares or tokens. HashiCorp docs: https://developer.hashicorp.com/vault/docs/sysadmin/snapshots/restore
+    - The snapshot was captured from a **3-voter Raft cluster**. A separate one-node restore target may inherit a 3-voter peer set, so its leader election/quorum is **not automatically assured**. Test correct raft peer identity and inspect snapshot-restored peer membership; if quorum recovery is needed, plan controlled `peers.json` recovery *only within the disposable target*, with a matching `VAULT_RAFT_NODE_ID`, and only after observing the target state. HashiCorp quorum reference: https://developer.hashicorp.com/vault/tutorials/raft/raft-lost-quorum
+    - Snapshot restore is **not complete when the restore CLI returns**. Verify post-restore logs, actual unseal, Vault status, exact original synthetic KV/policy/auth/SSH CA fingerprint, and independent one-voter quorum (or intentionally rejoined three-voter cluster) in the target before declaring disaster recovery passed. Preserve the original three-voter rehearsal unchanged.
 14. Rehearse rollback separately: halt Raft pods, restore the independently captured synthetic file data on a fresh source claim, boot standalone and unseal with synthetic shares. Validate the same fixture. A rollback to a pre-cutover filesystem copy loses **all Raft-era writes**.
 
 **Exit:** record times (RTO), snapshot age (RPO), three voters, placement, failover, source restore, missing dependencies and any issues; only then approve a production maintenance window.
