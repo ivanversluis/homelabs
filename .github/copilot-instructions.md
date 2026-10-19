@@ -2,6 +2,16 @@
 
 This repository allows Copilot Agents, but external source trust is deny-by-default.
 
+## Private Values - NON-NEGOTIABLE (read first)
+
+The real homelab domain is private. Never write it in repository files, commit
+messages, branch names, or GitHub issue/PR titles, bodies, comments or reviews.
+This includes evidence pasted from `kubectl`, logs, URLs and screenshots. Use
+`${DOMAIN}` in manifests/config and `<domain>` in prose. Check every text with
+`scripts/check-sensitive-data.sh` before `gh`/`git commit`/`git push`, and never
+bypass the guards. Full rules: [AGENTS.md](../AGENTS.md); guardrails and incident
+response: [docs/sensitive-data-guard.md](../docs/sensitive-data-guard.md).
+
 ## Repository Ownership Model
 
 Classify Kubernetes content by architectural responsibility, not by installation mechanism. The authoritative model is `docs/repository-layout.md`.
