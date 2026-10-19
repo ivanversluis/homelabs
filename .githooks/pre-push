@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Last local gate before anything becomes public: re-check branch names, commit
+# messages and added lines of every commit that is about to be pushed. This also
+# catches commits created with --no-verify or before the hooks were enabled.
+set -euo pipefail
+. "$(dirname "$0")/_lib.sh"
+
+zero="0000000000000000000000000000000000000000"
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue # branch deletion
+
+  if [ "$remote_sha" = "$zero" ]; then
+    range=("$local_sha" --not --remotes)
+  else
+    range=("$remote_sha..$local_sha")
+  fi
+
+  {
+    printf '%s\n%s\n' "$local_ref" "$remote_ref"
+    git log --format=%B "${range[@]}"
+    git log -p -U0 --no-color --no-ext-diff --format= "${range[@]}" | grep -E '^\+' | grep -vE '^\+\+\+ ' || true
+  } | guard_scan "commits/refs being pushed to $remote_ref"
+done

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Block commits whose staged file names or added lines contain a private value.
+set -euo pipefail
+. "$(dirname "$0")/_lib.sh"
+
+{
+  git diff --cached --name-only --diff-filter=ACMR
+  git diff --cached -U0 --no-color --no-ext-diff --diff-filter=ACMR | grep -E '^\+' | grep -vE '^\+\+\+ ' || true
+} | guard_scan "staged changes"

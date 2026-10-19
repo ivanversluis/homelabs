@@ -1,0 +1,40 @@
+# Catches private values (the real domain) in places the file/history scan in
+# secret-scanning.yml cannot see: issue/PR titles and bodies, comments, reviews,
+# commit messages and branch names. Editable text is redacted automatically.
+name: Private Domain Guard
+
+on:
+  issues:
+    types: [opened, edited]
+  issue_comment:
+    types: [created, edited]
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+  pull_request_review:
+    types: [submitted, edited]
+  pull_request_review_comment:
+    types: [created, edited]
+  push:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  guard:
+    name: Private value check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+
+      - name: Scan and redact GitHub text
+        env:
+          PRIVATE_PUBLIC_DOMAIN: ${{ secrets.PRIVATE_PUBLIC_DOMAIN }}
+          SENSITIVE_PATTERNS: ${{ secrets.SENSITIVE_PATTERNS }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/github-text-domain-guard.py
