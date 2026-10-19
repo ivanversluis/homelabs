@@ -80,6 +80,15 @@ consistent file-storage snapshot of `/vault/data`.
 4. Verify with `vault status` and confirm expected secrets engines/policies are present
    before resuming ExternalSecrets traffic.
 
+## Vault after the Raft cutover (future state, not yet active)
+
+The preceding **Vault filesystem restore** applies ONLY to the current standalone `file` backend and preserved pre-migration rollback. Once issue #256 completes the cutover, DO NOT tar a mounted Raft directory or restore a raw filesystem archive over a running Raft cluster.
+
+- Backup: from an **authenticated, unsealed leader** use `vault operator raft snapshot save <local-snapshot.snap>` on a trusted independent admin client. Never place tokens in arguments/history. Compute `sha256sum <local-snapshot.snap>`, transfer securely to independent off-cluster storage (e.g. Synology), and verify its checksum at the destination. Snapshot archives contain highly sensitive Vault data; encrypt and restrict access outside Vault/ESO/Semaphore.
+- Automation: daily off-cluster snapshots, failure alerting, documented credential rotation, retention and **isolated restore testing** are required before claiming a 24h RPO. Longhorn PVC backups are useful secondary disaster recovery, but **not a substitute** for application-consistent Vault Raft snapshots. This PR does not deploy the scheduled snapshot workflow.
+- Restore: prepare an **empty isolated Raft recovery cluster** and follow HashiCorp's supported `vault operator raft snapshot restore` process using the appropriate force/not-force variant only after verifying seal/key custody and cluster initialization requirements. `-force` bypasses consistency checks and can break recoverability: require explicit operator approval, never use as a default. The target must be stopped/isolated from production clients. Unseal the restored members, check quorum, Autopilot, KV/policy/SSH signer identity and ESO auth before moving traffic.
+- Disaster recovery: a new empty Raft cluster is **not** an in-place continuation of the retained standalone PV. During the agreed rollback window, restore the old retained local-path PV and prior chart configuration as described in [vault-raft-migration.md](./vault-raft-migration.md), accepting loss of writes since cutover unless reconciled.
+
 ## Post-Wave -1c checkpoint backup
 
 Once Vault begins holding the SSH CA private key (after `vault-ca` activation), take a new
