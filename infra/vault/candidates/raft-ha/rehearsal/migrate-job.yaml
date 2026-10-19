@@ -1,0 +1,69 @@
+# Apply ONLY after vault-file-source Pod is deleted and synthetic data is verified.
+# This job mutates the *synthetic* source (migration lock); not the live Vault PV.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-file-to-raft
+  namespace: vault-raft-rehearsal
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: vault-file-to-raft
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values: [k8s-worker01, k8s-worker02, k8s-worker03]
+      containers:
+        - name: migrate
+          image: hashicorp/vault:2.0.4
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              mkdir -p /destination/raft
+              test -z "$(ls -A /destination/raft)"
+              vault operator migrate -config=/config/migrate.hcl
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: source
+              mountPath: /source
+            - name: destination
+              mountPath: /destination
+      volumes:
+        - name: config
+          configMap:
+            name: vault-rehearsal-config
+        - name: source
+          persistentVolumeClaim:
+            claimName: vault-file-source
+        - name: destination
+          persistentVolumeClaim:
+            claimName: data-vault-0
