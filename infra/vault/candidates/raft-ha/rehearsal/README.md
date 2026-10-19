@@ -2,6 +2,8 @@
 
 **Manual only. Not referenced from a Flux Kustomization.** Rehearsal uses only synthetic secrets and an isolated namespace. No production backup, Shamir share, or root token may enter this namespace.
 
+**Operator checkpoint (19 October 2026):** Steps 1–13 have **passed for synthetic data**, including three Raft voters, leader failover/return, KV/policy/SSH CA integrity and off-cluster snapshot SHA-256. Step 14 has **only reached the isolated restore target preflight**: namespace `vault-raft-restore-test`, separate 10Gi Bound Longhorn PVC, Vault `Initialized=false`, `Sealed=true`. **No target initialization or snapshot restore has occurred. Leave it unchanged until the next supervised session.** The complete execution narrative, evidence, outstanding blockers and read-only resume commands are in [the 2026-10-19 field report](../../../../../docs/lifecycle/vault-raft-migration-rehearsal-2026-10-19.md). Production `vault` remains standalone file-backed.
+
 ## Rehearsal prerequisites
 
 - `kubectl`, `helm`, `jq` and a local `vault` CLI matching **2.0.4** (or `kubectl exec`).
@@ -40,6 +42,26 @@
    The cluster-scoped resource check must print **nothing**; the StatefulSet must print `1 data longhorn-worker` (tab-separated), with enforced per-worker node affinity and pod anti-affinity. An affinity merge warning may appear because the chart's default is a string but the candidate is a map; verify the **rendered** affinity rather than assuming it was lost. If `helm list` shows any existing release, **stop and inspect** instead of installing over it. Only with correct output, install with `helm install vault hashicorp/vault --version 0.34.1 -n vault-raft-rehearsal -f "$VALUES"` (no `--wait`: the new instance is sealed). Inspect that `vault-0` binds the migrated `data-vault-0`, and stop if Vault reports `Initialized=false`. **Never `operator init` migrated storage.** Production `infra/vault/helmrelease.yaml` must remain untouched.
 9. Unseal **vault-0 with the original synthetic source shares**, never run `vault operator init`; verify KV v2 fixture value, `rehearsal-read` policy, `userpass/` auth, `ssh-test/` engine, original SSH CA public-key hash, and one healthy Raft voter. **Observed on the 2026-10-19 rehearsal:** with the candidate's HTTP liveness probe enabled at initial startup, Vault stalled on `/v1/sys/health` and kubelet killed it after probe timeouts (exit 137). Liveness was **temporarily disabled only for the rehearsal** using `helm upgrade ... --set server.livenessProbe.enabled=false`, then `vault-0` was recreated under the StatefulSet's `OnDelete` policy and eventually returned HTTP 503 while sealed. After interactive unseal, `vault-0` became `1/1 Ready` with no restarts. The underlying slow-start condition has **not** been root-caused; this is **not** an acceptable final HA/prod liveness configuration.
 
+### Mandatory Helm/RBAC safety check on every replica upgrade
+
+The initial `helm template` RBAC check is **not sufficient**: custom values must be retained whenever Helm upgrades the rehearsal release. This addresses the Codex P2 review on PR #355. Before *each* rehearsal scale, inspect and render the **exact proposed** values, including all `--set` overrides; do not execute an upgrade if any cluster-scoped `ClusterRole` / `ClusterRoleBinding` appears.
+
+~~~bash
+VALUES=/tmp/vault-raft-rehearsal-values.yaml
+test "$(yq -r '.server.authDelegator.enabled' "$VALUES")" = false
+for N in 2 3; do
+  helm template vault hashicorp/vault --version 0.34.1 \
+    -n vault-raft-rehearsal -f "$VALUES" \
+    --set server.ha.replicas="$N" \
+    --set server.authDelegator.enabled=false \
+    --set server.livenessProbe.enabled=false > "/tmp/vault-rehearsal-scale-$N.yaml"
+  yq -r 'select(.kind == "ClusterRole" or .kind == "ClusterRoleBinding") | .kind + " " + .metadata.name' \
+    "/tmp/vault-rehearsal-scale-$N.yaml"
+done
+~~~
+
+The RBAC `yq` check must be **empty** for *both* renders. Pass `-f "$VALUES"` and `--set server.authDelegator.enabled=false` on each Helm upgrade. The temporary `server.livenessProbe.enabled=false` setting is **diagnostic only**; it remains an unresolved production acceptance blocker.
+
 10. **Scale one follower at a time, and wait for each node to be healthy and voting before adding the next.** Use the locally extracted rehearsal `$VALUES` file where `server.authDelegator.enabled=false` and preserve the temporary liveness override on every upgrade; otherwise Helm will restore the enabled candidate value unexpectedly. With `updateStrategyType: OnDelete`, scaling creates a *new* pod without automatically restarting the existing healthy leader. Join a new `raft` **storage** node *before* unsealing it (Shamir); do not initialize it.
 
     ```bash
@@ -47,7 +69,8 @@
     yq -r '[.server.ha.raft.enabled, .server.authDelegator.enabled] | @tsv' "$VALUES"
     helm upgrade vault hashicorp/vault --version 0.34.1 \
       -n vault-raft-rehearsal -f "$VALUES" \
-      --set server.ha.replicas=2 --set server.livenessProbe.enabled=false
+      --set server.ha.replicas=2 --set server.authDelegator.enabled=false \
+      --set server.livenessProbe.enabled=false
 
     kubectl -n vault-raft-rehearsal get pods,pvc -o wide
     kubectl -n vault-raft-rehearsal exec vault-1 -- \
@@ -62,7 +85,8 @@
     ```bash
     helm upgrade vault hashicorp/vault --version 0.34.1 \
       -n vault-raft-rehearsal -f "$VALUES" \
-      --set server.ha.replicas=3 --set server.livenessProbe.enabled=false
+      --set server.ha.replicas=3 --set server.authDelegator.enabled=false \
+      --set server.livenessProbe.enabled=false
     kubectl -n vault-raft-rehearsal get pods,pvc -o wide
     kubectl -n vault-raft-rehearsal exec vault-2 -- \
       vault operator raft join http://vault-0.vault-internal:8200
