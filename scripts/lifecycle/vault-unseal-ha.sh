@@ -15,7 +15,7 @@ pods="$(kubectl -n "$NS" get pods -l "app.kubernetes.io/instance=$RELEASE,compon
 echo "Vault server pods in $NS: $pods"
 for pod in $pods; do
   echo "Inspecting $pod..."
-  status="$(kubectl -n "$NS" exec "$pod" -- vault status -format=json 2>/dev/null)" || {
+  status="$(kubectl -n "$NS" exec "$pod" -- vault status -format=json 2>/dev/null)" || {\n    # vault status returns exit 2 for a sealed (but healthy) instance.\n    [[ -n "$status" ]] || { echo "ERROR: $pod returned no status JSON" >&2; exit 1; }\n  }\n  if ! jq -e '.initialized | type == "boolean"' <<<"$status" >/dev/null; then\n    echo "ERROR: $pod did not return valid status JSON" >&2; exit 1\n  fi\n  : \u003c\u003c\u0027VAULT_STATUS_COMMAND_EXIT_HANDLED\u0027\n  ignored deprecated handler\nVAULT_STATUS_COMMAND_EXIT_HANDLED\n  if false; then
     echo "ERROR: $pod status unavailable; investigate rather than initialize" >&2; exit 1;
   }
   initialized="$(jq -r '.initialized' <<<"$status")"
