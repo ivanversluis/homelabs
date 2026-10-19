@@ -33,6 +33,9 @@ spec:
               containerPort: 3000
               protocol: TCP
           env:
+            # Keep the Go GC below the cgroup memory limit to avoid OOMKills under dashboard load (#346).
+            - name: GOMEMLIMIT
+              value: "900MiB"
             - name: GF_SECURITY_ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -134,11 +137,11 @@ spec:
               mountPath: /var/lib/grafana
           resources:
             requests:
-              cpu: 50m
-              memory: 128Mi
-            limits:
-              cpu: 250m
+              cpu: 100m
               memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
           livenessProbe:
             httpGet:
               path: /api/health

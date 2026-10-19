@@ -104,6 +104,25 @@ DNS dashboards include:
 
 Prometheus alert rules are stored in `platform/observability/prometheus/prometheus-alerts.yml` and cover CoreDNS error/latency conditions plus Pi-hole and Unbound exporter/upstream failures. Grafana's provisioned alert rules remain under `platform/observability/grafana/`.
 
+### Grafana sizing and Cloudflare 502s
+
+Grafana 13 idles at roughly 400 MiB working set. The deployment requests `512Mi`,
+is limited to `1Gi`, and sets `GOMEMLIMIT=900MiB` so the Go GC reclaims memory
+before the cgroup OOM killer fires. Keep `GOMEMLIMIT` about 10% below the memory
+limit when changing either value.
+
+A Cloudflare `502 origin_bad_gateway` on `grafana.${DOMAIN}` usually means the
+Grafana pod was restarting, not that the tunnel failed. cloudflared then logs
+`Unable to reach the origin service`. Check the pod first:
+
+```bash
+kubectl -n observability get pod -l app.kubernetes.io/name=grafana
+kubectl -n observability describe pod -l app.kubernetes.io/name=grafana | grep -A4 'Last State'
+kubectl -n observability top pod -l app.kubernetes.io/name=grafana
+```
+
+See issue #348 for the original `OOMKilled` investigation.
+
 ## Network-policy requirements
 
 The observability data plane depends on explicit policy allows:
