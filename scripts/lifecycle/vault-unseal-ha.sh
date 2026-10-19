@@ -8,7 +8,7 @@ RELEASE="${VAULT_RELEASE:-vault}"
 [[ ${1:-} != --help ]] || { echo "Usage: VAULT_NAMESPACE=vault VAULT_RELEASE=vault $0"; exit 0; }
 command -v kubectl >/dev/null
 command -v jq >/dev/null
-[[ -t 0 ]] || { echo "ERROR: interactive terminal required" >&2; exit 1; }
+[[ -t 0 && -t 1 ]] || { echo "ERROR: interactive terminal required (stdin and stdout TTY)" >&2; exit 1; }
 umask 077
 pods="$(kubectl -n "$NS" get pods -l "app.kubernetes.io/instance=$RELEASE,component=server" -o json | jq -r '.items[].metadata.name' | sort -V)"
 [[ -n "$pods" ]] || { echo "ERROR: no Vault server pods in $NS" >&2; exit 1; }
@@ -26,17 +26,18 @@ for pod in $pods; do
   if [[ "$sealed" == false ]]; then echo "$pod is unsealed"; continue; fi
   threshold="$(jq -r '.t // empty' <<<"$status")"
   [[ "$threshold" =~ ^[1-9][0-9]*$ ]] || { echo "ERROR: missing Shamir threshold" >&2; exit 1; }
-  echo "$pod is sealed (threshold: $threshold). Enter distinct shares individually."
-  echo "Use authorized custodians; do not paste shares into chat, ticket, or logs."
+  echo "$pod is sealed (threshold: $threshold). Vault will prompt for distinct shares."
+  echo "Use authorized custodians; never put shares in shell arguments, history, tickets or logs."
   for ((i=1; i<=threshold; i++)); do
-    read -r -s -p "$pod unseal share $i/$threshold: " share
-    echo
-    [[ -n "$share" ]] || { echo "ERROR: empty share" >&2; exit 1; }
-    # Feed stdin to vault CLI to avoid command-line/process-argument exposure.
-    printf '%s\n' "$share" | kubectl -n "$NS" exec -i "$pod" -- vault operator unseal - >/dev/null
-    unset share
+    echo "Submit distinct share $i/$threshold to $pod (input hidden by Vault CLI):"
+    # HashiCorp Vault operator unseal treats '-' as a literal key, NOT stdin.
+    # Use its interactive TTY prompt so the share never appears in argv or script variables.
+    kubectl -n "$NS" exec -it "$pod" -- vault operator unseal
     current="$(kubectl -n "$NS" exec "$pod" -- vault status -format=json 2>/dev/null)" || true
-    if [[ -n "$current" ]] && [[ "$(jq -r '.sealed' <<<"$current")" == false ]]; then break; fi
+    [[ -n "$current" ]] && jq -e '.sealed | type == "boolean"' <<<"$current" >/dev/null || {
+      echo "ERROR: cannot verify seal progress on $pod" >&2; exit 1;
+    }
+    if [[ "$(jq -r '.sealed' <<<"$current")" == false ]]; then break; fi
   done
   final="$(kubectl -n "$NS" exec "$pod" -- vault status -format=json 2>/dev/null)" || {
     echo "ERROR: cannot verify $pod" >&2; exit 1;
