@@ -106,6 +106,27 @@
     1332b62341b992e108927524df2170d5232616a8f35ca52abf971e45f7c42e15
     ```
 
+    **Observed 2026-10-19 restore preflight — PASSED:** `kubectl config current-context` was `kubernetes-admin@kubernetes`; original three-voter rehearsal Autopilot remained `Healthy: true`, `Failure Tolerance: 1`, with all three members synchronized at index 164. Backup checksum still matched `1332b62341b992e108927524df2170d5232616a8f35ca52abf971e45f7c42e15`. The target namespace did not yet exist.
+
+    **Bootstrap an isolated restore target (no restore command yet):** keep this separate from production `vault` and the working `vault-raft-rehearsal`. Two review-only files live in this directory:
+
+    - `restore-isolation.yaml`: a new `vault-raft-restore-test` namespace plus all-ingress/all-egress deny-all NetworkPolicy. Apply this **first** and verify it exists before creating the target pod.
+    - `restore-target.yaml`: a standalone, manual Vault 2.0.4 pod named `vault-restore`, dedicated new 10Gi `longhorn-worker` PVC, namespace-local ConfigMap, and a non-root init container to create `/vault/data/raft`. The API and cluster listeners bind only to `127.0.0.1`; no Service, no Kubernetes service-account token, no service registration, no Flux/Helm adoption, no external network access. Its Raft `node_id` is `vault-1` to match one peer from the source snapshot, **not** as permission to reconnect to the source. The startup readiness check will fail while uninitialized or sealed; no liveness probe restarts it.
+
+    ```bash
+    kubectl config current-context
+    kubectl apply -f infra/vault/candidates/raft-ha/rehearsal/restore-isolation.yaml
+    kubectl -n vault-raft-restore-test get networkpolicy deny-all
+    kubectl apply -f infra/vault/candidates/raft-ha/rehearsal/restore-target.yaml
+    kubectl -n vault-raft-restore-test get pod,pvc,svc -o wide
+    kubectl -n vault-raft-restore-test logs vault-restore -c prepare-raft-directory
+    kubectl -n vault-raft-restore-test logs vault-restore -c vault --tail=35
+    kubectl -n vault-raft-restore-test exec vault-restore -c vault -- \
+      sh -c 'vault status; echo "vault status exit=$?"'
+    ```
+
+    **Stop gate before target initialization:** ensure the namespace is exactly `vault-raft-restore-test`, deny-all exists, no Service is created, new PVC is Bound and different from all rehearsal/prod claims, init container succeeded, and `vault status` reports Raft `Initialized: false` and `Sealed: true`. A pod stuck `0/1 Ready` while sealed is expected. Do NOT attempt `vault operator init` against a preinitialized/unknown target, and never run `vault operator raft snapshot restore` against either existing namespace. After these checks, follow the official init → temporary unseal/login → local snapshot copy/hash → `snapshot restore -force` → original Shamir unseal flow; this is staged separately, not automated.
+
     **Restore preflight / mandatory gates:**
     - Verify `kubectl config current-context`, file hash, and that source rehearsal Autopilot is still healthy. Capture a recovery record before destructive testing.
     - Restore only in a **new** namespace (e.g. `vault-raft-restore-test`) with a **new** empty Longhorn PVC and a dedicated Vault instance. Enforce deny-all ingress and egress with **no connectivity to source rehearsal or production Vault**. Make API access only via `kubectl exec` into the isolated pod. Never run `vault operator raft snapshot restore` in namespaces `vault` or `vault-raft-rehearsal`.
