@@ -77,7 +77,28 @@
 
 11. With an authenticated Vault CLI on the current active server, verify `vault operator raft list-peers` reports **three voters** and `vault operator raft autopilot state` is healthy. Confirm one pod per worker, three 10Gi Longhorn RWO Bound Raft PVCs, and PDB `maxUnavailable: 1`. **Mandatory additional acceptance gate:** investigate startup slowness and restore/retest correctly configured liveness probes, ideally with startup grace appropriate to Longhorn/Raft initialization, using a controlled one-member-at-a-time rollout under `OnDelete`. Do not consider HA production-ready while liveness remains disabled.
 12. Restart **the leader only**, manually unseal it if required, and prove surviving quorum serves synthetic reads before unsealing the restarted node. Verify Raft peers/Autopilot and client readiness again. Note: PDB covers voluntary eviction, not arbitrary `kubectl delete pod`.
-13. Capture a **synthetic Raft snapshot** to an independent client with `vault operator raft snapshot save <local-file>`. Record SHA-256, inspect file size and test snapshot restoration **into an empty disposable rehearsal cluster**; do not overwrite an active cluster.
+
+    **Observed 2026-10-19 failover:** direct deletion of `vault-0` caused `vault-1` to become active while `vault-2` remained standby; the original synthetic `rehearsal/fixture` still read back `synthetic-only`. `vault-0` retained its original Longhorn PV, restarted sealed and was manually unsealed using original synthetic Shamir shares. After recovery, all three pods were `1/1 Ready` with zero restarts; Autopilot reported `Healthy: true`, `Failure Tolerance: 1`, three voters all synchronized at index 151. RTO was **not measured** and cannot be inferred from these logs.
+
+13. Capture a **synthetic Raft snapshot** to an independent client. The operation saves a point-in-time copy without restoring/overwriting the running cluster. As of this rehearsal, `vault-1` is active and already has an authenticated CLI. Do **not** run `vault operator raft snapshot restore` against the active rehearsal or production. The snapshot may contain Vault secrets, so use `umask 077`, a private directory and no Git commits.
+
+    ```bash
+    umask 077
+    SNAPDIR="$HOME/vault-rehearsal-backups"
+    mkdir -p "$SNAPDIR"
+    SNAP="$SNAPDIR/raft-ha-20261019.snap"
+    kubectl -n vault-raft-rehearsal exec vault-1 -c vault -- \
+      vault operator raft snapshot save /tmp/raft-ha-20261019.snap
+    kubectl -n vault-raft-rehearsal exec vault-1 -c vault -- \
+      vault operator raft snapshot inspect /tmp/raft-ha-20261019.snap
+    kubectl -n vault-raft-rehearsal exec vault-1 -c vault -- \
+      sha256sum /tmp/raft-ha-20261019.snap
+    kubectl -n vault-raft-rehearsal exec vault-1 -c vault -- \
+      cat /tmp/raft-ha-20261019.snap > "$SNAP"
+    test -s "$SNAP" && sha256sum "$SNAP" && ls -lh "$SNAP"
+    ```
+
+    Confirm matching remote and local SHA-256 hashes. The local copy is *independent of the running Kubernetes pods*, but does not by itself prove disaster recoverability. The separate **destructive** snapshot-restore validation must take place on an **empty, disposable, isolated** Vault/Raft cluster after documenting the restore prerequisites, original synthetic unseal-key handling and suitable storage; never overwrite the active three-voter rehearsal cluster.
 14. Rehearse rollback separately: halt Raft pods, restore the independently captured synthetic file data on a fresh source claim, boot standalone and unseal with synthetic shares. Validate the same fixture. A rollback to a pre-cutover filesystem copy loses **all Raft-era writes**.
 
 **Exit:** record times (RTO), snapshot age (RPO), three voters, placement, failover, source restore, missing dependencies and any issues; only then approve a production maintenance window.
