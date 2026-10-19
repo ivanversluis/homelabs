@@ -34,13 +34,46 @@
    yq -r 'select(.kind == "StatefulSet" and .metadata.name == "vault") | \
      [.spec.replicas, .spec.volumeClaimTemplates[0].metadata.name, .spec.volumeClaimTemplates[0].spec.storageClassName] | @tsv' \
      /tmp/vault-raft-rehearsal-render.yaml
-   helm list -n vault-raft-rehearsal -a
+   helm list -n vault-raft-rehearsal
    ```
 
    The cluster-scoped resource check must print **nothing**; the StatefulSet must print `1 data longhorn-worker` (tab-separated), with enforced per-worker node affinity and pod anti-affinity. An affinity merge warning may appear because the chart's default is a string but the candidate is a map; verify the **rendered** affinity rather than assuming it was lost. If `helm list` shows any existing release, **stop and inspect** instead of installing over it. Only with correct output, install with `helm install vault hashicorp/vault --version 0.34.1 -n vault-raft-rehearsal -f "$VALUES"` (no `--wait`: the new instance is sealed). Inspect that `vault-0` binds the migrated `data-vault-0`, and stop if Vault reports `Initialized=false`. **Never `operator init` migrated storage.** Production `infra/vault/helmrelease.yaml` must remain untouched.
-9. Unseal **vault-0 with synthetic source shares**, never run `vault operator init`; verify synthetic data, policies, SSH fixtures, and Kubernetes auth structure.
-10. Upgrade to three replicas (same Helm release, no PVC deletion). For each `vault-1` and `vault-2`, confirm new claim `data-vault-1/2`, join using `vault operator raft join http://vault-0.vault-internal:8200` from its pod, then enter synthetic shares via `scripts/lifecycle/vault-unseal-ha.sh` with `VAULT_NAMESPACE=vault-raft-rehearsal`.
-11. With an authenticated Vault CLI on the current active server, verify `vault operator raft list-peers` has three **voters** and `vault operator raft autopilot state` is healthy. Confirm one pod per worker (`kubectl get pod -o wide`), three 10Gi Longhorn RWO Bound PVCs, and the PDB `maxUnavailable: 1`.
+9. Unseal **vault-0 with the original synthetic source shares**, never run `vault operator init`; verify KV v2 fixture value, `rehearsal-read` policy, `userpass/` auth, `ssh-test/` engine, original SSH CA public-key hash, and one healthy Raft voter. **Observed on the 2026-10-19 rehearsal:** with the candidate's HTTP liveness probe enabled at initial startup, Vault stalled on `/v1/sys/health` and kubelet killed it after probe timeouts (exit 137). Liveness was **temporarily disabled only for the rehearsal** using `helm upgrade ... --set server.livenessProbe.enabled=false`, then `vault-0` was recreated under the StatefulSet's `OnDelete` policy and eventually returned HTTP 503 while sealed. After interactive unseal, `vault-0` became `1/1 Ready` with no restarts. The underlying slow-start condition has **not** been root-caused; this is **not** an acceptable final HA/prod liveness configuration.
+
+10. **Scale one follower at a time, and wait for each node to be healthy and voting before adding the next.** Use the locally extracted rehearsal `$VALUES` file where `server.authDelegator.enabled=false` and preserve the temporary liveness override on every upgrade; otherwise Helm will restore the enabled candidate value unexpectedly. With `updateStrategyType: OnDelete`, scaling creates a *new* pod without automatically restarting the existing healthy leader. Join a new `raft` **storage** node *before* unsealing it (Shamir); do not initialize it.
+
+    ```bash
+    VALUES=/tmp/vault-raft-rehearsal-values.yaml
+    yq -r '[.server.ha.raft.enabled, .server.authDelegator.enabled] | @tsv' "$VALUES"
+    helm upgrade vault hashicorp/vault --version 0.34.1 \
+      -n vault-raft-rehearsal -f "$VALUES" \
+      --set server.ha.replicas=2 --set server.livenessProbe.enabled=false
+
+    kubectl -n vault-raft-rehearsal get pods,pvc -o wide
+    kubectl -n vault-raft-rehearsal exec vault-1 -- \
+      vault operator raft join http://vault-0.vault-internal:8200
+    kubectl -n vault-raft-rehearsal exec -it vault-1 -- vault operator unseal
+    kubectl -n vault-raft-rehearsal exec -it vault-1 -- vault operator unseal
+    kubectl -n vault-raft-rehearsal exec vault-0 -- vault operator raft list-peers
+    ```
+
+    Confirm `vault-0` and `vault-1` are healthy, both voters, one per worker, `data-vault-0` is unchanged, `data-vault-1` is Bound. Then scale to three and join the last follower:
+
+    ```bash
+    helm upgrade vault hashicorp/vault --version 0.34.1 \
+      -n vault-raft-rehearsal -f "$VALUES" \
+      --set server.ha.replicas=3 --set server.livenessProbe.enabled=false
+    kubectl -n vault-raft-rehearsal get pods,pvc -o wide
+    kubectl -n vault-raft-rehearsal exec vault-2 -- \
+      vault operator raft join http://vault-0.vault-internal:8200
+    kubectl -n vault-raft-rehearsal exec -it vault-2 -- vault operator unseal
+    kubectl -n vault-raft-rehearsal exec -it vault-2 -- vault operator unseal
+    kubectl -n vault-raft-rehearsal exec vault-0 -- vault operator raft list-peers
+    ```
+
+    For nodes where `kubectl exec` initially fails, inspect readiness, events, Longhorn attachment and logs; do not rerun joins without checking the member state. Never put Shamir shares into commands or Git.
+
+11. With an authenticated Vault CLI on the current active server, verify `vault operator raft list-peers` reports **three voters** and `vault operator raft autopilot state` is healthy. Confirm one pod per worker, three 10Gi Longhorn RWO Bound Raft PVCs, and PDB `maxUnavailable: 1`. **Mandatory additional acceptance gate:** investigate startup slowness and restore/retest correctly configured liveness probes, ideally with startup grace appropriate to Longhorn/Raft initialization, using a controlled one-member-at-a-time rollout under `OnDelete`. Do not consider HA production-ready while liveness remains disabled.
 12. Restart **the leader only**, manually unseal it if required, and prove surviving quorum serves synthetic reads before unsealing the restarted node. Verify Raft peers/Autopilot and client readiness again. Note: PDB covers voluntary eviction, not arbitrary `kubectl delete pod`.
 13. Capture a **synthetic Raft snapshot** to an independent client with `vault operator raft snapshot save <local-file>`. Record SHA-256, inspect file size and test snapshot restoration **into an empty disposable rehearsal cluster**; do not overwrite an active cluster.
 14. Rehearse rollback separately: halt Raft pods, restore the independently captured synthetic file data on a fresh source claim, boot standalone and unseal with synthetic shares. Validate the same fixture. A rollback to a pre-cutover filesystem copy loses **all Raft-era writes**.
