@@ -18,7 +18,26 @@
 5. Create synthetic KV v2 + policy + auth/SSH fixture on the source with a separately scoped temporary token; verify readback and record non-secret checksums/counts. Set `VAULT_ADDR=http://127.0.0.1:8200` within the pod; do not log token values.
 6. **Stop** the file backend: `kubectl -n vault-raft-rehearsal delete pod vault-file-source --wait=true`. Confirm no process mounts `vault-file-source` and both PVCs are Bound. Retain an independently verified cold copy of the synthetic file tree if testing rollback.
 7. `kubectl apply -f infra/vault/candidates/raft-ha/rehearsal/migrate-job.yaml`; `kubectl -n vault-raft-rehearsal wait --for=condition=Complete job/vault-file-to-raft --timeout=10m`. Inspect job logs for migration **success only**, never dump storage. Failure is a stop gate; do not rerun over a nonempty Raft target.
-8. **Critical:** before starting chart, provision the matching Raft claims and keep the migrated `data-vault-0` intact. Install chart with `helm upgrade --install vault hashicorp/vault --version 0.34.1 -n vault-raft-rehearsal -f <rehearsal-values.yaml>` where values are copied from the candidate's `spec.values` and namespace-specific selectors remain `vault`. Set initial `server.ha.replicas=1`. Pin `server.image.tag=2.0.4`. The chart's `data-vault-0` must bind to the migrated claim; **check before starting** and verify exact PV identity. The candidate contains production node names and is NOT itself a helm values file.
+8. **Critical: isolate rehearsal Helm from the live production release.** The official chart defaults `server.authDelegator.enabled=true`, creating the **cluster-scoped** `ClusterRoleBinding/vault-server-binding`, which is already owned by the production `vault` release. Never remove, rename, adopt or re-annotate that production binding. For **synthetic rehearsal only**, set `server.authDelegator.enabled=false`; Kubernetes `TokenReview`/Kubernetes-auth validation is outside this rehearsal's test coverage. Keep the production setting unchanged.
+
+   Before starting Vault, keep the migrated `data-vault-0` claim Bound to the **same verified Longhorn PV**; preserve the old source claim and cold backup. Use local Python `yq` (the `jq` wrapper) to extract the candidate values, then render and verify:
+
+   ```bash
+   VALUES=/tmp/vault-raft-rehearsal-values.yaml
+   yq -y '.spec.values | .server.ha.replicas = 1 | .server.authDelegator.enabled = false' \
+     infra/vault/candidates/raft-ha/helmrelease.yaml > "$VALUES"
+   helm repo add hashicorp https://helm.releases.hashicorp.com --force-update
+   helm template vault hashicorp/vault --version 0.34.1 \
+     -n vault-raft-rehearsal -f "$VALUES" > /tmp/vault-raft-rehearsal-render.yaml
+   yq -r 'select(.kind == "ClusterRole" or .kind == "ClusterRoleBinding") | .kind + " " + .metadata.name' \
+     /tmp/vault-raft-rehearsal-render.yaml
+   yq -r 'select(.kind == "StatefulSet" and .metadata.name == "vault") | \
+     [.spec.replicas, .spec.volumeClaimTemplates[0].metadata.name, .spec.volumeClaimTemplates[0].spec.storageClassName] | @tsv' \
+     /tmp/vault-raft-rehearsal-render.yaml
+   helm list -n vault-raft-rehearsal -a
+   ```
+
+   The cluster-scoped resource check must print **nothing**; the StatefulSet must print `1 data longhorn-worker` (tab-separated), with enforced per-worker node affinity and pod anti-affinity. An affinity merge warning may appear because the chart's default is a string but the candidate is a map; verify the **rendered** affinity rather than assuming it was lost. If `helm list` shows any existing release, **stop and inspect** instead of installing over it. Only with correct output, install with `helm install vault hashicorp/vault --version 0.34.1 -n vault-raft-rehearsal -f "$VALUES"` (no `--wait`: the new instance is sealed). Inspect that `vault-0` binds the migrated `data-vault-0`, and stop if Vault reports `Initialized=false`. **Never `operator init` migrated storage.** Production `infra/vault/helmrelease.yaml` must remain untouched.
 9. Unseal **vault-0 with synthetic source shares**, never run `vault operator init`; verify synthetic data, policies, SSH fixtures, and Kubernetes auth structure.
 10. Upgrade to three replicas (same Helm release, no PVC deletion). For each `vault-1` and `vault-2`, confirm new claim `data-vault-1/2`, join using `vault operator raft join http://vault-0.vault-internal:8200` from its pod, then enter synthetic shares via `scripts/lifecycle/vault-unseal-ha.sh` with `VAULT_NAMESPACE=vault-raft-rehearsal`.
 11. With an authenticated Vault CLI on the current active server, verify `vault operator raft list-peers` has three **voters** and `vault operator raft autopilot state` is healthy. Confirm one pod per worker (`kubectl get pod -o wide`), three 10Gi Longhorn RWO Bound PVCs, and the PDB `maxUnavailable: 1`.
