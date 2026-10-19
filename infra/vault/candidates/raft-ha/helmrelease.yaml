@@ -71,6 +71,39 @@ spec:
         size: 10Gi
         storageClass: longhorn-worker
         accessMode: ReadWriteOnce
+      # All Raft members must have the nested storage path present.
+      # The migrated vault-0 already has /vault/data/raft; new PVCs do not.
+      # This idempotent, non-root init runs before each member, preserving
+      # any existing database and avoiding a root/chown init container.
+      extraInitContainers:
+        - name: prepare-raft-directory
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              mkdir -p /vault/data/raft
+              chmod 0700 /vault/data/raft
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 100
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          volumeMounts:
+            - name: data
+              mountPath: /vault/data
       persistentVolumeClaimRetentionPolicy:
         whenDeleted: Retain
         whenScaled: Retain
