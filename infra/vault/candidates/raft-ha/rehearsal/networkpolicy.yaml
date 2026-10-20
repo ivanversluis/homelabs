@@ -1,0 +1,68 @@
+# Issue #256: isolated rehearsal only; apply manually before starting Vault HA.
+# Vault source file backend is already offline after migration.
+# This policy intentionally leaves production namespace "vault" untouched.
+# Kubernetes kubelet-to-local-pod probes are normally exempt from Kubernetes/Calico
+# workload policies; this policy is needed for Raft east-west and Vault Kubernetes
+# API/DNS egress, not proof that liveness timeouts are network-policy-related.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: vault-rehearsal-allow
+  namespace: vault-raft-rehearsal
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: vault
+      app.kubernetes.io/name: vault
+      component: server
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Raft join / replication and standbys are permitted within this namespace only.
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: vault
+              app.kubernetes.io/name: vault
+              component: server
+      ports:
+        - protocol: TCP
+          port: 8200
+        - protocol: TCP
+          port: 8201
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: vault
+              app.kubernetes.io/name: vault
+              component: server
+      ports:
+        - protocol: TCP
+          port: 8200
+        - protocol: TCP
+          port: 8201
+    # Kubernetes service registration requires Kubernetes API access.
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.1/32
+      ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - ipBlock:
+            cidr: 172.16.20.200/32
+      ports:
+        - protocol: TCP
+          port: 6443
+    # CoreDNS resolution, scoped to kube-system.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

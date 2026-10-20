@@ -1,0 +1,23 @@
+# Issue #256: manual-only, isolated snapshot restore environment.
+# Apply this BEFORE restore-target.yaml so no Vault pod can start without isolation.
+# Do not include this directory in a live Flux Kustomization.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vault-raft-restore-test
+  labels:
+    app.kubernetes.io/part-of: vault-raft-restore-test
+    vault.hashicorp.com/restore-test: "true"
+---
+# Defense in depth alongside the Calico GlobalNetworkPolicy zt-default-deny.
+# No ingress, no egress, no DNS or Kubernetes API egress for restored Vault.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all
+  namespace: vault-raft-restore-test
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
