@@ -26,11 +26,11 @@ spec:
       install: true
       keep: false
     global:
-      domain: demo-argocd.${DOMAIN}
+      domain: argocd.${DOMAIN}
     configs:
       cm:
         exec.enabled: "true"
-        url: "https://demo-argocd.${DOMAIN}"
+        url: "https://argocd.${DOMAIN}"
         oidc.config: |
           name: Authentik
           issuer: https://auth.${DOMAIN}/application/o/argocd/

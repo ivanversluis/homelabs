@@ -209,7 +209,7 @@ data:
 
       - name: argocd-version
         group: 10-platform
-        url: "https://demo-argocd.${DOMAIN}/api/version"
+        url: "https://argocd.${DOMAIN}/api/version"
         interval: 60s
         client: *cloudflare_client
         ui: *safe_public_ui
