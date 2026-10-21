@@ -1,0 +1,15 @@
+# Non-secret Terraform settings for Semaphore (docs/lifecycle/terraform-semaphore-migration.md).
+# Loaded via envFromConfigMaps in semaphoreui-helmrelease.yaml; names are also
+# listed in config.forwarded_env_vars so Terraform task runs receive them.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: semaphoreui-terraform-config
+  namespace: semaphoreui
+data:
+  # The image bundles Terraform 1.11 but the state needs >= 1.15: point the
+  # Terraform app at the binary installed by the install-terraform init container.
+  SEMAPHORE_APPS: '{"terraform":{"active":true,"path":"/opt/terraform-bin/terraform"}}'
+  TF_IN_AUTOMATION: "true"
+  TF_VAR_vault_address: http://vault.vault.svc.cluster.local:8200
+  TF_VAR_vault_kubernetes_role: terraform-semaphore

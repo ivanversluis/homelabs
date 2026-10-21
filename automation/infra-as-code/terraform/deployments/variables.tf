@@ -29,9 +29,22 @@ variable "vault_address" {
 }
 
 variable "vault_token" {
-  description = "Vault authentication token"
+  description = "Static Vault token. Optional fallback for manual runs; leave empty when vault_kubernetes_role is set."
   type        = string
   sensitive   = true
+  default     = ""
+}
+
+variable "vault_kubernetes_role" {
+  description = "Vault Kubernetes-auth role to log in with using the pod service account token (Semaphore). Empty disables Kubernetes auth."
+  type        = string
+  default     = ""
+}
+
+variable "vault_kubernetes_mount" {
+  description = "Mount path of the Vault Kubernetes auth method"
+  type        = string
+  default     = "kubernetes"
 }
 
 variable "cloudflare_api_token" {
