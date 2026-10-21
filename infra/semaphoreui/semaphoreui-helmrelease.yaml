@@ -45,6 +45,7 @@ spec:
     config:
       forwarded_env_vars:
         - TF_IN_AUTOMATION
+        - TF_DATA_DIR
         - TF_VAR_vault_address
         - TF_VAR_vault_kubernetes_role
         - TF_VAR_domain
@@ -81,6 +82,9 @@ spec:
     extraVolumes:
       - name: terraform-bin
         emptyDir: {}
+      - name: terraform-data
+        emptyDir:
+          sizeLimit: 1Gi
       - name: terraform-state
         persistentVolumeClaim:
           claimName: semaphoreui-terraform-state
@@ -91,6 +95,8 @@ spec:
         readOnly: true
       - name: terraform-state
         mountPath: /var/lib/terraform-state
+      - name: terraform-data
+        mountPath: /opt/terraform-data
 
     # Dedicated identity for Vault Kubernetes-auth (control-tower SSH certificate issuance).
     # Bound only to a Vault role scoped to namespace semaphoreui — see
@@ -102,11 +108,13 @@ spec:
     service:
       type: ClusterIP
 
-    # Work directory: repository clones plus Terraform providers (~270 MB unpacked,
-    # cloudflare alone is ~180 MB). 250Mi was exhausted during `terraform init`.
+    # Work directory (repository clones). Terraform's data dir with the ~270 MB of
+    # providers lives on the terraform-data emptyDir instead (TF_DATA_DIR): Longhorn
+    # refuses to expand this volume while its node disk is below the minimal
+    # available threshold.
     persistence:
       enabled: true
-      size: 2Gi
+      size: 250Mi
       storageClass: longhorn
       accessModes:
         - ReadWriteOnce

@@ -11,5 +11,8 @@ data:
   # Terraform app at the binary installed by the install-terraform init container.
   SEMAPHORE_APPS: '{"terraform":{"active":true,"path":"/opt/terraform-bin/terraform"}}'
   TF_IN_AUTOMATION: "true"
+  # Provider binaries (~270 MB) go to the terraform-data emptyDir, not the small
+  # Longhorn work volume. Re-downloaded after a pod restart.
+  TF_DATA_DIR: /opt/terraform-data
   TF_VAR_vault_address: http://vault.vault.svc.cluster.local:8200
   TF_VAR_vault_kubernetes_role: terraform-semaphore
