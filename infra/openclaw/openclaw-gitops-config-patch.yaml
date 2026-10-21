@@ -14,12 +14,17 @@ spec:
             - |
               set -eu
               mkdir -p /home/node/.openclaw/skills
-              mkdir -p /home/node/.openclaw/workspace
+              mkdir -p /home/node/.openclaw/workspace/skills/kubernetes-diagnostics
               mkdir -p /runtime/openclaw
 
               # Git-owned bootstrap content is refreshed on every start.
               cp /config/k8s-monitor.js /home/node/.openclaw/skills/k8s-monitor.js
-              cp /config/AGENTS.md /home/node/.openclaw/workspace/AGENTS.md
+              # Copy the reviewed, read-only diagnostic client and OpenClaw skill.
+              cp /diagnostics/k8s-query.js /home/node/.openclaw/skills/k8s-query.js
+              cp /diagnostics/SKILL.md /home/node/.openclaw/workspace/skills/kubernetes-diagnostics/SKILL.md
+
+              # Preserve live TUI edits outside the Git-managed AGENTS block.
+              node /diagnostics/sync-agents.js /diagnostics/AGENTS.md /home/node/.openclaw/workspace/AGENTS.md
 
               # Render the immutable runtime config from Git + Vault-backed env vars.
               # No `openclaw config set` calls and no config is stored on the PVC.
@@ -48,6 +53,9 @@ spec:
               readOnly: true
             - name: runtime-config
               mountPath: /runtime/openclaw
+            - name: k8s-diagnostics
+              mountPath: /diagnostics
+              readOnly: true
       containers:
         - name: openclaw
           # Use the image's normal gateway command from the base Deployment.
@@ -69,3 +77,6 @@ spec:
             name: openclaw-runtime-config
         - name: runtime-config
           emptyDir: {}
+        - name: k8s-diagnostics
+          configMap:
+            name: openclaw-k8s-diagnostics
