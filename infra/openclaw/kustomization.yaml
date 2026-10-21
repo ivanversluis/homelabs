@@ -23,6 +23,13 @@ configMapGenerator:
   - name: openclaw-runtime-config
     files:
       - openclaw.json.template=openclaw.json.template
+  # Versioned code and instructions, separate from the historical skip ConfigMap.
+  - name: openclaw-k8s-diagnostics
+    files:
+      - k8s-query.js=k8s-query.js
+      - SKILL.md=skills/kubernetes-diagnostics/SKILL.md
+      - AGENTS.md=AGENTS.md
+      - sync-agents.js=sync-agents.js
 
 patches:
   - path: openclaw-gitops-config-patch.yaml
