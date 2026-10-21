@@ -62,10 +62,16 @@ Also rotate the Authentik API token and the old Vault token that were in `terraf
 
 ### 1.3 Vault policy and role
 
+Run from the repository root (works in bash and zsh; the token is not echoed or stored in history):
+
 ```bash
-read -rsp 'Vault admin token: ' VT; echo
+cd "$(git rev-parse --show-toplevel)"
+printf 'Vault admin token: '; stty -echo; read -r VT; stty echo; echo
+[ -n "$VT" ] || echo "token is empty, stop"
 vrun() { { printf '%s\n' "$VT"; cat; } | kubectl -n vault exec -i vault-0 -- \
   sh -c 'read -r VAULT_TOKEN; export VAULT_TOKEN; exec vault "$@"' sh "$@"; }
+
+vrun token lookup < /dev/null | grep -E '^(policies|ttl)'   # must list root/admin policies
 
 vrun policy write terraform-semaphore - \
   < automation/infra-as-code/terraform/bootstrap/terraform-semaphore.hcl
@@ -74,7 +80,12 @@ vrun write auth/kubernetes/role/terraform-semaphore \
   bound_service_account_names=semaphore-ansible \
   bound_service_account_namespaces=semaphoreui \
   policies=terraform-semaphore ttl=2h max_ttl=4h < /dev/null
+
+vrun read auth/kubernetes/role/terraform-semaphore < /dev/null | grep -E 'policies|bound_service'
 ```
+
+`403 permission denied` means the token is empty or lacks admin rights (check the `token lookup`
+line). `no such file` means you are not in the repository root.
 
 The role uses the existing `semaphore-ansible` service account (the same identity as the SSH
 certificate role), so any Semaphore task can obtain either role.
@@ -82,7 +93,7 @@ certificate role), so any Semaphore task can obtain either role.
 ### 1.4 Seed `secret/infra/terraform`
 
 ```bash
-cd automation/infra-as-code/terraform/bootstrap
+cd "$(git rev-parse --show-toplevel)"/automation/infra-as-code/terraform/bootstrap
 ./seed-vault-from-tfvars.sh --dry-run ../deployments/terraform.tfvars   # review key sources
 ./seed-vault-from-tfvars.sh ../deployments/terraform.tfvars
 ```
@@ -95,7 +106,7 @@ with empty strings) and prints only key names. It refuses to overwrite an existi
 Store the new Cloudflare token with a **patch** so the other keys stay untouched:
 
 ```bash
-read -rsp 'Cloudflare API token: ' CF; echo
+printf 'Cloudflare API token: '; stty -echo; read -r CF; stty echo; echo
 printf '{"cloudflare_api_token":"%s"}' "$CF" | vrun kv patch -mount=secret infra/terraform -
 unset CF VT
 ```
