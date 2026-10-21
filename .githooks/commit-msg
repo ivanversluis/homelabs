@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Block commit messages that contain a private value.
+set -euo pipefail
+. "$(dirname "$0")/_lib.sh"
+
+guard_scan "commit message" "$1"

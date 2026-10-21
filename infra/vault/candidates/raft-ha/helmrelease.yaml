@@ -1,0 +1,154 @@
+# ISSUE #256: REVIEW CANDIDATE ONLY - intentionally excluded from every live Kustomization.
+# Do not apply, copy into infra/vault/helmrelease.yaml, or reconcile before the
+# isolated rehearsal, cold backup, Shamir custody and maintenance gates pass.
+# Vault 0.34.1 chart renders three *separate* data-vault-{0,1,2} 10Gi PVCs.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: vault
+  namespace: vault
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: vault
+      version: "0.34.1"
+      sourceRef:
+        kind: HelmRepository
+        name: hashicorp
+      interval: 12h
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 5
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 5
+  uninstall:
+    keepHistory: true
+  values:
+    server:
+      enabled: true
+      image:
+        repository: hashicorp/vault
+        tag: "2.0.4"
+      standalone:
+        enabled: false
+      ha:
+        enabled: true
+        replicas: 3
+        disruptionBudget:
+          enabled: true
+          maxUnavailable: 1
+        raft:
+          enabled: true
+          # The environment variable VAULT_RAFT_NODE_ID becomes the Pod name,
+          # matching node_id=vault-0 used during operator migrate.
+          setNodeId: true
+          config: |
+            ui = true
+            disable_mlock = true
+            listener "tcp" {
+              tls_disable = 1
+              address = "[::]:8200"
+              cluster_address = "[::]:8201"
+            }
+            storage "raft" {
+              path = "/vault/data/raft"
+            }
+            service_registration "kubernetes" {}
+            telemetry {
+              disable_hostname = true
+              prometheus_retention_time = "12h"
+            }
+      service:
+        enabled: true
+        type: ClusterIP
+        port: 8200
+      dataStorage:
+        enabled: true
+        size: 10Gi
+        storageClass: longhorn-worker
+        accessMode: ReadWriteOnce
+      # All Raft members must have the nested storage path present.
+      # The migrated vault-0 already has /vault/data/raft; new PVCs do not.
+      # This idempotent, non-root init runs before each member, preserving
+      # any existing database and avoiding a root/chown init container.
+      extraInitContainers:
+        - name: prepare-raft-directory
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              mkdir -p /vault/data/raft
+              chmod 0700 /vault/data/raft
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 100
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          volumeMounts:
+            - name: data
+              mountPath: /vault/data
+      persistentVolumeClaimRetentionPolicy:
+        whenDeleted: Retain
+        whenScaled: Retain
+      # Avoid surprise rolling restarts; each Vault member needs manual unseal.
+      updateStrategyType: OnDelete
+      # Explicitly restrict servers to the three current Longhorn workers.
+      # Both rules are hard constraints: never colocate two Vault voters.
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - k8s-worker01
+                      - k8s-worker02
+                      - k8s-worker03
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: vault
+                  app.kubernetes.io/instance: vault
+                  component: server
+              topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 30
+      resources:
+        requests:
+          memory: 256Mi
+          cpu: 250m
+        limits:
+          memory: 512Mi
+          cpu: 500m
+      # Sealed and uninitialized members must NOT receive API traffic.
+      readinessProbe:
+        enabled: true
+        path: "/v1/sys/health?standbyok=true&perfstandbyok=true"
+      # Keep sealed pods alive for manual unseal (do not restart-loop them).
+      livenessProbe:
+        enabled: true
+        path: "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
+        initialDelaySeconds: 60
+    ui:
+      enabled: true
+      serviceType: ClusterIP
+    injector:
+      enabled: false

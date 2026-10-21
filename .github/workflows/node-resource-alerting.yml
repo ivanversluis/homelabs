@@ -1,10 +1,13 @@
-name: Node resource alerting validation
+name: Grafana dashboard and alerting validation
 
 on:
   pull_request:
     paths:
       - platform/observability/grafana/**
       - platform/observability/kustomization.yaml
+      - platform/observability/prometheus/prometheus.yml
+      - scripts/test-grafana-dashboards.py
+      - scripts/test-grafana-provisioning.py
       - scripts/test-node-resource-alerting.py
       - .github/workflows/node-resource-alerting.yml
   push:
@@ -12,6 +15,9 @@ on:
     paths:
       - platform/observability/grafana/**
       - platform/observability/kustomization.yaml
+      - platform/observability/prometheus/prometheus.yml
+      - scripts/test-grafana-dashboards.py
+      - scripts/test-grafana-provisioning.py
       - scripts/test-node-resource-alerting.py
       - .github/workflows/node-resource-alerting.yml
   workflow_dispatch:
@@ -27,8 +33,22 @@ jobs:
       - name: Install validation dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends prometheus python3-yaml
+          sudo apt-get install -y --no-install-recommends python3-yaml
+          # Ubuntu's packaged promtool omits Kubernetes discovery. Use the
+          # checksum-verified official build also used for local validation.
+          validation_tools_dir="$RUNNER_TEMP/grafana-validation"
+          mkdir -p "$validation_tools_dir"
+          cd "$validation_tools_dir"
+          curl -fsSLO https://github.com/prometheus/prometheus/releases/download/v3.5.0/prometheus-3.5.0.linux-amd64.tar.gz
+          curl -fsSLO https://github.com/prometheus/prometheus/releases/download/v3.5.0/sha256sums.txt
+          awk '$2 == "prometheus-3.5.0.linux-amd64.tar.gz"' sha256sums.txt | sha256sum --check
+          tar -xzf prometheus-3.5.0.linux-amd64.tar.gz --strip-components=1 prometheus-3.5.0.linux-amd64/promtool
+          echo "$validation_tools_dir" >> "$GITHUB_PATH"
       - name: Test dashboard wiring and resource alert semantics
         run: python3 scripts/test-node-resource-alerting.py
+      - name: Validate all dashboards and query regressions
+        run: python3 scripts/test-grafana-dashboards.py
+      - name: Smoke-test provisioning with the configured Grafana image
+        run: python3 scripts/test-grafana-provisioning.py
       - name: Render observability manifests
         run: kubectl kustomize platform/observability > /tmp/observability.yaml

@@ -2,7 +2,7 @@
 
 Issue: [#305](https://github.com/ivanversluis/homelabs/issues/305).
 
-The **Homelab / Kubernetes Node Resource Capacity** dashboard (`k8s-node-resource-capacity`)
+The **Kubernetes / Kubernetes Node Resource Capacity** dashboard (`k8s-node-resource-capacity`)
 shows current CPU, memory and root filesystem utilization, 24-hour histories, and
 available root space in GiB. Legends show only the Kubernetes node name (for example,
 `k8s-master01`). Prometheus sets the `node` label from `__meta_kubernetes_pod_node_name`,
@@ -46,18 +46,19 @@ kubectl logs -n observability deployment/grafana --since=10m | \
   rg -i 'provision|alert|error'
 ```
 
-The added mounts change the pod template, so the initial deployment restarts
-Grafana automatically. Subsequent edits to these static `subPath` ConfigMaps
-require `kubectl rollout restart deployment/grafana -n observability` after Flux
-has applied them. File-provisioned rules/contact points are managed in Git.
+Dashboard ConfigMaps are now generated from JSON with content hashes and mounted
+through a directory projection. Dashboard edits change the pod template and roll
+Grafana automatically. The alert-rule/contact-point ConfigMaps still use static
+`subPath` mounts: edits to those require `kubectl rollout restart
+deployment/grafana -n observability` after Flux has applied them. File-provisioned
+rules/contact points are managed in Git.
 
 When deploying the hostname-label correction, the generated Prometheus ConfigMap
-hash changes and triggers a Prometheus rollout. Restart Grafana after Flux has
-applied the dashboard ConfigMap so its static `subPath` mount picks up the legends:
+hash changes and triggers a Prometheus rollout. The generated dashboard ConfigMap
+also triggers a Grafana rollout to pick up the legends:
 
 ```bash
 kubectl rollout status deployment/prometheus -n observability
-kubectl rollout restart deployment/grafana -n observability
 kubectl rollout status deployment/grafana -n observability
 ```
 
@@ -66,7 +67,7 @@ retain the old exporter-name label, so the history panels can show old and new
 series together until the selected time range is entirely after the change. The
 new label values create new alert instances and restart their pending periods.
 
-1. Open **Dashboards → Homelab → Kubernetes Node Resource Capacity**. Check all
+1. Open **Dashboards → Kubernetes → Kubernetes Node Resource Capacity**. Check all
    nodes appear and the three history panels show data. Confirm warning lines at
    90% CPU, 85% memory, and 70% root disk.
 2. Open **Alerting → Alert rules → Homelab → node-resources**. Confirm the three

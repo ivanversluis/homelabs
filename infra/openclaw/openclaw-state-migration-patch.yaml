@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openclaw
+  namespace: openclaw
+spec:
+  template:
+    spec:
+      initContainers:
+        # Name-only anchor: strategic merge would otherwise prepend migrate-state,
+        # but it must run after install-skills renders /runtime/openclaw/openclaw.json.
+        - name: install-skills
+        # OpenClaw upgrades can bump the agent SQLite schema on the PVC. The
+        # gateway refuses to start until `openclaw doctor --fix` migrates it, which
+        # crash-looped the pod after the 2026.9.9 upgrade. Run the safe,
+        # non-interactive migrations before every start; doctor writes its own
+        # pre-migration .bak next to the database. Remaining doctor maintenance
+        # (plugin updates on a read-only root FS) is non-fatal, so a failure here
+        # is logged and the gateway still reports real migration problems itself.
+        - name: migrate-state
+          image: ghcr.io/openclaw/openclaw:2026.9.9
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              node /app/dist/index.js doctor --fix --non-interactive --no-workspace-suggestions \
+                || echo "openclaw doctor exited $? (non-fatal, see output above)"
+          envFrom:
+            - secretRef:
+                name: openclaw-secrets
+          env:
+            - name: HOME
+              value: /home/node
+            - name: OPENCLAW_HOME
+              value: /home/node/.openclaw
+            - name: OPENCLAW_CONFIG_DIR
+              value: /home/node/.openclaw/.openclaw
+            - name: OPENCLAW_STATE_DIR
+              value: /home/node/.openclaw
+            - name: OPENCLAW_CONFIG_PATH
+              value: /runtime/openclaw/openclaw.json
+            - name: OPENCLAW_WORKSPACE_DIR
+              value: /home/node/.openclaw/workspace
+            - name: NPM_CONFIG_CACHE
+              value: /tmp/.npm
+            - name: NODE_ENV
+              value: production
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /home/node/.openclaw
+            - name: runtime-config
+              mountPath: /runtime/openclaw
+              readOnly: true
+            - name: tmp-volume
+              mountPath: /tmp
+            - name: cache
+              mountPath: /home/node/.cache

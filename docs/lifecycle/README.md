@@ -23,6 +23,8 @@ The maintenance process itself is now reusable rather than being a one-off recov
 
 - [Recurring platform upgrade](./recurring-platform-upgrade.md) — normal future Arch + Kubernetes
   maintenance sequence.
+- [Vault file-to-Raft HA production migration guide](./vault-raft-migration.md) — gated design, rollback and release criteria for issue #256.
+- [Vault 2026-10-19 synthetic rehearsal report](./vault-raft-migration-rehearsal-2026-10-19.md) — end-to-end evidence, incidents, snapshot checksum and resume checkpoint.
 - [2026-09 platform upgrade retrospective](./2026-09-platform-upgrade-retrospective.md) — milestone,
   evidence and lessons learned from the catch-up cycle.
 - [Maintenance plan](./maintenance-plan.md) — overall lifecycle model and wave status.
@@ -53,7 +55,7 @@ The existing `wave3_*` filenames and role names are retained for Semaphore compa
 
 ## Open resilience follow-ups
 
-- Issue #256: Vault seals after restart and blocks new Vault-dependent control-tower runs.
+- [Issue #256](https://github.com/ivanversluis/homelabs/issues/256): Vault standalone restart recovery. Synthetic file-to-Raft migration, 3-voter failover and snapshot export have passed; isolated snapshot restore, liveness recovery and production gates remain outstanding. [Rehearsal evidence](./vault-raft-migration-rehearsal-2026-10-19.md).
 - Issue #257: Cloudflare Tunnel currently has a control-plane-node availability dependency.
 
 These do not invalidate the completed platform upgrade, but they are explicit resilience work for

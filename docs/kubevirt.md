@@ -172,3 +172,9 @@ VMs are workload definitions under `workloads/vms/`:
 - KubeVirt documentation: https://kubevirt.io/user-guide/
 - CDI DataVolumes: https://github.com/kubevirt/containerized-data-importer/blob/main/doc/datavolumes.md
 - local-path-provisioner: https://github.com/rancher/local-path-provisioner
+
+## CPU/memory requests, limits and VM density
+
+For an explanation of the Kubernetes scheduler, namespace `LimitRange`/`ResourceQuota`, CPU and memory requests versus limits, KubeVirt launcher overhead, Linux free page reporting, and **read-only checks for the existing Debian VM**, see [Kubernetes requests, limits and KubeVirt memory: a homelab lab](kubernetes-requests-limits-kubevirt-memory.md).
+
+The current `debian-bookworm` Git manifest specifies a `2Gi` memory request **and** limit; validate the actual `virt-launcher` compute-container resource values and VMI events before considering a separate configuration change.

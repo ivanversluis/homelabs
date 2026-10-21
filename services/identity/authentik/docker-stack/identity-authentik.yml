@@ -22,7 +22,7 @@ services:
 
   # --- Authentik ---
   authentik-server:
-    image: ghcr.io/goauthentik/server:2026.8.3
+    image: ghcr.io/goauthentik/server:2026.8.4
     command: server
     networks:
       - auth-net
@@ -40,7 +40,7 @@ services:
       - authentik:/templates
 
   authentik-worker:
-    image: ghcr.io/goauthentik/server:2026.8.3
+    image: ghcr.io/goauthentik/server:2026.8.4
     command: worker
     networks:
       - auth-net
@@ -54,7 +54,7 @@ services:
       AUTHENTIK_HOST_BROWSER: https://authentik.${CLOUDFLARE_DOMAIN}
   # --- Gateway ---
   kong:
-    image: kong:latest
+    image: kong:3.9.3
     networks:
       auth-net:
       docker-bridge:

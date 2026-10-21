@@ -1,0 +1,344 @@
+{
+  "uid": "homelab-overview",
+  "title": "Homelab Overview",
+  "schemaVersion": 39,
+  "version": 2,
+  "tags": [
+    "homelab",
+    "overview"
+  ],
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Nodes ready",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "sum(kube_node_status_condition{job=\"kube-state-metrics\",condition=\"Ready\",status=\"true\"})",
+          "refId": "A",
+          "legendFormat": "Ready nodes",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value"
+      }
+    },
+    {
+      "id": 2,
+      "title": "Pods running",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "sum(kube_pod_status_phase{job=\"kube-state-metrics\",phase=\"Running\"})",
+          "refId": "A",
+          "legendFormat": "Running pods",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value"
+      }
+    },
+    {
+      "id": 3,
+      "title": "Scrape targets down",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "sum(up == bool 0)",
+          "refId": "A",
+          "legendFormat": "Targets down",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value"
+      }
+    },
+    {
+      "id": 4,
+      "title": "Scrape targets total",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "count(up)",
+          "refId": "A",
+          "legendFormat": "Targets",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value"
+      }
+    },
+    {
+      "id": 10,
+      "type": "text",
+      "title": "Kubernetes",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 7
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "- [Kubernetes Node Resource Capacity](/d/k8s-node-resource-capacity)\n- [Kubernetes Node Health](/d/k8s-node-health)\n- [Kubernetes Platform Overview](/d/k8s-platform-overview)\n- [Kubernetes Time Sync](/d/k8s-time-sync)\n- [Kubernetes Workloads](/d/k8s-workloads)"
+      }
+    },
+    {
+      "id": 11,
+      "type": "text",
+      "title": "DNS",
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 7
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "- [CoreDNS Health](/d/coredns-health)\n- [DNS Overview](/d/dns-overview)\n- [Pi-hole Client Drill-down](/d/pihole-client-drilldown)\n- [Pi-hole Client Visibility](/d/pihole-visibility)\n- [Unbound Recursive Resolver](/d/unbound-resolver)"
+      }
+    },
+    {
+      "id": 12,
+      "type": "text",
+      "title": "Home",
+      "gridPos": {
+        "x": 0,
+        "y": 11,
+        "w": 12,
+        "h": 7
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "- [DSMR Smart Meter & Solar](/d/dsmr-energy)\n- [Home Climate](/d/home-climate)\n- [Home Energy](/d/home-energy)\n- [Shelly Devices](/d/shelly-devices)"
+      }
+    },
+    {
+      "id": 13,
+      "type": "text",
+      "title": "Firewall Manager",
+      "gridPos": {
+        "x": 12,
+        "y": 11,
+        "w": 12,
+        "h": 7
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "- [FM - Golden Signals (SRE)](/d/fm-golden-signals)\n- [Firewall Manager - Overview](/d/firewall-manager-overview)\n- [FM - RED Method (Services)](/d/fm-red-method)\n- [FM - USE Method (Resources)](/d/fm-use-method)"
+      }
+    },
+    {
+      "id": 14,
+      "type": "text",
+      "title": "Platform Services",
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 12,
+        "h": 7
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "- [HashiCorp Vault](/d/hashicorp-vault)\n- [Prometheus Storage & Scrapers](/d/prometheus-storage)"
+      }
+    }
+  ],
+  "id": null,
+  "editable": false,
+  "timezone": "browser",
+  "graphTooltip": 1,
+  "description": "Start here for Kubernetes, DNS, home telemetry, Firewall Manager and platform services. Follow overview links into focused dashboards while preserving the time range.",
+  "links": [
+    {
+      "title": "Kubernetes",
+      "type": "link",
+      "url": "/d/k8s-platform-overview",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "dashboard"
+    },
+    {
+      "title": "DNS",
+      "type": "link",
+      "url": "/d/dns-overview",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "dashboard"
+    },
+    {
+      "title": "Home",
+      "type": "link",
+      "url": "/d/home-climate",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "dashboard"
+    },
+    {
+      "title": "Firewall Manager",
+      "type": "link",
+      "url": "/d/firewall-manager-overview",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "dashboard"
+    },
+    {
+      "title": "Platform Services",
+      "type": "link",
+      "url": "/d/prometheus-storage",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "dashboard"
+    }
+  ]
+}

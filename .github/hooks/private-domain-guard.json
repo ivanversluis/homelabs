@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "bash": "f=\"$(git rev-parse --show-toplevel 2>/dev/null)/.github/hooks/private-domain-guard.py\"; if [ -f \"$f\" ]; then exec python3 \"$f\"; fi",
+        "timeoutSec": 15
+      }
+    ]
+  }
+}

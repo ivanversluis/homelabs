@@ -22,8 +22,7 @@ def read(name):
 
 cm = read('alerting-rules-node-resources-configmap.yaml')
 group = yaml.safe_load(cm['data']['rules-node-resources.yaml'])['groups'][0]
-dashboard_cm = read('dashboard-kubernetes-node-resources-configmap.yaml')
-dashboard = json.loads(dashboard_cm['data']['kubernetes-node-resource-capacity.json'])
+dashboard = json.loads((GRAFANA / 'dashboards/kubernetes/kubernetes-node-resource-capacity.json').read_text())
 panels = {p['id']: p for p in dashboard['panels']}
 expected = {'NodeCPUUsageHigh': (90, '30m'), 'NodeMemoryUsageHigh': (85, '4h'), 'NodeRootDiskUsageHigh': (70, '4h')}
 assert len(group['rules']) == 3
@@ -54,12 +53,19 @@ spec = deployment['spec']['template']['spec']
 volumes = {v['name']: v for v in spec['volumes']}
 mounts = spec['containers'][0]['volumeMounts']
 resources = yaml.safe_load((BASE / 'kustomization.yaml').read_text())['resources']
-for name, key, filename in [('alerting-rules-node-resources', 'rules-node-resources.yaml', 'alerting-rules-node-resources-configmap.yaml'), ('dashboard-kubernetes-node-resources', 'kubernetes-node-resource-capacity.json', 'dashboard-kubernetes-node-resources-configmap.yaml')]:
+for name, key, filename in [('alerting-rules-node-resources', 'rules-node-resources.yaml', 'alerting-rules-node-resources-configmap.yaml')]:
     assert 'grafana/' + filename in resources
     assert volumes[name]['configMap']['name'] == read(filename)['metadata']['name']
     mount = next(m for m in mounts if m['name'] == name)
     assert mount['readOnly'] and mount['subPath'] == key
     assert mount['mountPath'].endswith('/' + key)
+generator = next(g for g in yaml.safe_load((BASE / 'kustomization.yaml').read_text())['configMapGenerator'] if g['name'] == 'grafana-dashboard-kubernetes-node-resources')
+assert generator['files'] == ['kubernetes-node-resource-capacity.json=grafana/dashboards/kubernetes/kubernetes-node-resource-capacity.json']
+source = next(s['configMap'] for s in volumes['dashboards-kubernetes']['projected']['sources'] if s['configMap']['name'] == generator['name'])
+assert source['items'] == [{'key': 'kubernetes-node-resource-capacity.json', 'path': 'kubernetes-node-resource-capacity.json'}]
+mount = next(m for m in mounts if m['name'] == 'dashboards-kubernetes')
+assert mount['readOnly'] and 'subPath' not in mount
+assert mount['mountPath'] == '/var/lib/grafana/dashboards/Kubernetes'
 contact = yaml.safe_load(read('alerting-contact-points-configmap.yaml')['data']['contact-points.yaml'])['contactPoints'][0]
 receiver = contact['receivers'][0]
 assert contact['name'] == 'discord-primary' and receiver['disableResolveMessage'] is False

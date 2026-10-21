@@ -25,25 +25,6 @@ resources:
   - grafana/alerting-notification-policies-configmap.yaml
   - grafana/alerting-rules-time-sync-configmap.yaml
   - grafana/alerting-rules-node-resources-configmap.yaml
-  - grafana/dashboard-overview-configmap.yaml
-  - grafana/dashboard-golden-signals-configmap.yaml
-  - grafana/dashboard-red-method-configmap.yaml
-  - grafana/dashboard-use-method-configmap.yaml
-  - grafana/dashboard-hashicorp-vault-configmap.yaml
-  - grafana/dashboard-kubernetes-platform-configmap.yaml
-  - grafana/dashboard-kubernetes-nodes-configmap.yaml
-  - grafana/dashboard-kubernetes-node-resources-configmap.yaml
-  - grafana/dashboard-kubernetes-time-sync-configmap.yaml
-  - grafana/dashboard-dns-overview-configmap.yaml
-  - grafana/dashboard-coredns-configmap.yaml
-  - grafana/dashboard-pihole-configmap.yaml
-  - grafana/dashboard-pihole-client-configmap.yaml
-  - grafana/dashboard-unbound-configmap.yaml
-  - grafana/dashboard-home-climate-configmap.yaml
-  - grafana/dashboard-home-energy-configmap.yaml
-  - grafana/dashboard-dsmr-energy-configmap.yaml
-  - grafana/dashboard-shelly-configmap.yaml
-  - grafana/dashboard-prometheus-storage-configmap.yaml
   - grafana/deployment.yaml
   - grafana/service.yaml
   # Vault integration
@@ -80,3 +61,173 @@ configMapGenerator:
         app.kubernetes.io/name: prometheus
         app.kubernetes.io/component: alerts
 
+
+  # Dashboard JSON stays in source folders; content hashes trigger Grafana rollouts.
+  - name: grafana-dashboard-coredns
+    files:
+      - coredns.json=grafana/dashboards/dns/coredns.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-dns-overview
+    files:
+      - dns-overview.json=grafana/dashboards/dns/dns-overview.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-dsmr-energy
+    files:
+      - dsmr-energy.json=grafana/dashboards/home/dsmr-energy.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-golden-signals
+    files:
+      - fm-golden-signals.json=grafana/dashboards/firewall-manager/fm-golden-signals.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-hashicorp-vault
+    files:
+      - hashicorp-vault.json=grafana/dashboards/platform-services/hashicorp-vault.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-home-climate
+    files:
+      - home-climate.json=grafana/dashboards/home/home-climate.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-home-energy
+    files:
+      - home-energy.json=grafana/dashboards/home/home-energy.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-kubernetes-node-resources
+    files:
+      - kubernetes-node-resource-capacity.json=grafana/dashboards/kubernetes/kubernetes-node-resource-capacity.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-kubernetes-nodes
+    files:
+      - kubernetes-node-health.json=grafana/dashboards/kubernetes/kubernetes-node-health.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-kubernetes-platform
+    files:
+      - kubernetes-platform-overview.json=grafana/dashboards/kubernetes/kubernetes-platform-overview.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-kubernetes-time-sync
+    files:
+      - kubernetes-time-sync.json=grafana/dashboards/kubernetes/kubernetes-time-sync.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-overview
+    files:
+      - firewall-manager-overview.json=grafana/dashboards/firewall-manager/firewall-manager-overview.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-pihole-client
+    files:
+      - pihole-client.json=grafana/dashboards/dns/pihole-client.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-pihole
+    files:
+      - pihole.json=grafana/dashboards/dns/pihole.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-prometheus-storage
+    files:
+      - prometheus-storage.json=grafana/dashboards/platform-services/prometheus-storage.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-red-method
+    files:
+      - fm-red-method.json=grafana/dashboards/firewall-manager/fm-red-method.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-shelly
+    files:
+      - shelly-devices.json=grafana/dashboards/home/shelly-devices.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-unbound
+    files:
+      - unbound.json=grafana/dashboards/dns/unbound.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-use-method
+    files:
+      - fm-use-method.json=grafana/dashboards/firewall-manager/fm-use-method.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-kubernetes-workloads
+    files:
+      - kubernetes-workloads.json=grafana/dashboards/kubernetes/kubernetes-workloads.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-homelab-overview
+    files:
+      - homelab-overview.json=grafana/dashboards/homelab-overview.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"

@@ -9,7 +9,7 @@
 #   make zt-cf                      — Test Cloudflare tunnel endpoints
 #   make tf-init                    — Terraform init (single root module)
 #   make tf-plan                    — Terraform plan (all OIDC apps)
-#   make tf-apply                   — Terraform apply (auto-approve)
+#   make tf-apply                   — Terraform apply (requires confirmation)
 # ============================================================================
 
 SHELL := /bin/bash
@@ -37,7 +37,7 @@ help: ## Show available targets
 	@echo "Terraform Targets:"
 	@echo "  tf-init                        Terraform init (single root module)"
 	@echo "  tf-plan                        Terraform plan (all OIDC apps)"
-	@echo "  tf-apply                       Terraform apply (auto-approve)"
+	@echo "  tf-apply                       Terraform apply (requires confirmation)"
 	@echo "  tf-destroy                     Terraform destroy (requires confirmation)"
 
 # ============================================================================
@@ -83,8 +83,8 @@ tf-init: ## Terraform init (single root module)
 tf-plan: ## Terraform plan (all OIDC apps)
 	@cd $(TF_DIR) && terraform plan
 
-tf-apply: ## Terraform apply with auto-approve
-	@cd $(TF_DIR) && terraform apply -auto-approve
+tf-apply: ## Terraform apply (requires confirmation)
+	@cd $(TF_DIR) && terraform apply
 
 tf-destroy: ## Terraform destroy (requires confirmation)
 	@cd $(TF_DIR) && terraform destroy

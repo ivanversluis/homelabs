@@ -77,6 +77,23 @@ kubectl kustomize infra >/dev/null
 kubectl kustomize compute/eliteboxes >/dev/null
 ```
 
+## Upgrades and state migrations
+
+OpenClaw keeps its agent SQLite databases on the `openclaw-data` PVC. Some
+releases bump the schema, and the gateway then refuses to start with
+`... uses schema version N; ... run openclaw doctor --fix` (exit code 78,
+`CrashLoopBackOff`). The `migrate-state` init container
+(`openclaw-state-migration-patch.yaml`) runs
+`openclaw doctor --fix --non-interactive` before every start, so Renovate
+image bumps migrate automatically. Doctor writes a
+`*.pre-startup-migration-*.bak` copy next to each database it changes.
+
+If a migration still fails, check the init container first:
+
+```bash
+kubectl -n openclaw logs deploy/openclaw -c migrate-state
+```
+
 ## Discord troubleshooting
 
 ### `Failed to resolve Discord application id` / `message failed: 401`
