@@ -20,7 +20,7 @@
 | Forgejo | forgejo | `apps/forgejo` | `https://forgejo.$DOMAIN/user/oauth2/authentik/callback` | Yes (Admin/User via groups) | Native OAuth2 source via env/API |
 | N8N | n8n | `apps/n8n` | `https://n8n.$DOMAIN/rest/oauth2-credential/callback` | No (single-owner workflow) | SSO via env vars since v1.x |
 | SemaphoreUI | semaphoreui | `infra/semaphoreui` | `https://demo-semaphore.$DOMAIN/api/auth/oidc/redirect` | Yes (Admin/User teams) | Helm values for OIDC |
-| ArgoCD | argocd | `infra/argocd` | `https://demo-argocd.$DOMAIN/auth/callback` | Yes (Admin/ReadOnly via groups) | Helm values `configs.cm` |
+| ArgoCD | argocd | `infra/argocd` | `https://argocd.$DOMAIN/auth/callback` | Yes (Admin/ReadOnly via groups) | Helm values `configs.cm` |
 
 ### oauth2-proxy (No Native Auth)
 

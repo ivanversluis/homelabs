@@ -1,0 +1,16 @@
+# Terraform state for automation/infra-as-code/terraform/deployments (local backend).
+# Mounted at /var/lib/terraform-state in the Semaphore pod. Covered by the
+# Longhorn "default" recurring-job group (daily/weekly/monthly backups).
+# The state holds plaintext provider secrets: never copy it into Git or logs.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: semaphoreui-terraform-state
+  namespace: semaphoreui
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi

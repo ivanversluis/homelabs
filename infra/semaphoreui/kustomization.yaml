@@ -8,6 +8,9 @@ resources:
   - semaphoreui-oidc-externalsecret.yaml
   - semaphoreui-postgres-externalsecret.yaml
   - semaphoreui-postgres-pvc.yaml
+  - semaphoreui-terraform-state-pvc.yaml
+  - semaphoreui-terraform-config.yaml
+  - semaphoreui-terraform-env-externalsecret.yaml
   - semaphoreui-postgres-deployment.yaml
   - semaphoreui-postgres-service.yaml
   - semaphoreui-helmrelease.yaml

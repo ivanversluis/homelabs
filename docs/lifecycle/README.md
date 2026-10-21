@@ -23,6 +23,7 @@ The maintenance process itself is now reusable rather than being a one-off recov
 
 - [Recurring platform upgrade](./recurring-platform-upgrade.md) — normal future Arch + Kubernetes
   maintenance sequence.
+- [Terraform in Semaphore UI](./terraform-semaphore-migration.md) — moving the Terraform state, inputs and Vault access from a local working directory into Semaphore, with the manual operator steps.
 - [Vault file-to-Raft HA production migration guide](./vault-raft-migration.md) — gated design, rollback and release criteria for issue #256.
 - [Vault 2026-10-19 synthetic rehearsal report](./vault-raft-migration-rehearsal-2026-10-19.md) — end-to-end evidence, incidents, snapshot checksum and resume checkpoint.
 - [2026-09 platform upgrade retrospective](./2026-09-platform-upgrade-retrospective.md) — milestone,

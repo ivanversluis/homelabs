@@ -34,6 +34,64 @@ spec:
     extraEnvVariables:
       SEMAPHORE_SCHEDULE_TIMEZONE: Europe/Amsterdam
 
+    # Terraform runs (docs/lifecycle/terraform-semaphore-migration.md):
+    # non-secret settings from a ConfigMap, secret TF_VAR_* inputs from Vault
+    # secret/infra/terraform via ESO.
+    envFromConfigMaps:
+      - semaphoreui-terraform-config
+    envFromSecrets:
+      - semaphoreui-terraform-env
+    # Environment variables copied from the pod into task runs.
+    config:
+      forwarded_env_vars:
+        - TF_IN_AUTOMATION
+        - TF_VAR_vault_address
+        - TF_VAR_vault_kubernetes_role
+        - TF_VAR_domain
+        - TF_VAR_authentik_url
+        - TF_VAR_authentik_token
+        - TF_VAR_cloudflare_api_token
+        - TF_VAR_cloudflare_account_id
+        - TF_VAR_cloudflare_tunnel_id
+        - TF_VAR_cloudflare_team_name
+        - TF_VAR_cloudflare_zone_id
+        - TF_VAR_vault_prometheus_metrics_token
+        - TF_VAR_gatus_discord_webhook_url
+        - TF_VAR_gatus_portainer_monitor_token
+        - TF_VAR_gatus_gitlab_monitor_token
+
+    # Pinned Terraform for the Terraform app. Keep the image tag equal to image.tag.
+    # The checksum is the official SHA256 for terraform_1.15.9_linux_amd64.zip.
+    extraInitContainers:
+      - name: install-terraform
+        image: semaphoreui/semaphore:v2.19.16
+        command:
+          - sh
+          - -ec
+          - |
+            cd /tmp
+            wget -q -O terraform.zip https://releases.hashicorp.com/terraform/1.15.9/terraform_1.15.9_linux_amd64.zip
+            echo "76edd0b22d2f27d3d2e097cd793209646f719cf60f02ff3af626b07361137da1  terraform.zip" | sha256sum -c -
+            unzip -o -q terraform.zip terraform -d /opt/terraform-bin
+            /opt/terraform-bin/terraform version
+        volumeMounts:
+          - name: terraform-bin
+            mountPath: /opt/terraform-bin
+
+    extraVolumes:
+      - name: terraform-bin
+        emptyDir: {}
+      - name: terraform-state
+        persistentVolumeClaim:
+          claimName: semaphoreui-terraform-state
+
+    extraVolumeMounts:
+      - name: terraform-bin
+        mountPath: /opt/terraform-bin
+        readOnly: true
+      - name: terraform-state
+        mountPath: /var/lib/terraform-state
+
     # Dedicated identity for Vault Kubernetes-auth (control-tower SSH certificate issuance).
     # Bound only to a Vault role scoped to namespace semaphoreui — see
     # automation/ansible/roles/vault_ssh_certificate.
@@ -93,7 +151,7 @@ spec:
         authentik:
           display_name: "Sign in with Authentik"
           provider_url: "https://auth.${DOMAIN}/application/o/semaphoreui/"
-          redirect_url: "https://demo-semaphoreui.${DOMAIN}/api/auth/oidc/authentik/redirect"
+          redirect_url: "https://semaphoreui.${DOMAIN}/api/auth/oidc/authentik/redirect"
           scopes:
             - openid
             - profile

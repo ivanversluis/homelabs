@@ -340,7 +340,7 @@ This is the ground truth for all active tunnel routes. Both `ns-cloudflared.yaml
 
 | Hostname | Tunnel service URL | Service port | Container port | Policy port |
 |---|---|---|---|---|
-| demo-argocd | argocd-server.argocd:443 | 443 | 443 | 443 (no DNAT) |
+| argocd | argocd-server.argocd:443 | 443 | 443 | 443 (no DNAT) |
 | demo-fm-dev | fm-webui.firewall-manager-dev | 80 | 8000 | **8000** |
 | demo-fm-staging | fm-webui.firewall-manager-staging | 80 | 8000 | **8000** |
 | demo-fm-prod | fm-webui.firewall-manager-prod | 80 | 8000 | **8000** |
