@@ -3,10 +3,10 @@ module "oidc" {
 
   app_name  = "ArgoCD"
   app_slug  = "argocd"
-  subdomain = "demo-argocd"
+  subdomain = "argocd"
   domain    = var.domain
 
-  redirect_uris = ["https://demo-argocd.${var.domain}/auth/callback"]
+  redirect_uris = ["https://argocd.${var.domain}/auth/callback"]
 
   groups = {
     "ArgoCD Admins"  = "ArgoCD administrators with full cluster management"

@@ -65,7 +65,7 @@ App Pod (e.g., Homebox, Vault, Headlamp, OpenWebUI)
 | N8N | n8n | apps/n8n | n8n | `https://n8n.${DOMAIN}/rest/oauth2-credential/callback` | No (single-owner) | `deployments/n8n/` |
 | Linkding | linkding | apps/linkding | linkding | `https://bookmarks.${DOMAIN}/oidc/callback/` | No (single-user) | `deployments/linkding/` |
 | SemaphoreUI | semaphoreui | infra/semaphoreui | semaphoreui | `https://demo-semaphore.${DOMAIN}/api/auth/oidc/redirect` | Yes (Admin/User groups) | `deployments/semaphoreui/` |
-| ArgoCD | argocd | infra/argocd | argocd | `https://demo-argocd.${DOMAIN}/auth/callback` | Yes (Admin/Viewer groups) | `deployments/argocd/` |
+| ArgoCD | argocd | infra/argocd | argocd | `https://argocd.${DOMAIN}/auth/callback` | Yes (Admin/Viewer groups) | `deployments/argocd/` |
 | Longhorn | longhorn-system | infra/longhorn | longhorn | `https://storage.${DOMAIN}/oauth2/callback` | Yes (`Longhorn Admins` via oauth2-proxy) | `deployments/longhorn/` |
 | Gatus | monitoring | infra/gatus | gatus | `https://gatus.${DOMAIN}/oauth2/callback` | Yes (`Gatus Users` via oauth2-proxy) | `deployments/gatus/` |
 | Portainer | portainer | infra/portainer | portainer | `https://demo-portainer.${DOMAIN}` | Yes (Admin group) | `deployments/portainer/` |

@@ -18,7 +18,7 @@ locals {
     "headlamp.${var.domain}"       = { service = "http://headlamp.headlamp.svc.cluster.local:80" }
     "ai-chat.${var.domain}"        = { service = "http://openwebui.ai.svc.cluster.local:8080" }
     "demo-semaphore.${var.domain}" = { service = "http://semaphoreui.semaphoreui.svc.cluster.local:3000" }
-    "demo-argocd.${var.domain}"    = { service = "http://argocd-server.argocd.svc.cluster.local:80" }
+    "argocd.${var.domain}"         = { service = "http://argocd-server.argocd.svc.cluster.local:80" }
     "storage.${var.domain}"        = { service = "http://kong-kong-proxy.kong.svc.cluster.local:80" }
     "demo-vault.${var.domain}"     = { service = "http://vault.vault.svc.cluster.local:8200" }
     "portainer.${var.domain}"      = { service = "https://portainer.portainer.svc.cluster.local:9443", no_tls_verify = true }

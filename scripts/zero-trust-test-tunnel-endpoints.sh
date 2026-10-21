@@ -28,7 +28,7 @@ WARN=0
 # Format: "Label|subdomain[/path]"
 # Full URL is constructed as: https://<subdomain>.${DOMAIN}[/path]
 ENDPOINTS=(
-  "ArgoCD|demo-argocd"
+  "ArgoCD|argocd"
   "FM Dev|demo-fm-dev"
   "FM Staging|demo-fm-staging"
   "FM Prod|demo-fm-prod"

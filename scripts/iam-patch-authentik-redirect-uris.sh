@@ -168,7 +168,7 @@ print(json.dumps(payload))
 echo "Patching redirect URIs for all registered providers..."
 echo ""
 
-patch_provider "ArgoCD"      "https://demo-argocd.${D}/auth/callback"
+patch_provider "ArgoCD"      "https://argocd.${D}/auth/callback"
 patch_provider "Forgejo"     "https://forgejo.${D}/user/oauth2/authentik/callback"
 patch_provider "Gatus"       "https://gatus.${D}/oauth2/callback"
 patch_provider "Headlamp"    "https://headlamp.${D}/oidc/callback" "https://k8s.${D}/oidc/callback"
