@@ -102,9 +102,11 @@ spec:
     service:
       type: ClusterIP
 
+    # Work directory: repository clones plus Terraform providers (~270 MB unpacked,
+    # cloudflare alone is ~180 MB). 250Mi was exhausted during `terraform init`.
     persistence:
       enabled: true
-      size: 250Mi
+      size: 2Gi
       storageClass: longhorn
       accessModes:
         - ReadWriteOnce
