@@ -20,6 +20,14 @@ patches:
   - path: patches/replicas.yaml
   - path: patches/ingress.yaml
   - path: patches/database-longhorn.yaml
+  # The DB uses fm-db-data-longhorn in dev; drop the unused base PVC, which
+  # would otherwise stay Pending (WaitForFirstConsumer) and keep the app Progressing.
+  - patch: |-
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: fm-db-data
+      $patch: delete
 
 images:
   - name: ghcr.io/ivanversluis/firewall-manager-api
