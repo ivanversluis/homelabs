@@ -18,7 +18,7 @@ declare -A expected_empty=(
 
 mapfile -d '' kustomizations < <(
   find \
-    "$REPO_ROOT/clusters/k8s-homelab" \
+    "$REPO_ROOT/compute/eliteboxes" \
     "$REPO_ROOT/infra" \
     "$REPO_ROOT/platform" \
     "$REPO_ROOT/services" \

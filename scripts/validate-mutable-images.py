@@ -17,7 +17,7 @@ BASELINE = Path(
         ROOT / "scripts" / "mutable-image-allowlist.txt",
     )
 )
-SCAN_ROOTS = ("clusters", "infra", "platform", "services", "workloads")
+SCAN_ROOTS = ("compute", "infra", "platform", "services", "workloads")
 MOVING_TAGS = {
     "alpine",
     "canary",
@@ -93,7 +93,7 @@ def split_image_tag(lines: list[str], index: int) -> bool:
 def excluded(path: Path) -> bool:
     relative = path.relative_to(ROOT)
     return "vendor" in relative.parts or relative.as_posix() == (
-        "clusters/k8s-homelab/flux-system/gotk-components.yaml"
+        "compute/eliteboxes/flux-system/gotk-components.yaml"
     )
 
 

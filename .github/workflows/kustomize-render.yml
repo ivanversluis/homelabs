@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "clusters/**"
+      - "compute/**"
       - "infra/**"
       - "platform/**"
       - "services/**"
@@ -18,7 +18,7 @@ on:
       - ".github/workflows/kustomize-render.yml"
   pull_request:
     paths:
-      - "clusters/**"
+      - "compute/**"
       - "infra/**"
       - "platform/**"
       - "services/**"

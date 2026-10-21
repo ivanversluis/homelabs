@@ -6,7 +6,7 @@ Kong is the shared ingress and API gateway for the homelab. It terminates TLS, a
 
 ## Deployment
 
-Flux reconciles Kong from `services/gateway/kong/` through `clusters/k8s-homelab/services/kong-kustomization.yaml`. The deployment source of truth is `core/kong-helmrelease.yaml`, which uses the official Kong Helm chart. `bootstrap/` is a separate, ordered Flux reconciliation unit for the namespace and ExternalSecrets that must exist before Kong admission validates dependent resources. MCP routes reconcile separately through `kong-mcp-gateway` after the AI backends exist.
+Flux reconciles Kong from `services/gateway/kong/` through `compute/eliteboxes/services/kong-kustomization.yaml`. The deployment source of truth is `core/kong-helmrelease.yaml`, which uses the official Kong Helm chart. `bootstrap/` is a separate, ordered Flux reconciliation unit for the namespace and ExternalSecrets that must exist before Kong admission validates dependent resources. MCP routes reconcile separately through `kong-mcp-gateway` after the AI backends exist.
 
 - Namespace: `kong`
 - IngressClass: `kong`

@@ -103,7 +103,9 @@ The repository is organized by architectural responsibility rather than by insta
 
 > **`platform/` makes Kubernetes work. `infra/`, `services/`, and `workloads/` run on or consume the platform.**
 
-- `clusters/k8s-homelab` - cluster entrypoint and reconciliation wiring.
+- `compute/eliteboxes` - active HP EliteDesk cluster entrypoint and reconciliation wiring.
+- `compute/pi4` - reserved for the Raspberry Pi 4 Kubernetes rebuild.
+- `compute/synology` - Synology-specific desired state and current Container Manager definitions.
 - `platform` - Kubernetes system capabilities: networking, storage, virtualization, observability, and cluster security controllers.
 - `infra` - shared infrastructure and management components that run on the platform, such as Vault, Kong, Headlamp, Portainer, SemaphoreUI, OpenClaw, and AI tooling.
 - `services` - shared runtime services consumed by clients or workloads, currently DNS, identity, and tunnel services.
@@ -114,6 +116,8 @@ The repository is organized by architectural responsibility rather than by insta
 - `docs` - architecture, lifecycle, and operating documentation.
 
 See [`docs/repository-layout.md`](docs/repository-layout.md) for the classification rules and GitOps ownership model.
+
+Before merging the compute-folder migration, follow [`docs/lifecycle/compute-layout-migration.md`](docs/lifecycle/compute-layout-migration.md) to suspend the live Flux root and switch its path to `./compute/eliteboxes`.
 
 ## Platform stack
 

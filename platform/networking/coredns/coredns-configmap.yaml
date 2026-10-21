@@ -8,7 +8,7 @@
 #
 # HOW substitution works:
 #   This file uses ${DOMAIN} and ${KONG_LB_IP}. The Flux Kustomization
-#   (clusters/k8s-homelab/platform/coredns-kustomization.yaml) uses
+#   (compute/eliteboxes/platform/coredns-kustomization.yaml) uses
 #   postBuild.substituteFrom to inject those values from the flux-domain-vars
 #   Secret before applying.
 #

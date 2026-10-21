@@ -14,7 +14,7 @@ This directory contains Kubernetes system and platform capabilities that workloa
 
 ## GitOps model
 
-Critical or stateful platform components keep their existing dedicated Flux `Kustomization` boundaries under `clusters/k8s-homelab/platform/`. Repository restructuring must not change their ownership or persistence behavior unless an explicit staged migration is planned.
+Critical or stateful platform components keep their existing dedicated Flux `Kustomization` boundaries under `compute/eliteboxes/platform/`. Repository restructuring must not change their ownership or persistence behavior unless an explicit staged migration is planned.
 
 ## Lessons learned
 

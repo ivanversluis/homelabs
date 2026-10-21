@@ -47,9 +47,9 @@ Use these wiring points for registration checks:
 - `workloads/apps/kustomization.yaml`
 - `services/kustomization.yaml`
 - `infra/kustomization.yaml`
-- `clusters/k8s-homelab/workloads/kustomization.yaml`
-- `clusters/k8s-homelab/services/kustomization.yaml`
-- `clusters/k8s-homelab/infra/kustomization.yaml`
+- `compute/eliteboxes/workloads/kustomization.yaml`
+- `compute/eliteboxes/services/kustomization.yaml`
+- `compute/eliteboxes/infra/kustomization.yaml`
 
 ## Mandatory Intake Flow
 
@@ -233,7 +233,7 @@ Target shape:
 
 Parent registration:
 - add `- <component>/` to `infra/kustomization.yaml` when needed
-- ensure cluster-level infra wiring in `clusters/k8s-homelab/infra/kustomization.yaml` remains correct
+- ensure cluster-level infra wiring in `compute/eliteboxes/infra/kustomization.yaml` remains correct
 - add test cases to `scripts/zero-trust-validate.sh`
 
 Notes:

@@ -20,7 +20,7 @@ Relevant paths:
 - `platform/observability/prometheus/` - Prometheus scrape configuration and alert rules.
 - `services/dns/pihole/` - Pi-hole deployment, services, storage, secrets, exporters, and policies.
 - `services/dns/unbound/` - Unbound deployment, configuration, exporter, and policies.
-- `clusters/k8s-homelab/platform/coredns-kustomization.yaml` - dedicated Flux reconciliation for cluster-critical CoreDNS configuration.
+- `compute/eliteboxes/platform/coredns-kustomization.yaml` - dedicated Flux reconciliation for cluster-critical CoreDNS configuration.
 
 ## CoreDNS
 
