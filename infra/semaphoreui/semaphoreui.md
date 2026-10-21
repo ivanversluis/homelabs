@@ -35,3 +35,4 @@ default. See `docs/lifecycle/containerd-image-prune.md` for provisioning and man
 - Storage: 250Mi PVC (Longhorn)
 - Database: PostgreSQL (separate deployment in same namespace)
 - Dependencies: ExternalSecret (Vault) for Postgres credentials
+- Terraform: runs the `automation/infra-as-code/terraform/deployments` root. State on the 1Gi `semaphoreui-terraform-state` PVC, inputs from Vault `secret/infra/terraform`, pinned Terraform installed by an init container. See [docs/lifecycle/terraform-semaphore-migration.md](../../docs/lifecycle/terraform-semaphore-migration.md).
