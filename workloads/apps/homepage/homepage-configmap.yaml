@@ -59,7 +59,7 @@ data:
             description: Container Management
             icon: portainer.png
         - ArgoCD:
-            href: "https://demo-argocd.${DOMAIN}"
+            href: "https://argocd.${DOMAIN}"
             description: GitOps Deployment
             icon: argocd.png
 
