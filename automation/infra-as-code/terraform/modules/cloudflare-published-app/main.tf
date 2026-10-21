@@ -52,6 +52,13 @@ resource "cloudflare_zero_trust_access_application" "app" {
       precedence = idx + 1
     }
   ] : null
+
+  # Access policies are reusable policies maintained in the Cloudflare dashboard
+  # (e.g. bypass / 2FA e-mail). Without this, an empty policy_ids list makes the
+  # provider strip them, which locks users out of the app.
+  lifecycle {
+    ignore_changes = [policies]
+  }
 }
 
 locals {

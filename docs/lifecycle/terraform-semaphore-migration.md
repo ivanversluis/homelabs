@@ -222,6 +222,31 @@ Semaphore pod (use `terraform init -backend=false` for local `validate`).
 
 Optional: add a scheduled plan-only template for drift detection. Do not schedule apply templates.
 
+## Troubleshooting
+
+| Symptom in the Semaphore log | Cause / fix |
+|---|---|
+| `no space left on device` while installing providers | Providers must not land on the small work volume. `TF_DATA_DIR` (ConfigMap `semaphoreui-terraform-config`) points them at an emptyDir. |
+| `403 ... Authentication error` (code 10000) on `cloudflare_dns_record` | The Cloudflare token lacks **Zone > DNS > Edit** on the zone in `cloudflare_zone_id` (account-level permissions alone are not enough). Fix the token, then update Vault and reload as below. |
+| Plan wants to remove Cloudflare Access policies | Policies are dashboard-managed; the module ignores them (`ignore_changes = [policies]`). |
+| `permission denied` (403) writing a secret under `infra/semaphoreui`, `infra/argocd`, `infra/openwebui`, `apps/forgejo`, `apps/n8n`, `apps/vaultwarden` | The fail-closed Vault guard. Patch the needed keys by hand with `vault kv patch`; do not remove the guard. |
+
+After changing a value in `secret/infra/terraform`, reload it into Semaphore:
+
+```bash
+kubectl -n semaphoreui annotate externalsecret semaphoreui-terraform-env force-sync=$(date +%s) --overwrite
+kubectl -n semaphoreui rollout restart deploy/semaphoreui
+```
+
+Verify a Cloudflare token without printing it (needs the zone ID):
+
+```bash
+printf 'Token: '; stty -echo; read -r CF; stty echo; echo
+curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $CF" \
+  "https://api.cloudflare.com/client/v4/zones/<ZONE_ID>/dns_records?per_page=1"   # expect 200
+unset CF
+```
+
 ## Rollback
 
 - **Semaphore side:** revert the PR; Flux removes the init container and mounts. The PVC with the
