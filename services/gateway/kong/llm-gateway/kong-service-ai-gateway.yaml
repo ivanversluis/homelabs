@@ -42,7 +42,7 @@ spec:
     # All subdomains share the wildcard cert. KIC registers each host as a Kong SNI.
     - hosts:
         - llm-gw.${DOMAIN}
-        - ai-chat.${DOMAIN}
+        - openwebui.${DOMAIN}
         - auth.${DOMAIN}
         - homepage.${DOMAIN}
         - homebox.${DOMAIN}

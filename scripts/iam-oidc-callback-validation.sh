@@ -67,15 +67,15 @@ declare -A SUBDOMAIN_MAP=(
   [vault]="vault"
   [headlamp]="k8s"
   [homebox]="homebox"
-  [openwebui]="ai-chat"
+  [openwebui]="openwebui"
   [grafana]="grafana"
   [forgejo]="forgejo"
   [n8n]="n8n"
   [linkding]="bookmarks"
-  [semaphoreui]="demo-semaphore"
+  [semaphoreui]="semaphoreui"
   [argocd]="argocd"
   [longhorn]="storage"
-  [termix]="demo-termix"
+  [termix]="termix"
   [portainer]="portainer"
 )
 

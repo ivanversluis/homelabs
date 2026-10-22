@@ -1,0 +1,13 @@
+{
+  "name": "Bypass - dynamic home IP",
+  "decision": "bypass",
+  "include": [
+    {
+      "group": {
+        "id": "<HOME_IP_GROUP_ID>"
+      }
+    }
+  ],
+  "exclude": [],
+  "require": []
+}

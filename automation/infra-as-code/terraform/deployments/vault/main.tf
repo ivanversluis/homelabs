@@ -3,11 +3,11 @@ module "oidc" {
 
   app_name  = "Vault"
   app_slug  = "vault"
-  subdomain = "demo-vault"
+  subdomain = "vault"
   domain    = var.domain
 
   redirect_uris = [
-    "https://demo-vault.${var.domain}/ui/vault/auth/oidc/oidc/callback",
+    "https://vault.${var.domain}/ui/vault/auth/oidc/oidc/callback",
     "http://localhost:8250/oidc/callback",
   ]
 

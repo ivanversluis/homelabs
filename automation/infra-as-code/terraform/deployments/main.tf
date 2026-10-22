@@ -21,14 +21,22 @@ locals {
 # This causes Vaultwarden (and any app checking email_verified) to reject logins
 # with "You need to verify your email with your provider". Patch it to True.
 resource "authentik_property_mapping_provider_scope" "email_verified_fix" {
-  name       = "authentik default OAuth Mapping: OpenID 'email'"
-  scope_name = "email"
-  expression = <<-EOT
+  name        = "authentik default OAuth Mapping: OpenID 'email'"
+  scope_name  = "email"
+  description = "Email address"
+  expression  = <<-EOT
     return {
         "email": request.user.email,
         "email_verified": True
     }
   EOT
+
+  # Live Authentik leads. Authentik resets this managed mapping on upgrades, so
+  # the live expression may read email_verified False; Terraform must not rewrite
+  # it silently. To (re)apply the fix deliberately, remove this ignore for one run.
+  lifecycle {
+    ignore_changes = [expression]
+  }
 }
 
 # ── Infrastructure Applications ──────────────────────────────────────────────

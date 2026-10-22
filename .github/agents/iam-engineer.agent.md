@@ -58,18 +58,18 @@ App Pod (e.g., Homebox, Vault, Headlamp, OpenWebUI)
 | Vault | vault | infra/vault | vault | `https://vault.${DOMAIN}/ui/vault/auth/oidc/oidc/callback` | N/A (server-side) | Manual |
 | Headlamp | headlamp | infra/headlamp | headlamp | `https://headlamp.${DOMAIN}/oidc-callback` | Yes (K8s groups → ClusterRoleBindings) | `deployments/headlamp/` |
 | Homebox | homebox | apps/homebox | homebox | `https://homebox.${DOMAIN}/api/v1/users/login/oidc/callback` | No (single-user) | `deployments/homebox/` |
-| Open WebUI | ai | infra/openwebui | openwebui | `https://ai-chat.${DOMAIN}/oauth/oidc/callback` | Partial (DEFAULT_USER_ROLE) | `deployments/openwebui/` |
+| Open WebUI | ai | infra/openwebui | openwebui | `https://openwebui.${DOMAIN}/oauth/oidc/callback` | Partial (DEFAULT_USER_ROLE) | `deployments/openwebui/` |
 | Grafana | observability | infra/grafana | grafana | `https://grafana.${DOMAIN}/login/generic_oauth` | Yes (Admin/Editor/Viewer entitlements) | `deployments/grafana/` |
 | Homepage | homepage | apps/homepage | homepage | `https://homepage.${DOMAIN}/api/auth/callback/homepage-oidc` | No (dashboard) | `deployments/homepage/` |
 | Forgejo | forgejo | apps/forgejo | forgejo | `https://forgejo.${DOMAIN}/user/oauth2/authentik/callback` | Yes (Admin/User groups) | `deployments/forgejo/` |
 | N8N | n8n | apps/n8n | n8n | `https://n8n.${DOMAIN}/rest/oauth2-credential/callback` | No (single-owner) | `deployments/n8n/` |
 | Linkding | linkding | apps/linkding | linkding | `https://bookmarks.${DOMAIN}/oidc/callback/` | No (single-user) | `deployments/linkding/` |
-| SemaphoreUI | semaphoreui | infra/semaphoreui | semaphoreui | `https://demo-semaphore.${DOMAIN}/api/auth/oidc/redirect` | Yes (Admin/User groups) | `deployments/semaphoreui/` |
+| SemaphoreUI | semaphoreui | infra/semaphoreui | semaphoreui | `https://semaphoreui.${DOMAIN}/api/auth/oidc/redirect` | Yes (Admin/User groups) | `deployments/semaphoreui/` |
 | ArgoCD | argocd | infra/argocd | argocd | `https://argocd.${DOMAIN}/auth/callback` | Yes (Admin/Viewer groups) | `deployments/argocd/` |
 | Longhorn | longhorn-system | infra/longhorn | longhorn | `https://storage.${DOMAIN}/oauth2/callback` | Yes (`Longhorn Admins` via oauth2-proxy) | `deployments/longhorn/` |
 | Gatus | monitoring | infra/gatus | gatus | `https://gatus.${DOMAIN}/oauth2/callback` | Yes (`Gatus Users` via oauth2-proxy) | `deployments/gatus/` |
 | Portainer | portainer | infra/portainer | portainer | `https://demo-portainer.${DOMAIN}` | Yes (Admin group) | `deployments/portainer/` |
-| Termix | termix | apps/termix | termix | `https://demo-termix.${DOMAIN}/users/oidc/callback` | No (single-user) | `deployments/termix/` |
+| Termix | termix | apps/termix | termix | `https://termix.${DOMAIN}/users/oidc/callback` | No (single-user) | `deployments/termix/` |
 
 ## Adding OIDC to a New Application — Complete Workflow
 
@@ -224,7 +224,7 @@ make iam validate-oidc
 - **Longhorn**: No native authentication. Kong routes `storage.${DOMAIN}` to a dedicated `longhorn-oauth2-proxy`, which performs Authentik OIDC and requires membership in `Longhorn Admins` before forwarding to `longhorn-frontend`. The Deployment and Service are inherited from `platform/security/oauth2-proxy/base`; Longhorn keeps only its overlay, ExternalSecret, Ingress and NetworkPolicies.
 - **Homepage**: Homepage v2.4 has native OIDC. Enable it with `HOMEPAGE_AUTH_ENABLED=true`, `HOMEPAGE_AUTH_SECRET`, `HOMEPAGE_EXTERNAL_URL`, `HOMEPAGE_OIDC_ISSUER`, `HOMEPAGE_OIDC_CLIENT_ID` and `HOMEPAGE_OIDC_CLIENT_SECRET`. The callback is `/api/auth/callback/homepage-oidc`. `HOMEPAGE_OIDC_AUTO_LOGIN=true` sends unauthenticated users directly to Authentik. Cloudflare Access remains an outer edge control.
 - **Portainer**: OIDC configured via UI settings (not env vars). **Container has no curl/wget** — OIDC discovery validation uses external check. Admin access via "Portainer Admins" Authentik group.
-- **Termix**: Uses standard OIDC env vars (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`, etc.). Requires `offline_access` in `OIDC_SCOPES` for session persistence. Callback URL: `https://demo-termix.${DOMAIN}/users/oidc/callback`. Set `OIDC_CALLBACK_URL` env var to the full callback URL. `OIDC_ALLOW_REGISTRATION=true` enables automatic account creation for OIDC users.
+- **Termix**: Uses standard OIDC env vars (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_URL`, etc.). Requires `offline_access` in `OIDC_SCOPES` for session persistence. Callback URL: `https://termix.${DOMAIN}/users/oidc/callback`. Set `OIDC_CALLBACK_URL` env var to the full callback URL. `OIDC_ALLOW_REGISTRATION=true` enables automatic account creation for OIDC users.
 
 ### Flux CD & Substitution
 - **`${DOMAIN}` is a Flux variable**: When Flux is suspended, this is NOT substituted. Any manual `kubectl apply` must pipe through `sed 's/${DOMAIN}/<actual-domain>/g'`.

@@ -1,11 +1,11 @@
 output "access_app_id" {
   description = "Cloudflare Access application ID"
-  value       = try(cloudflare_zero_trust_access_application.app[0].id, null)
+  value       = local.access_app_id
 }
 
 output "access_app_aud" {
   description = "Cloudflare Access application AUD tag"
-  value       = try(cloudflare_zero_trust_access_application.app[0].aud, null)
+  value       = local.access_app_aud
 }
 
 output "hostname" {

@@ -1,0 +1,59 @@
+name: Terraform safety checks
+
+on:
+  pull_request:
+    paths:
+      - "automation/infra-as-code/terraform/**"
+      - "automation/n8n/cloudflare-home-ip/**"
+      - ".github/workflows/terraform-safety.yml"
+  push:
+    branches: [main]
+    paths:
+      - "automation/infra-as-code/terraform/**"
+      - "automation/n8n/cloudflare-home-ip/**"
+      - ".github/workflows/terraform-safety.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install the same checksum-pinned Terraform as Semaphore
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/terraform-bin"
+          curl --fail --silent --show-error --location \
+            -o "$RUNNER_TEMP/terraform.zip" \
+            https://releases.hashicorp.com/terraform/1.15.9/terraform_1.15.9_linux_amd64.zip
+          printf '%s  %s\n' 76edd0b22d2f27d3d2e097cd793209646f719cf60f02ff3af626b07361137da1 "$RUNNER_TEMP/terraform.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/terraform.zip" terraform -d "$RUNNER_TEMP/terraform-bin"
+          echo "$RUNNER_TEMP/terraform-bin" >> "$GITHUB_PATH"
+      - name: Validate configuration without a backend or live credentials
+        working-directory: automation/infra-as-code/terraform/deployments
+        run: |
+          terraform init -backend=false -input=false -lockfile=readonly
+          terraform validate -no-color
+      - name: Check modified resource modules
+        run: |
+          terraform fmt -check -recursive automation/infra-as-code/terraform/modules/cloudflare-published-app
+          terraform fmt -check -recursive automation/infra-as-code/terraform/modules/authentik-oidc
+      - name: Mock Cloudflare policy ownership and update behavior
+        working-directory: automation/infra-as-code/terraform/modules/cloudflare-published-app
+        run: |
+          cp ../../deployments/.terraform.lock.hcl .terraform.lock.hcl
+          terraform init -backend=false -input=false -lockfile=readonly -plugin-dir=../../deployments/.terraform/providers
+          terraform test -no-color
+      - name: Test restart gate and Authentik environment handling
+        run: |
+          bash -n automation/infra-as-code/terraform/bootstrap/refresh-semaphore-env.sh
+          python3 -m unittest discover -s automation/infra-as-code/terraform/bootstrap/tests -v
+          python3 -m unittest discover -s automation/infra-as-code/terraform/modules/authentik-oidc/tests -v
+      - name: Test inactive n8n workflow logic and reproducible export
+        run: |
+          node --test automation/n8n/cloudflare-home-ip/logic.test.js
+          python3 automation/n8n/cloudflare-home-ip/build-workflow.py
+          git diff --exit-code -- automation/n8n/cloudflare-home-ip/workflow.json

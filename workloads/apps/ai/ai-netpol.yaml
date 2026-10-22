@@ -62,7 +62,7 @@ spec:
         - protocol: TCP
           port: 8080
 ---
-# Cloudflare Tunnel → Open WebUI (direct tunnel route for ai-chat.${DOMAIN})
+# Cloudflare Tunnel → Open WebUI (direct tunnel route for openwebui.${DOMAIN})
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

@@ -1,0 +1,383 @@
+{
+  "name": "Cloudflare - dedicated home IPv4 group",
+  "active": false,
+  "nodes": [
+    {
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "every-five-minutes",
+      "name": "Every five minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        180
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "config",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "return [{json: {account_id: '', group_id: '', group_name: 'homelab-dynamic-home-ip', dry_run: true}}];"
+      }
+    },
+    {
+      "id": "validate-config",
+      "name": "Validate config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "jsCode": "'use strict';\n\nfunction publicIPv4(value) {\n  if (typeof value !== 'string') throw new Error('Expected an IPv4 address');\n  const ip = value.trim();\n  const parts = ip.split('.');\n  if (parts.length !== 4 || parts.some(p => !/^(0|[1-9][0-9]{0,2})$/.test(p) || Number(p) > 255)) {\n    throw new Error('Invalid IPv4 address');\n  }\n  const [a, b, c] = parts.map(Number);\n  if (a === 0 || a === 10 || a === 127 || a >= 224 ||\n      (a === 100 && b >= 64 && b <= 127) ||\n      (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) ||\n      (a === 192 && b === 168) || (a === 192 && b === 0 && (c === 0 || c === 2)) ||\n      (a === 192 && b === 88 && c === 99) ||\n      (a === 198 && (b === 18 || b === 19)) ||\n      (a === 198 && b === 51 && c === 100) || (a === 203 && b === 0 && c === 113)) {\n    throw new Error('Address is not an eligible public IPv4 address');\n  }\n  return ip;\n}\n\nfunction validateConfig(config) {\n  if (!/^[a-f0-9]{32}$/i.test(config.account_id || '') ||\n      !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(config.group_id || '') ||\n      config.group_name !== 'homelab-dynamic-home-ip' || typeof config.dry_run !== 'boolean') {\n    throw new Error('Set account/group IDs and a boolean dry_run for the dedicated home IP group');\n  }\n  return config;\n}\n\nfunction groupIP(envelope, config) {\n  validateConfig(config);\n  const group = envelope?.result;\n  if (envelope?.success !== true || group?.id !== config.group_id || group?.name !== config.group_name ||\n      group?.is_default === true || !Array.isArray(group?.include) || group.include.length !== 1 ||\n      Object.keys(group.include[0]).length !== 1 || !group.include[0].ip ||\n      Object.keys(group.include[0].ip).length !== 1 ||\n      !Array.isArray(group.exclude) || group.exclude.length !== 0 ||\n      !Array.isArray(group.require) || group.require.length !== 0) {\n    throw new Error('Group identity or selectors differ from the dedicated one-IP group; no write permitted');\n  }\n  const cidr = group.include[0].ip.ip;\n  if (typeof cidr !== 'string' || !cidr.endsWith('/32')) throw new Error('Expected exactly one IPv4 /32 rule');\n  return publicIPv4(cidr.slice(0, -3));\n}\n\nfunction prepare(config, ipA, ipB, envelope) {\n  const first = publicIPv4(ipA);\n  const second = publicIPv4(ipB);\n  if (first !== second) throw new Error('Public IP sources disagree; no write permitted');\n  const old = groupIP(envelope, config);\n  const changed = old !== first;\n  return {\n    changed,\n    should_update: changed && !config.dry_run,\n    dry_run: config.dry_run,\n    expected_ip: first,\n    payload: {name: config.group_name, include: [{ip: {ip: `${first}/32`}}], exclude: [], require: []},\n  };\n}\n\nfunction verify(config, proposed, envelope) {\n  if (groupIP(envelope, config) !== proposed.expected_ip) throw new Error('Cloudflare read-back verification failed');\n  return {updated: true, verified: true};\n}\n\n\nvalidateConfig($input.first().json); return $input.all();"
+      }
+    },
+    {
+      "id": "public-ip-a",
+      "name": "Public IP A",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "url": "https://api.ipify.org?format=json",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "public-ip-b",
+      "name": "Public IP B",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "url": "https://ipv4.icanhazip.com",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "read-dedicated-group",
+      "name": "Read dedicated group",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "url": "={{ 'https://api.cloudflare.com/client/v4/accounts/' + $('Config').first().json.account_id + '/access/groups/' + $('Config').first().json.group_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "prepare",
+      "name": "Prepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        0
+      ],
+      "parameters": {
+        "jsCode": "'use strict';\n\nfunction publicIPv4(value) {\n  if (typeof value !== 'string') throw new Error('Expected an IPv4 address');\n  const ip = value.trim();\n  const parts = ip.split('.');\n  if (parts.length !== 4 || parts.some(p => !/^(0|[1-9][0-9]{0,2})$/.test(p) || Number(p) > 255)) {\n    throw new Error('Invalid IPv4 address');\n  }\n  const [a, b, c] = parts.map(Number);\n  if (a === 0 || a === 10 || a === 127 || a >= 224 ||\n      (a === 100 && b >= 64 && b <= 127) ||\n      (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) ||\n      (a === 192 && b === 168) || (a === 192 && b === 0 && (c === 0 || c === 2)) ||\n      (a === 192 && b === 88 && c === 99) ||\n      (a === 198 && (b === 18 || b === 19)) ||\n      (a === 198 && b === 51 && c === 100) || (a === 203 && b === 0 && c === 113)) {\n    throw new Error('Address is not an eligible public IPv4 address');\n  }\n  return ip;\n}\n\nfunction validateConfig(config) {\n  if (!/^[a-f0-9]{32}$/i.test(config.account_id || '') ||\n      !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(config.group_id || '') ||\n      config.group_name !== 'homelab-dynamic-home-ip' || typeof config.dry_run !== 'boolean') {\n    throw new Error('Set account/group IDs and a boolean dry_run for the dedicated home IP group');\n  }\n  return config;\n}\n\nfunction groupIP(envelope, config) {\n  validateConfig(config);\n  const group = envelope?.result;\n  if (envelope?.success !== true || group?.id !== config.group_id || group?.name !== config.group_name ||\n      group?.is_default === true || !Array.isArray(group?.include) || group.include.length !== 1 ||\n      Object.keys(group.include[0]).length !== 1 || !group.include[0].ip ||\n      Object.keys(group.include[0].ip).length !== 1 ||\n      !Array.isArray(group.exclude) || group.exclude.length !== 0 ||\n      !Array.isArray(group.require) || group.require.length !== 0) {\n    throw new Error('Group identity or selectors differ from the dedicated one-IP group; no write permitted');\n  }\n  const cidr = group.include[0].ip.ip;\n  if (typeof cidr !== 'string' || !cidr.endsWith('/32')) throw new Error('Expected exactly one IPv4 /32 rule');\n  return publicIPv4(cidr.slice(0, -3));\n}\n\nfunction prepare(config, ipA, ipB, envelope) {\n  const first = publicIPv4(ipA);\n  const second = publicIPv4(ipB);\n  if (first !== second) throw new Error('Public IP sources disagree; no write permitted');\n  const old = groupIP(envelope, config);\n  const changed = old !== first;\n  return {\n    changed,\n    should_update: changed && !config.dry_run,\n    dry_run: config.dry_run,\n    expected_ip: first,\n    payload: {name: config.group_name, include: [{ip: {ip: `${first}/32`}}], exclude: [], require: []},\n  };\n}\n\nfunction verify(config, proposed, envelope) {\n  if (groupIP(envelope, config) !== proposed.expected_ip) throw new Error('Cloudflare read-back verification failed');\n  return {updated: true, verified: true};\n}\n\n\nreturn [{json: prepare($('Config').first().json, $('Public IP A').first().json.ip, $('Public IP B').first().json.data, $input.first().json)}];"
+      }
+    },
+    {
+      "id": "write-permitted",
+      "name": "Write permitted",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1540,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "write",
+              "leftValue": "={{ $json.should_update }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "update-dedicated-group",
+      "name": "Update dedicated group",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        0
+      ],
+      "parameters": {
+        "url": "={{ 'https://api.cloudflare.com/client/v4/accounts/' + $('Config').first().json.account_id + '/access/groups/' + $('Config').first().json.group_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        },
+        "method": "PUT",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $('Prepare').first().json.payload }}"
+      }
+    },
+    {
+      "id": "read-back",
+      "name": "Read back",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1980,
+        0
+      ],
+      "parameters": {
+        "url": "={{ 'https://api.cloudflare.com/client/v4/accounts/' + $('Config').first().json.account_id + '/access/groups/' + $('Config').first().json.group_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "verify",
+      "name": "Verify",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        0
+      ],
+      "parameters": {
+        "jsCode": "'use strict';\n\nfunction publicIPv4(value) {\n  if (typeof value !== 'string') throw new Error('Expected an IPv4 address');\n  const ip = value.trim();\n  const parts = ip.split('.');\n  if (parts.length !== 4 || parts.some(p => !/^(0|[1-9][0-9]{0,2})$/.test(p) || Number(p) > 255)) {\n    throw new Error('Invalid IPv4 address');\n  }\n  const [a, b, c] = parts.map(Number);\n  if (a === 0 || a === 10 || a === 127 || a >= 224 ||\n      (a === 100 && b >= 64 && b <= 127) ||\n      (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) ||\n      (a === 192 && b === 168) || (a === 192 && b === 0 && (c === 0 || c === 2)) ||\n      (a === 192 && b === 88 && c === 99) ||\n      (a === 198 && (b === 18 || b === 19)) ||\n      (a === 198 && b === 51 && c === 100) || (a === 203 && b === 0 && c === 113)) {\n    throw new Error('Address is not an eligible public IPv4 address');\n  }\n  return ip;\n}\n\nfunction validateConfig(config) {\n  if (!/^[a-f0-9]{32}$/i.test(config.account_id || '') ||\n      !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(config.group_id || '') ||\n      config.group_name !== 'homelab-dynamic-home-ip' || typeof config.dry_run !== 'boolean') {\n    throw new Error('Set account/group IDs and a boolean dry_run for the dedicated home IP group');\n  }\n  return config;\n}\n\nfunction groupIP(envelope, config) {\n  validateConfig(config);\n  const group = envelope?.result;\n  if (envelope?.success !== true || group?.id !== config.group_id || group?.name !== config.group_name ||\n      group?.is_default === true || !Array.isArray(group?.include) || group.include.length !== 1 ||\n      Object.keys(group.include[0]).length !== 1 || !group.include[0].ip ||\n      Object.keys(group.include[0].ip).length !== 1 ||\n      !Array.isArray(group.exclude) || group.exclude.length !== 0 ||\n      !Array.isArray(group.require) || group.require.length !== 0) {\n    throw new Error('Group identity or selectors differ from the dedicated one-IP group; no write permitted');\n  }\n  const cidr = group.include[0].ip.ip;\n  if (typeof cidr !== 'string' || !cidr.endsWith('/32')) throw new Error('Expected exactly one IPv4 /32 rule');\n  return publicIPv4(cidr.slice(0, -3));\n}\n\nfunction prepare(config, ipA, ipB, envelope) {\n  const first = publicIPv4(ipA);\n  const second = publicIPv4(ipB);\n  if (first !== second) throw new Error('Public IP sources disagree; no write permitted');\n  const old = groupIP(envelope, config);\n  const changed = old !== first;\n  return {\n    changed,\n    should_update: changed && !config.dry_run,\n    dry_run: config.dry_run,\n    expected_ip: first,\n    payload: {name: config.group_name, include: [{ip: {ip: `${first}/32`}}], exclude: [], require: []},\n  };\n}\n\nfunction verify(config, proposed, envelope) {\n  if (groupIP(envelope, config) !== proposed.expected_ip) throw new Error('Cloudflare read-back verification failed');\n  return {updated: true, verified: true};\n}\n\n\nreturn [{json: verify($('Config').first().json, $('Prepare').first().json, $input.first().json)}];"
+      }
+    },
+    {
+      "id": "dry-run-or-unchanged",
+      "name": "Dry run or unchanged",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const p=$input.first().json; return [{json:{changed:p.changed,dry_run:p.dry_run,updated:false}}];"
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every five minutes": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Validate config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate config": {
+      "main": [
+        [
+          {
+            "node": "Public IP A",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Public IP A": {
+      "main": [
+        [
+          {
+            "node": "Public IP B",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Public IP B": {
+      "main": [
+        [
+          {
+            "node": "Read dedicated group",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read dedicated group": {
+      "main": [
+        [
+          {
+            "node": "Prepare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare": {
+      "main": [
+        [
+          {
+            "node": "Write permitted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update dedicated group": {
+      "main": [
+        [
+          {
+            "node": "Read back",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read back": {
+      "main": [
+        [
+          {
+            "node": "Verify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write permitted": {
+      "main": [
+        [
+          {
+            "node": "Update dedicated group",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Dry run or unchanged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Amsterdam",
+    "executionTimeout": 120,
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none",
+    "saveManualExecutions": false
+  },
+  "pinData": {}
+}

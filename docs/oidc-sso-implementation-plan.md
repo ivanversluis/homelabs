@@ -9,7 +9,7 @@
 | Grafana | observability | `infra/grafana` | `https://grafana.$DOMAIN/login/generic_oauth` | Yes (Admin/Editor/Viewer via entitlements) | **Done** |
 | Homebox | homebox | `apps/homebox` | `https://homebox.$DOMAIN/api/v1/users/login/oidc/callback` | No (single-user) | **Needed** |
 | Headlamp | headlamp | `infra/headlamp` | `https://k8s.$DOMAIN/oidc/callback` | Yes (K8s RBAC via groups) | **Needed** |
-| Open WebUI | ai | `infra/openwebui` | `https://ai-chat.$DOMAIN/oauth/oidc/callback` | Partial (DEFAULT_USER_ROLE) | **Needed** |
+| Open WebUI | ai | `infra/openwebui` | `https://openwebui.$DOMAIN/oauth/oidc/callback` | Partial (DEFAULT_USER_ROLE) | **Needed** |
 | Homepage | homepage | `apps/homepage` | `https://homepage.$DOMAIN/api/auth/callback/homepage-oidc` | No (dashboard) | **Done** |
 | Linkding | linkding | `apps/linkding` | `https://bookmarks.$DOMAIN/oidc/callback/` | No (single-user) | **Done** (deployed; Authentik SSO validation in progress) |
 
@@ -19,7 +19,7 @@
 |-----|-----------|-----------|--------------|------|-------|
 | Forgejo | forgejo | `apps/forgejo` | `https://forgejo.$DOMAIN/user/oauth2/authentik/callback` | Yes (Admin/User via groups) | Native OAuth2 source via env/API |
 | N8N | n8n | `apps/n8n` | `https://n8n.$DOMAIN/rest/oauth2-credential/callback` | No (single-owner workflow) | SSO via env vars since v1.x |
-| SemaphoreUI | semaphoreui | `infra/semaphoreui` | `https://demo-semaphore.$DOMAIN/api/auth/oidc/redirect` | Yes (Admin/User teams) | Helm values for OIDC |
+| SemaphoreUI | semaphoreui | `infra/semaphoreui` | `https://semaphoreui.$DOMAIN/api/auth/oidc/redirect` | Yes (Admin/User teams) | Helm values for OIDC |
 | ArgoCD | argocd | `infra/argocd` | `https://argocd.$DOMAIN/auth/callback` | Yes (Admin/ReadOnly via groups) | Helm values `configs.cm` |
 
 ### oauth2-proxy (No Native Auth)

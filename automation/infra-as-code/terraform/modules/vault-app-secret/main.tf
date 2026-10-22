@@ -19,6 +19,13 @@ resource "vault_generic_secret" "app_secret" {
   data_json = jsonencode(var.secret_data)
 
   disable_read = true
+
+  # Vault is the source of truth. vault_generic_secret rewrites the whole secret
+  # (wiping keys Terraform does not know) and creates a new KV version, so it is
+  # only used to create a missing secret, never to update an existing one.
+  lifecycle {
+    ignore_changes = [data_json]
+  }
 }
 
 # ── ESO Read Policy ──────────────────────────────────────────────────────────

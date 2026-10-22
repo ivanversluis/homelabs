@@ -34,8 +34,9 @@ keys that Terraform does not manage, so an apply that touches them would wipe th
 | `apps/vaultwarden` | `ADMIN_TOKEN` |
 
 Until the module is fixed (follow-up PR), the `terraform-semaphore` Vault policy **denies writes to
-exactly these six paths**. A plan that wants to update them fails loudly with HTTP 403 instead of
-deleting keys. Do not remove the deny rules before the module preserves foreign keys.
+exactly these six paths**. An apply that tries to update them fails with HTTP 403 instead of deleting keys.
+A successful plan does NOT prove these writes will succeed: Terraform can change other resources
+before hitting a denied write, and does not automatically roll those changes back. Do not remove the deny rules before the module preserves foreign keys.
 
 ## 1. Before merging (you)
 
@@ -108,7 +109,7 @@ Store the new Cloudflare token with a **patch** so the other keys stay untouched
 ```bash
 printf 'Cloudflare API token: '; stty -echo; read -r CF; stty echo; echo
 printf '{"cloudflare_api_token":"%s"}' "$CF" | vrun kv patch -mount=secret infra/terraform -
-unset CF VT
+unset CF
 ```
 
 Check the token before using it (replace `<ACCOUNT_ID>`): 
@@ -142,9 +143,8 @@ vrun write auth/kubernetes/role/external-secrets \
 Then force a sync and check:
 
 ```bash
-kubectl -n semaphoreui annotate externalsecret semaphoreui-terraform-env force-sync=$(date +%s) --overwrite
-kubectl -n semaphoreui get externalsecret semaphoreui-terraform-env   # SecretSynced / True
-kubectl -n semaphoreui rollout restart deploy/semaphoreui
+./automation/infra-as-code/terraform/bootstrap/refresh-semaphore-env.sh
+unset VT
 ```
 
 Vault's note that the Kubernetes role has no audience configured is informational and can be ignored.
@@ -169,9 +169,7 @@ Merge the PR, then:
 ```bash
 flux reconcile kustomization semaphoreui -n flux-system --with-source
 kubectl -n semaphoreui get pvc semaphoreui-terraform-state          # Bound
-kubectl -n semaphoreui get externalsecret semaphoreui-terraform-env # SecretSynced
-kubectl -n semaphoreui rollout restart deploy/semaphoreui           # envFrom is read at start
-kubectl -n semaphoreui rollout status deploy/semaphoreui
+./automation/infra-as-code/terraform/bootstrap/refresh-semaphore-env.sh # waits for a NEW successful sync before restart
 kubectl -n semaphoreui logs deploy/semaphoreui -c install-terraform  # Terraform v1.15.9
 ```
 
@@ -212,36 +210,119 @@ Expect checksums to match and a non-zero resource count (about 230).
 
 ## 5. First run: plan only (you)
 
+Task 89 review and remaining blockers are recorded in
+[terraform-task-89-review.md](terraform-task-89-review.md). The dynamic home IP design is in
+[cloudflare-home-ip.md](cloudflare-home-ip.md). Neither is permission to apply the partial plan.
+
 Run the template and **stop at the confirmation prompt**. The task log must show Terraform
 1.15.9, `Initializing the backend` with the local backend and `Refreshing state...` (not
 "will be created" for everything). If Terraform says the state is newer than the binary, step 4.5
 is not in effect.
 
-The plan should match the drift already seen on the WSL run: Authentik apps/providers (domain and
-hostname changes), the `email_verified` property mapping, Cloudflare tunnel ingress, Cloudflare
-Access apps for Homepage and Longhorn, new Gatus resources, and new random secrets for Homepage,
-Longhorn and Gatus. Review before applying:
+A migration of the execution environment is not permission to apply existing drift. Review the
+fresh plan against the transferred state and live configuration; the older WSL plan is not an
+approval baseline. Keep apply disabled until every change is understood.
 
-- **Cloudflare Access (Longhorn/Homepage):** the plan removes a live policy that is not in the
-  configuration (for example a `bypass` policy). If it was added by hand, add it to the Terraform
-  config first or accept its removal deliberately.
-- **Tunnel ingress:** confirm `argocd.<domain>` is in the planned ingress and `demo-argocd` is gone.
-- **Vault:** only `infra/gatus` and `apps/homepage` secrets should be written. Any 403 on the six
-  guarded paths means the plan touches a path the module cannot safely update yet.
-- **New random secrets:** the Homepage auth secret and the oauth2-proxy cookie secrets rotate, which
-  logs users out of those apps.
+- **State:** stop if existing resources are planned for creation, destruction or replacement.
+  Check the backend path, state lineage/serial and resource addresses before proceeding.
+- **Cloudflare Access (Longhorn/Homepage):** empty `cf_access_policy_ids` means dashboard ownership.
+  Existing attachments must stay intact. Stop on policy removals or Access application replacement.
+  Nonempty IDs mean Terraform owns the complete list, including removals and precedence.
+- **Tunnel ingress:** this is one shared config document for ALL published apps. Managed hostname
+  rules are rebuilt, including `origin_request`; unmanaged rules are retained. Compare every route,
+  origin, order, TLS option and Access JWT setting. `prevent_destroy` does not protect against a
+  harmful in-place update. Pause dashboard/other-state writes between plan and apply.
+- **Authentik:** review redirect URIs, grants, scope mappings, groups and entitlements. Verify the
+  `email_verified` mapping is appropriate for your identity verification process before applying it.
+- **Vault:** whole-secret writes can delete foreign keys, including outside the six guarded paths.
+  Inventory key NAMES for every planned write (also `infra/gatus`, `apps/homepage`, `infra/longhorn`
+  and `infra/vault`); retain a protected KV version backup. Do not paste values into logs or reviews.
+  A write to a guarded path is a blocker, even if the plan succeeds. Keep the deny rules.
+- **Random/OIDC secrets:** a resource planned for creation may replace an existing live credential
+  that is absent from state. Reconcile state/inputs first. Do not accept cookie/client secret
+  rotation as routine migration drift: it can invalidate sessions or break consumers.
 
-## 6. Apply in small steps (you)
+### 5a. Live-leading reconciliation (done from a local session)
 
-Prefer targeted applies for the first run so each change can be verified:
+Cloudflare, Authentik and Vault were changed by hand while Terraform was not running, so the live systems
+are the source of truth. The state was reconciled in a local session (local backend, never applied), then
+copied to Semaphore (step 3 checksum procedure). Rules used:
 
-1. Authentik: property mapping, then the apps whose redirect URIs changed (verify OIDC login).
-2. Cloudflare tunnel ingress and Access apps.
-3. Gatus module (creates the provider, secret and Vault entries).
-4. Everything else.
+- **Import, do not recreate.** The hand-made Gatus group, OAuth provider, application and `gatus` CNAME were
+  adopted with `terraform import` (state only). A DNS record entry pointing at the deleted old zone was removed
+  from the state first (`terraform state rm`).
+- **Vault secrets are never overwritten.** `vault_generic_secret` rewrites the whole secret (wiping keys Terraform
+  does not know) and creates a KV version, so the resources use `ignore_changes = [data_json]`: a missing secret is
+  created, an existing one is left alone. Secrets generated by hand in Vault (`HOMEPAGE_AUTH_SECRET`,
+  `OAUTH2_PROXY_COOKIE_SECRET`) were removed from Terraform instead of being re-generated.
+- **The Cloudflare tunnel keeps every live rule as it is** (stale old-domain rules, hand-added routes, a duplicate
+  route, service ports). Terraform only **adds** managed hostnames that are missing from the tunnel, and creates the
+  DNS records for the four apps that had none on the current zone (`bookmarks`, `headlamp`, `homebox`,
+  `portainer`). It never edits or removes an existing rule.
+- **Authentik attributes follow the live objects**: `redirect_uri_type`, Gatus' refresh threshold, scope list,
+  new-tab flag and explicit-consent flow are expressed in code. Provider `goauthentik/authentik` 2026.8.0 matches the
+  server (2026.8.4); the lock file was updated accordingly.
 
-Create the Semaphore task with `-target=<address>` arguments where the template allows, or run the
-full apply once the plan is clean. After each step re-run the plan; the goal is "No changes".
+What a plan still contains is intentional change, not drift: Authentik redirect/launch URLs of apps whose live
+values still point at the old domain, and the `email_verified` scope mapping (the live mapping reverts to
+`False` on Authentik upgrades). Review them, then apply per app.
+
+To run Terraform locally against the local state use the backend override (the repository path only exists in the
+Semaphore pod): `terraform init -reconfigure -backend-config="path=terraform.tfstate"`.
+
+Share the redacted text plan for review. Do not share `terraform show -json` or a saved binary plan:
+those can contain plaintext secrets even when the text output hides them. Include the exact Git
+commit and Terraform version, action counts, affected addresses and non-secret attribute changes.
+
+### Cloudflare policy ownership changes
+
+The dashboard resource retains the existing address `cloudflare_zero_trust_access_application.app[0]`.
+The Terraform-owned resource is `cloudflare_zero_trust_access_application.app_managed[0]`. Both have
+`prevent_destroy`: changing ownership without moving state must fail rather than recreate the app.
+All current deployment callers omit policy IDs, so this fix requires no state moves for them.
+
+To deliberately adopt an existing application into Terraform policy management:
+
+1. Record ALL currently attached policy IDs in their current precedence order in private inputs.
+   A partial list removes every omitted policy. Back up state and pause concurrent Terraform runs.
+2. Configure the nonempty `cf_access_policy_ids` list on the composition caller. This root currently
+   does not expose that list as a `TF_VAR`; edit the appropriate building module/private input wiring.
+3. In the Semaphore backend environment, move the existing binding (example for Homepage):
+
+   ```bash
+   terraform state mv \
+     'module.homepage.module.oidc.module.cloudflare.cloudflare_zero_trust_access_application.app[0]' \
+     'module.homepage.module.oidc.module.cloudflare.cloudflare_zero_trust_access_application.app_managed[0]'
+   ```
+
+4. Run a fresh plan. The application ID and AUD must remain the same, with no create/delete/replace.
+   First establish the same policy attachments, then review subsequent additions/removals/reordering.
+
+If policy IDs were already nonempty before upgrading this module, move that application's old
+`app[0]` binding to `app_managed[0]` before applying too. To return to dashboard management, clear
+the list and reverse the state move. Do not use `state rm` or disable `prevent_destroy` to bypass
+an ownership-transition error. Empty IDs preserve dashboard ownership; they do not mean “remove all”.
+
+### Authentik grant-types provisioning in Semaphore
+
+The grant-types workaround now reads `TF_VAR_authentik_url` and `TF_VAR_authentik_token` from
+Semaphore's forwarded environment instead of trying to parse a nonexistent `terraform.tfvars`.
+It requires `python3`, sends an authenticated PATCH without logging credentials or response data,
+and refuses redirects. Local operators must export those same environment variables before an
+apply that creates/replaces a grant-types provisioner. Existing resources are not forced to rerun
+by this code fix; a previously failed provisioner must be reviewed/retried deliberately.
+
+## 6. Apply only after the fresh plan is reviewed (you)
+
+Do not apply while any item above remains unexplained. `-target` is a recovery tool, not a safety
+boundary: it includes dependencies and may still write secrets or update a shared tunnel document.
+If a staged change is needed, define and review its full dependency scope first.
+
+Apply only the reviewed saved plan in the same controlled backend environment. Store that plan
+securely and discard it if code, inputs, state or live configuration changes. Keep auto-approve
+and scheduled applies disabled. After any apply failure, stop and make a fresh plan: successful
+operations are not automatically rolled back. Verify application login, tunnel routing, ESO sync
+and credentials after each approved stage, then run a full plan again.
 
 ## 7. Retire the old working directory (you)
 
@@ -256,6 +337,35 @@ them. Do not run Terraform locally against the repo again: the backend path only
 Semaphore pod (use `terraform init -backend=false` for local `validate`).
 
 Optional: add a scheduled plan-only template for drift detection. Do not schedule apply templates.
+
+## Troubleshooting
+
+| Symptom in the Semaphore log | Cause / fix |
+|---|---|
+| `no space left on device` while installing providers | Providers must not land on the small work volume. `TF_DATA_DIR` (ConfigMap `semaphoreui-terraform-config`) points them at an emptyDir. |
+| `403 ... Authentication error` (code 10000) on `cloudflare_dns_record` | The Cloudflare token lacks **Zone > DNS > Edit** on the zone in `cloudflare_zone_id` (account-level permissions alone are not enough). Check the API token and its permissions on the selected zone, then patch `cloudflare_api_token` in Vault and reload as below. This is not an Authentik OIDC client secret. |
+| Plan wants to remove Cloudflare Access policies | Stop. Empty policy IDs preserve dashboard attachments; nonempty IDs authoritatively manage all attachments. Check ownership and state before applying. |
+| `permission denied` (403) writing a secret under `infra/semaphoreui`, `infra/argocd`, `infra/openwebui`, `apps/forgejo`, `apps/n8n`, `apps/vaultwarden` | The fail-closed Vault guard. Patch the needed keys by hand with `vault kv patch`; do not remove the guard. |
+
+After changing a value in `secret/infra/terraform`, reload it into Semaphore:
+
+```bash
+./automation/infra-as-code/terraform/bootstrap/refresh-semaphore-env.sh
+```
+
+The helper requires Bash, `kubectl` and `jq`. It waits for changed `refreshTime` AND
+`syncedResourceVersion`, `Ready=True` and a nonempty target token before restarting. An already-true
+Ready condition alone is insufficient. On timeout/API failure it exits without restarting; inspect
+ESO status/events and fix the source, then retry. Do not run with shell tracing enabled.
+
+Verify a Cloudflare token without printing it (needs the zone ID):
+
+```bash
+printf 'Token: '; stty -echo; read -r CF; stty echo; echo
+curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $CF" \
+  "https://api.cloudflare.com/client/v4/zones/<ZONE_ID>/dns_records?per_page=1"   # expect 200
+unset CF
+```
 
 ## Rollback
 
