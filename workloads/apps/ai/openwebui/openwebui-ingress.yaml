@@ -15,7 +15,7 @@ metadata:
 spec:
   ingressClassName: kong
   rules:
-    - host: ai-chat.${DOMAIN}
+    - host: openwebui.${DOMAIN}
       http:
         paths:
           - path: /

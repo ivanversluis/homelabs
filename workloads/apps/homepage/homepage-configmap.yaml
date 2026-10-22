@@ -15,7 +15,7 @@ data:
   services.yaml: |
     - AI:
         - Open WebUI:
-            href: "https://ai-chat.${DOMAIN}"
+            href: "https://openwebui.${DOMAIN}"
             description: LLM Chat Interface
             icon: openai.png
         - AI Gateway:
@@ -33,7 +33,7 @@ data:
             description: Workflow Automation
             icon: n8n.png
         - Semaphore:
-            href: "https://demo-semaphoreui.${DOMAIN}"
+            href: "https://semaphoreui.${DOMAIN}"
             description: Ansible / Terraform UI
             icon: semaphore-ui.png
 
@@ -47,7 +47,7 @@ data:
             description: Identity Provider
             icon: authentik.png
         - Vault:
-            href: "https://demo-vault.${DOMAIN}"
+            href: "https://vault.${DOMAIN}"
             description: Secrets Manager
             icon: hashicorp-vault.png
         - Grafana:
@@ -73,7 +73,7 @@ data:
             description: Inventory Management
             icon: homebox.png
         - Termix:
-            href: "https://demo-termix.${DOMAIN}"
+            href: "https://termix.${DOMAIN}"
             description: Web Terminal
             icon: terminal.png
         - Pi-hole:

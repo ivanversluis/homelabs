@@ -192,7 +192,7 @@ spec:
       ports:
         - protocol: TCP
           port: 80
-    # Kong Gateway — all new services (ai-chat, ai, mcp hostnames) route through Kong
+    # Kong Gateway — all new services (openwebui, ai, mcp hostnames) route through Kong
     - to:
         - namespaceSelector:
             matchLabels:

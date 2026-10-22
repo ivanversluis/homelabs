@@ -3,10 +3,10 @@ module "oidc" {
 
   app_name  = "Open WebUI"
   app_slug  = "openwebui"
-  subdomain = "ai-chat"
+  subdomain = "openwebui"
   domain    = var.domain
 
-  redirect_uris = ["https://ai-chat.${var.domain}/oauth/oidc/callback"]
+  redirect_uris = ["https://openwebui.${var.domain}/oauth/oidc/callback"]
 
   groups       = {}
   entitlements = {}
@@ -18,9 +18,9 @@ module "oidc" {
     "OAUTH_MERGE_ACCOUNTS_BY_EMAIL" = "true"
     "OAUTH_PROVIDER_NAME"           = "authentik"
     "OPENID_PROVIDER_URL"           = "https://auth.${var.domain}/application/o/openwebui/.well-known/openid-configuration"
-    "OPENID_REDIRECT_URI"           = "https://ai-chat.${var.domain}/oauth/oidc/callback"
+    "OPENID_REDIRECT_URI"           = "https://openwebui.${var.domain}/oauth/oidc/callback"
     "DEFAULT_USER_ROLE"             = "user"
-    "WEBUI_URL"                     = "https://ai-chat.${var.domain}"
+    "WEBUI_URL"                     = "https://openwebui.${var.domain}"
   }
 
   cloudflare_account_id        = var.cloudflare_account_id

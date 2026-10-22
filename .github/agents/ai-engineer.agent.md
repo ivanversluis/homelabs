@@ -46,7 +46,7 @@ Primary mission:
 | `api-gw.${DOMAIN}/mikrotik` | Kong authenticated proxy | RouterOS REST API |
 | `llm-gw.${DOMAIN}/v1` | Kong ai-proxy → Azure AI Foundry | LLM completions |
 | `llm-gw.${DOMAIN}/v1/models` | Kong static response | Model list JSON |
-| `ai-chat.${DOMAIN}` | Kong → Open WebUI | Chat UI |
+| `openwebui.${DOMAIN}` | Kong → Open WebUI | Chat UI |
 | `mcp-gw.${DOMAIN}/kubernetes` | Kong → kubernetes-mcpo | MCP tool server |
 
 All traffic enters via Cloudflare Tunnel → `kong-kong-proxy.kong.svc.cluster.local`.
