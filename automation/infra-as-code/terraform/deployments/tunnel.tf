@@ -30,6 +30,14 @@ locals {
     "termix.${var.domain}"      = { service = "http://termix.termix.svc.cluster.local:3000" }
     "stargate.${var.domain}"    = { service = "http://vaultwarden.vaultwarden.svc.cluster.local:80" }
     "gatus.${var.domain}"       = { service = "http://kong-kong-proxy.kong.svc.cluster.local:80" }
+
+    # Route only (no OIDC). Kong terminates TLS and enforces its own key auth on
+    # these hosts; the old "ai" and "mcp" routes became llm-gw and mcp-gw.
+    "llm-gw.${var.domain}"     = { service = "https://kong-kong-proxy.kong.svc.cluster.local", no_tls_verify = true }
+    "mcp-gw.${var.domain}"     = { service = "https://kong-kong-proxy.kong.svc.cluster.local", no_tls_verify = true }
+    "fm-dev.${var.domain}"     = { service = "http://fm-webui.firewall-manager-dev.svc.cluster.local" }
+    "fm-staging.${var.domain}" = { service = "http://fm-webui.firewall-manager-staging.svc.cluster.local" }
+    "fm-prod.${var.domain}"    = { service = "http://fm-webui.firewall-manager-prod.svc.cluster.local" }
   }
 
   managed_hostnames = keys(local.managed_apps)
@@ -55,7 +63,7 @@ locals {
 
   # Apps published through the tunnel that had no DNS record on the current zone.
   # The other records were created in the Cloudflare dashboard and are not managed.
-  dns_missing_apps = toset(["bookmarks", "headlamp", "homebox", "portainer"])
+  dns_missing_apps = toset(["bookmarks", "headlamp", "homebox", "portainer", "llm-gw", "mcp-gw", "fm-dev", "fm-staging", "fm-prod"])
 }
 
 resource "cloudflare_zero_trust_tunnel_cloudflared_config" "all_apps" {
