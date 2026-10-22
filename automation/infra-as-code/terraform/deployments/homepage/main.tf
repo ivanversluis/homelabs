@@ -1,8 +1,3 @@
-resource "random_password" "homepage_auth_secret" {
-  length  = 48
-  special = false
-}
-
 module "oidc" {
   source = "../../compositions/oidc-app"
 
@@ -17,9 +12,8 @@ module "oidc" {
   entitlements = {}
 
   vault_path_prefix = "apps"
-  extra_vault_data = {
-    HOMEPAGE_AUTH_SECRET = random_password.homepage_auth_secret.result
-  }
+  # HOMEPAGE_AUTH_SECRET lives in Vault only (Vault leads, see vault-app-secret).
+  extra_vault_data = {}
 
   cloudflare_account_id        = var.cloudflare_account_id
   cloudflare_tunnel_id         = var.cloudflare_tunnel_id

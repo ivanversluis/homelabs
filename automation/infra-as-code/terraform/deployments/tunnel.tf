@@ -68,7 +68,12 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "all_apps" {
     )
   }
 
+  # Published application routes are maintained in the Cloudflare dashboard,
+  # which is leading (it holds stale and hand-added rules, a duplicate route and
+  # hostnames Terraform does not know). The list above documents the intended
+  # routes and is used when the config has to be created from scratch.
   lifecycle {
     prevent_destroy = true
+    ignore_changes  = [config]
   }
 }

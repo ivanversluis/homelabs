@@ -17,11 +17,6 @@ terraform {
 
 # ── Authentik OIDC for oauth2-proxy ──────────────────────────────────────────
 
-resource "random_password" "oauth2_proxy_cookie_secret" {
-  length  = 32
-  special = false
-}
-
 module "authentik" {
   source = "../../modules/authentik-oidc"
 
@@ -35,11 +30,19 @@ module "authentik" {
     "Gatus Users" = "Users allowed to access the Gatus dashboard"
   }
 
-  entitlements = {
-    "Gatus Users" = "Grants access to Gatus via oauth2-proxy"
-  }
+  # Live Authentik leads: the hand-made provider has no entitlements scope or
+  # entitlement, uses refresh threshold hours=1 and is not opened in a new tab.
+  entitlements = {}
+  scope_mapping_names = [
+    "goauthentik.io/providers/oauth2/scope-openid",
+    "goauthentik.io/providers/oauth2/scope-email",
+    "goauthentik.io/providers/oauth2/scope-profile",
+  ]
+  refresh_token_threshold = "hours=1"
+  open_in_new_tab         = false
 
-  grant_types = ["authorization_code", "refresh_token"]
+  # Grant types already live (authorization_code, refresh_token); not managed here.
+  grant_types = []
 
   # The live provider was created in the Authentik UI with explicit consent.
   # Pinned to keep behaviour unchanged when adopting it; switch to the module
@@ -88,15 +91,20 @@ resource "vault_generic_secret" "gatus" {
   path = "secret/infra/gatus"
 
   data_json = jsonencode({
-    DISCORD_WEBHOOK_URL        = var.gatus_discord_webhook_url
-    PORTAINER_MONITOR_TOKEN    = var.gatus_portainer_monitor_token
-    GITLAB_MONITOR_TOKEN       = var.gatus_gitlab_monitor_token
-    OAUTH_CLIENT_ID            = module.authentik.client_id
-    OAUTH_CLIENT_SECRET        = module.authentik.client_secret
-    OAUTH2_PROXY_COOKIE_SECRET = random_password.oauth2_proxy_cookie_secret.result
+    DISCORD_WEBHOOK_URL     = var.gatus_discord_webhook_url
+    PORTAINER_MONITOR_TOKEN = var.gatus_portainer_monitor_token
+    GITLAB_MONITOR_TOKEN    = var.gatus_gitlab_monitor_token
+    OAUTH_CLIENT_ID         = module.authentik.client_id
+    OAUTH_CLIENT_SECRET     = module.authentik.client_secret
   })
 
   disable_read = true
+
+  # Live Vault leads: OAUTH2_PROXY_COOKIE_SECRET (and legacy CF_ACCESS_* keys)
+  # are maintained in Vault itself; never rewrite the whole secret from here.
+  lifecycle {
+    ignore_changes = [data_json]
+  }
 }
 
 resource "vault_policy" "eso_read_gatus" {

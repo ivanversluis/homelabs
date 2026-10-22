@@ -70,6 +70,24 @@ variable "grant_types" {
   default     = ["authorization_code", "refresh_token"]
 }
 
+variable "redirect_uri_type" {
+  description = "Type of each allowed redirect URI (Authentik 2026.8 provider attribute). Live providers use \"authorization\"."
+  type        = string
+  default     = "authorization"
+}
+
+variable "open_in_new_tab" {
+  description = "Open the application in a new browser tab from the Authentik library"
+  type        = bool
+  default     = true
+}
+
+variable "refresh_token_threshold" {
+  description = "Refresh token threshold. null keeps the provider default (seconds=0)."
+  type        = string
+  default     = null
+}
+
 variable "sub_mode" {
   description = "OIDC sub claim mode. Options: hashed_user_id (default, privacy-preserving), user_username, user_email, user_id, user_uuid. Use user_username when the app links accounts by username (e.g. Forgejo)."
   type        = string

@@ -60,13 +60,15 @@ resource "authentik_provider_oauth2" "provider" {
 
   allowed_redirect_uris = [
     for uri in var.redirect_uris : {
-      matching_mode = "strict"
-      url           = uri
+      matching_mode     = "strict"
+      url               = uri
+      redirect_uri_type = var.redirect_uri_type
     }
   ]
 
-  access_token_validity = var.access_token_validity
-  sub_mode              = var.sub_mode
+  access_token_validity   = var.access_token_validity
+  refresh_token_threshold = var.refresh_token_threshold
+  sub_mode                = var.sub_mode
 
   lifecycle {
     ignore_changes = [client_secret, client_id, logout_uri]
@@ -101,7 +103,7 @@ resource "authentik_application" "app" {
   slug              = var.app_slug
   protocol_provider = authentik_provider_oauth2.provider.id
   meta_launch_url   = var.launch_url
-  open_in_new_tab   = true
+  open_in_new_tab   = var.open_in_new_tab
 
   lifecycle {
     ignore_changes = [meta_icon]
