@@ -10,23 +10,32 @@ Use a new Access **rule group** named `homelab-dynamic-home-ip`, containing exac
 `/32` Include selector, with empty Exclude and Require lists. This is an Access group, not a WAF
 ruleset. Do not reuse or edit the existing shared PIP group/policy.
 
-Recommended policy: create a dedicated **Allow** policy for the intended user/identity group, and
-Require membership of `homelab-dynamic-home-ip`. Put the IP group in Require, not alongside identity
-in Include: Include rules are OR; the additional Require gives identity AND trusted source IP.
-Keep MFA at the IdP or add an explicitly verified Access authentication-method requirement.
-An email-named policy alone does not prove phishing-resistant MFA.
+Selected behavior (operator decision, 2026-10-22): **keep IP bypass; applications handle login**.
+Create a dedicated policy named `Bypass - dynamic home IP`, with action **Bypass** and an Include
+selector for rule group `homelab-dynamic-home-ip`. Keep its Exclude and Require lists empty. The
+policy skips Cloudflare Access authentication for the matching home IPv4; each application's own
+OIDC/login and authorization remain responsible for access. Do not add a Cloudflare identity or
+MFA requirement to this home-IP bypass.
 
-This deliberately differs from an IP Bypass: Bypass skips Access authentication. Decide which
-behavior is intended before attaching the new policy. Do not claim that a new Allow policy enforces
-identity while a matching old Bypass still applies. Stage replacement on a test hostname with an
-independent recovery path; verify home/remote and authorized/unauthorized users before removing or
-replacing any existing production attachment. Preserve ordered policy IDs if Terraform adopts them.
+An API body template is provided at
+`automation/n8n/cloudflare-home-ip/bypass-policy.template.json`. Substitute the new group's ID
+privately before using it; the placeholder is intentionally not a valid live object ID. Policy
+creation and attachment are separate from the n8n updater, which only changes group membership.
+
+Preserve existing non-home policies and recovery access. Stage the dedicated bypass on a test
+hostname first: verify that home traffic reaches the application login without an Access login,
+and that signed-out users still cannot reach protected application content. Test outside-home
+traffic against the existing non-home policy. The visible Homepage plan had only a bypass, so
+do not assume it already has an email fallback. Keep PIP untouched during preparation and testing;
+replacing a PIP attachment is a separate per-application migration, not a side effect of this draft.
+Preserve the complete ordered policy list if Terraform adopts attachments.
 
 Ownership:
 
 - n8n is the sole writer of the dedicated group's IP membership.
 - Initially create the new group and policy through the dashboard; record their IDs privately.
-  Audit that the new group is referenced only by intended policies/apps. Do not attach it yet.
+  Audit that the new group is referenced only by the dedicated bypass and intended apps. Attach
+  first to the test hostname, then migrate production attachments after the checks above.
 - Dashboard-owned app attachments stay protected by the empty-ID Terraform path. If Terraform later
   owns policies/attachments, explicitly wire the complete ordered policy list and migrate state as
   documented. Terraform must not also reconcile the group's changing IP Include list.
@@ -58,7 +67,7 @@ and validates the single IP payload; do not give n8n a general Access editing cr
 
 ## Activation and failure behavior
 
-Only after policy behavior, egress and test-hostname checks are approved, set `dry_run: false` and
+After the selected bypass behavior, egress and test-hostname checks pass, set `dry_run: false` and
 activate the five-minute schedule. Enforce one writer and no overlapping executions, including
 manual runs. Cloudflare group updates are whole-object PUTs without a CAS control in this workflow;
 concurrent dashboard/automation writes can be lost. Never edit the group from another workflow.
@@ -86,3 +95,4 @@ Official references:
 
 - https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/groups/methods/update/
 - https://developers.cloudflare.com/reference-architecture/design-guides/designing-ztna-access-policies/
+- https://developers.cloudflare.com/cloudflare-one/access-controls/policies/
