@@ -344,15 +344,15 @@ This is the ground truth for all active tunnel routes. Both `ns-cloudflared.yaml
 | demo-fm-dev | fm-webui.firewall-manager-dev | 80 | 8000 | **8000** |
 | demo-fm-staging | fm-webui.firewall-manager-staging | 80 | 8000 | **8000** |
 | demo-fm-prod | fm-webui.firewall-manager-prod | 80 | 8000 | **8000** |
-| demo-vault | vault-ui.vault:8200 | 8200 | 8200 | 8200 (no DNAT) |
+| vault | vault-ui.vault:8200 | 8200 | 8200 | 8200 (no DNAT) |
 | demo-grafana | grafana.observability:3000 | 3000 | 3000 | 3000 (no DNAT) |
 | demo-homelab-hello | homelab-hello.default | 80 | 80 | 80 (no DNAT) |
 | demo-headlamp | headlamp.headlamp | 80 | 4466 | **4466** |
 | demo-longhorn | longhorn-frontend.longhorn-system:80 | 80 | 8000 | **8000** |
 | bookmarks | linkding.linkding:9090 | 9090 | 9090 | 9090 (no DNAT) |
-| demo-termix | termix.termix:3000 | 3000 | 3000 | 3000 (no DNAT) |
+| termix | termix.termix:3000 | 3000 | 3000 | 3000 (no DNAT) |
 | auth | authentik-server.identity:9000 | 9000 | 9000 | 9000 (no DNAT) |
-| demo-semaphoreui | semaphoreui.semaphoreui:3000 | 3000 | 3000 | 3000 (no DNAT) |
+| semaphoreui | semaphoreui.semaphoreui:3000 | 3000 | 3000 | 3000 (no DNAT) |
 | n8n | n8n.n8n | 80 | 5678 | **5678** |
 | portainer | portainer.portainer:9443 | 9443 | 9443 | 9443 (no DNAT, HTTPS) |
 | pihole | pihole.pihole | 80 | 80 | 80 (no DNAT) |

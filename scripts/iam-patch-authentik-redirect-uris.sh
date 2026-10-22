@@ -175,8 +175,8 @@ patch_provider "Headlamp"    "https://headlamp.${D}/oidc/callback" "https://k8s.
 patch_provider "Homepage"    "https://homepage.${D}/api/auth/callback/homepage-oidc"
 patch_provider "Homebox"     "https://homebox.${D}/api/v1/users/login/oidc/callback"
 patch_provider "Longhorn"    "https://storage.${D}/oauth2/callback"
-patch_provider "SemaphoreUI" "https://demo-semaphore.${D}/api/auth/oidc/redirect"
-patch_provider "Termix"      "https://demo-termix.${D}/users/oidc/callback"
+patch_provider "SemaphoreUI" "https://semaphoreui.${D}/api/auth/oidc/redirect"
+patch_provider "Termix"      "https://termix.${D}/users/oidc/callback"
 
 echo ""
 echo "Done. Provider IDs were resolved dynamically from Authentik before patching."

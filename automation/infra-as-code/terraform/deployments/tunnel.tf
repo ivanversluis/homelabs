@@ -14,22 +14,22 @@ locals {
   # kube-proxy DNATs ClusterIP:servicePort → PodIP:targetPort.
   # The cloudflared egress policy uses the post-DNAT port (targetPort).
   managed_apps = {
-    "grafana.${var.domain}"        = { service = "http://grafana.observability.svc.cluster.local:3000" }
-    "headlamp.${var.domain}"       = { service = "http://headlamp.headlamp.svc.cluster.local:80" }
-    "ai-chat.${var.domain}"        = { service = "http://openwebui.ai.svc.cluster.local:8080" }
-    "demo-semaphore.${var.domain}" = { service = "http://semaphoreui.semaphoreui.svc.cluster.local:3000" }
-    "argocd.${var.domain}"         = { service = "http://argocd-server.argocd.svc.cluster.local:80" }
-    "storage.${var.domain}"        = { service = "http://kong-kong-proxy.kong.svc.cluster.local:80" }
-    "demo-vault.${var.domain}"     = { service = "http://vault.vault.svc.cluster.local:8200" }
-    "portainer.${var.domain}"      = { service = "https://portainer.portainer.svc.cluster.local:9443", no_tls_verify = true }
-    "homebox.${var.domain}"        = { service = "http://homebox.homebox.svc.cluster.local:80" }
-    "homepage.${var.domain}"       = { service = "http://homepage.homepage.svc.cluster.local:80" }
-    "forgejo.${var.domain}"        = { service = "http://forgejo.forgejo.svc.cluster.local:3000" }
-    "n8n.${var.domain}"            = { service = "http://n8n.n8n.svc.cluster.local:80" }
-    "bookmarks.${var.domain}"      = { service = "http://linkding.linkding.svc.cluster.local:9090" }
-    "demo-termix.${var.domain}"    = { service = "http://termix.termix.svc.cluster.local:3000" }
-    "stargate.${var.domain}"       = { service = "http://vaultwarden.vaultwarden.svc.cluster.local:80" }
-    "gatus.${var.domain}"          = { service = "http://kong-kong-proxy.kong.svc.cluster.local:80" }
+    "grafana.${var.domain}"     = { service = "http://grafana.observability.svc.cluster.local:3000" }
+    "headlamp.${var.domain}"    = { service = "http://headlamp.headlamp.svc.cluster.local:80" }
+    "openwebui.${var.domain}"   = { service = "http://openwebui.ai.svc.cluster.local:8080" }
+    "semaphoreui.${var.domain}" = { service = "http://semaphoreui.semaphoreui.svc.cluster.local:3000" }
+    "argocd.${var.domain}"      = { service = "http://argocd-server.argocd.svc.cluster.local:80" }
+    "storage.${var.domain}"     = { service = "http://kong-kong-proxy.kong.svc.cluster.local:80" }
+    "vault.${var.domain}"       = { service = "http://vault.vault.svc.cluster.local:8200" }
+    "portainer.${var.domain}"   = { service = "https://portainer.portainer.svc.cluster.local:9443", no_tls_verify = true }
+    "homebox.${var.domain}"     = { service = "http://homebox.homebox.svc.cluster.local:80" }
+    "homepage.${var.domain}"    = { service = "http://homepage.homepage.svc.cluster.local:80" }
+    "forgejo.${var.domain}"     = { service = "http://forgejo.forgejo.svc.cluster.local:3000" }
+    "n8n.${var.domain}"         = { service = "http://n8n.n8n.svc.cluster.local:80" }
+    "bookmarks.${var.domain}"   = { service = "http://linkding.linkding.svc.cluster.local:9090" }
+    "termix.${var.domain}"      = { service = "http://termix.termix.svc.cluster.local:3000" }
+    "stargate.${var.domain}"    = { service = "http://vaultwarden.vaultwarden.svc.cluster.local:80" }
+    "gatus.${var.domain}"       = { service = "http://kong-kong-proxy.kong.svc.cluster.local:80" }
   }
 
   managed_hostnames = keys(local.managed_apps)

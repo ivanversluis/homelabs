@@ -3,10 +3,10 @@ module "oidc" {
 
   app_name  = "Termix"
   app_slug  = "termix"
-  subdomain = "demo-termix"
+  subdomain = "termix"
   domain    = var.domain
 
-  redirect_uris = ["https://demo-termix.${var.domain}/users/oidc/callback"]
+  redirect_uris = ["https://termix.${var.domain}/users/oidc/callback"]
 
   groups       = {}
   entitlements = {}

@@ -10,7 +10,7 @@ metadata:
 spec:
   ingressClassName: kong
   rules:
-    - host: demo-termix.${DOMAIN}
+    - host: termix.${DOMAIN}
       http:
         paths:
           - path: /

@@ -71,7 +71,7 @@ It is safe to run repeatedly. Existing objects with the managed names are update
 duplicated. An API token and external URL can be used instead:
 
 ```bash
-SEMAPHORE_URL=https://demo-semaphoreui.example.net \
+SEMAPHORE_URL=https://semaphoreui.example.net \
 SEMAPHORE_API_TOKEN='<token>' \
 ./scripts/lifecycle/configure-semaphore-image-prune.sh
 ```

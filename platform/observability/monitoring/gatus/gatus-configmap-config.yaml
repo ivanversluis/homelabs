@@ -157,7 +157,7 @@ data:
 
       - name: termix
         group: 30-apps
-        url: "https://demo-termix.${DOMAIN}/"
+        url: "https://termix.${DOMAIN}/"
         interval: 60s
         client: *cloudflare_client
         ui: *safe_public_ui
@@ -251,7 +251,7 @@ data:
     endpoints:
       - name: openwebui
         group: 20-ai
-        url: "https://ai-chat.${DOMAIN}/"
+        url: "https://openwebui.${DOMAIN}/"
         interval: 60s
         client: &cloudflare_client
           timeout: 10s
