@@ -40,6 +40,11 @@ module "authentik" {
   }
 
   grant_types = ["authorization_code", "refresh_token"]
+
+  # The live provider was created in the Authentik UI with explicit consent.
+  # Pinned to keep behaviour unchanged when adopting it; switch to the module
+  # default (implicit consent) deliberately if the consent screen is not wanted.
+  authorization_flow_slug = "default-provider-authorization-explicit-consent"
 }
 
 # ── DNS CNAME for gatus.domain ───────────────────────────────────────────────
