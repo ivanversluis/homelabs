@@ -242,6 +242,31 @@ approval baseline. Keep apply disabled until every change is understood.
   that is absent from state. Reconcile state/inputs first. Do not accept cookie/client secret
   rotation as routine migration drift: it can invalidate sessions or break consumers.
 
+### 5a. Adopt the existing Gatus objects (one-time)
+
+Gatus was set up by hand, so its Authentik objects and the DNS record are live but not (correctly)
+in the state. `deployments/gatus_imports.tf` adopts them with config-driven `import` blocks: the
+Authentik group, OAuth provider and application, and the `gatus` CNAME. Vault secret, Vault policy and
+the tunnel rule are already in state; the Authentik entitlement does not exist yet and is created.
+
+1. The state still holds a DNS record ID from before the domain/zone change (it returns 404). Remove
+   that stale entry once, in the Semaphore pod, before the first plan:
+
+   ```bash
+   kubectl -n semaphoreui exec deploy/semaphoreui -c semaphore -- sh -c '
+     export TF_DATA_DIR=/tmp/tfd; mkdir -p $TF_DATA_DIR
+     cd /tmp/semaphore/project_1/repository_1_template_2/automation/infra-as-code/terraform/deployments
+     /opt/terraform-bin/terraform init -input=false -reconfigure >/dev/null
+     /opt/terraform-bin/terraform state rm module.gatus.cloudflare_dns_record.gatus_cname'
+   ```
+
+   (Run a Semaphore task once first so the repository is cloned at the current commit.) Take a
+   copy of the state file before editing it.
+2. Run the plan. Expect `4 to import` and no destroy/replace for Gatus. The imported provider shows small
+   diffs (new-tab flag, refresh threshold, `entitlements` scope); the authorization flow is pinned to the
+   live explicit-consent flow in `gatus/main.tf`.
+3. After the first successful apply, delete `gatus_imports.tf`.
+
 Share the redacted text plan for review. Do not share `terraform show -json` or a saved binary plan:
 those can contain plaintext secrets even when the text output hides them. Include the exact Git
 commit and Terraform version, action counts, affected addresses and non-secret attribute changes.
