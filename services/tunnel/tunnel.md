@@ -29,4 +29,4 @@ Kubernetes Deployment (Kustomize via Flux)
 - Replicas: 2
 - Placement: worker nodes only (`node-role.kubernetes.io/control-plane/master` excluded) + required pod anti-affinity by hostname
 - Dependencies: ExternalSecret (Vault) for TUNNEL_TOKEN
-- Monitoring: Gatus checks in `platform/observability/monitoring/gatus/gatus-configmap-config.yaml` (`10-cloudflare-public-routes.yaml`) verify published-route availability during node maintenance
+- Monitoring: Gatus checks in `platform/observability/monitoring/gatus/gatus-configmap-config.yaml` (one file per group, `10-edge` to `70-network`) verify every published route during node maintenance. The published routes are managed by Terraform (`automation/infra-as-code/terraform/deployments/tunnel.tf`); `scripts/validate-public-routes.py` (CI) keeps routes and Gatus endpoints one to one
