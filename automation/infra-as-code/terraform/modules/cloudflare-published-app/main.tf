@@ -27,7 +27,7 @@ data "cloudflare_zero_trust_tunnel_cloudflared_config" "existing" {
 }
 
 resource "cloudflare_zero_trust_access_application" "app" {
-  count = var.create_access_application ? 1 : 0
+  count = var.create_access_application && length(var.policy_ids) == 0 ? 1 : 0
 
   account_id = var.account_id
   name       = var.app_name
@@ -46,22 +46,51 @@ resource "cloudflare_zero_trust_access_application" "app" {
   logo_url                   = var.logo_url != null && var.logo_url != "" ? var.logo_url : null
   allowed_idps               = var.allowed_idps
 
-  policies = length(var.policy_ids) > 0 ? [
+  # Keep the original address for existing dashboard-managed applications.
+  # Terraform lifecycle rules must be static, hence the separate managed resource.
+  lifecycle {
+    ignore_changes  = [policies]
+    prevent_destroy = true
+  }
+}
+
+resource "cloudflare_zero_trust_access_application" "app_managed" {
+  count = var.create_access_application && length(var.policy_ids) > 0 ? 1 : 0
+
+  account_id = var.account_id
+  name       = var.app_name
+  type       = "self_hosted"
+  domain     = var.app_domain
+  destinations = [{
+    type = "public"
+    uri  = var.app_domain
+  }]
+  session_duration           = var.session_duration
+  auto_redirect_to_identity  = var.auto_redirect_to_identity
+  http_only_cookie_attribute = true
+  same_site_cookie_attribute = "lax"
+  skip_interstitial          = var.skip_interstitial
+  app_launcher_visible       = var.app_launcher_visible
+  logo_url                   = var.logo_url != null && var.logo_url != "" ? var.logo_url : null
+  allowed_idps               = var.allowed_idps
+
+  policies = [
     for idx, pid in var.policy_ids : {
       id         = pid
       precedence = idx + 1
     }
-  ] : null
+  ]
 
-  # Access policies are reusable policies maintained in the Cloudflare dashboard
-  # (e.g. bypass / 2FA e-mail). Without this, an empty policy_ids list makes the
-  # provider strip them, which locks users out of the app.
+  # Changing ownership requires an explicit state move, never app recreation.
   lifecycle {
-    ignore_changes = [policies]
+    prevent_destroy = true
   }
 }
 
 locals {
+  access_app_id  = try(cloudflare_zero_trust_access_application.app[0].id, cloudflare_zero_trust_access_application.app_managed[0].id, null)
+  access_app_aud = try(cloudflare_zero_trust_access_application.app[0].aud, cloudflare_zero_trust_access_application.app_managed[0].aud, null)
+
   existing_ingress = var.manage_tunnel_config ? try(data.cloudflare_zero_trust_tunnel_cloudflared_config.existing[0].config.ingress, []) : []
 
   retained_ingress = [
@@ -79,7 +108,7 @@ locals {
         access = {
           required  = true
           team_name = var.team_name
-          aud_tag   = [cloudflare_zero_trust_access_application.app[0].aud]
+          aud_tag   = [local.access_app_aud]
         }
       }
     } : {},
@@ -89,7 +118,7 @@ locals {
           access = {
             required  = true
             team_name = var.team_name
-            aud_tag   = [cloudflare_zero_trust_access_application.app[0].aud]
+            aud_tag   = [local.access_app_aud]
           }
         } : {},
         {

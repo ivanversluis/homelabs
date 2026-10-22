@@ -84,16 +84,11 @@ resource "terraform_data" "oauth2_provider_grant_types" {
   ]
 
   provisioner "local-exec" {
-    command = <<EOT
-export AUTHENTIK_URL=$(grep '^authentik_url' terraform.tfvars | awk -F '"' '{print $2}')
-export AUTHENTIK_TOKEN=$(grep '^authentik_token' terraform.tfvars | awk -F '"' '{print $2}')
-
-curl -X PATCH "$AUTHENTIK_URL/api/v3/providers/oauth2/${tonumber(authentik_provider_oauth2.provider.id)}/" \
-  -H "Authorization: Bearer $AUTHENTIK_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"grant_types": ${jsonencode(var.grant_types)}}' \
-  --fail --silent --show-error
-EOT
+    command = "python3 \"${path.module}/patch-grant-types.py\""
+    environment = {
+      AUTHENTIK_PROVIDER_ID = tostring(authentik_provider_oauth2.provider.id)
+      GRANT_TYPES_JSON      = jsonencode(var.grant_types)
+    }
   }
 
   depends_on = [authentik_provider_oauth2.provider]

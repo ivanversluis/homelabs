@@ -2,8 +2,6 @@
 # duplicate occurrences. New entries require review, and stale entries must be
 # removed when the corresponding reference is pinned.
 services/gateway/kong/mcp-gateway/nmap-upstream/nmap-deployment.yaml|image=ghcr.io/ivanversluis/mcp-hub/mcp-nmap:latest
-services/identity/authentik/docker-stack/identity-authentik.yml|image=redis:alpine
-services/identity/authentik/k8s/authentik-redis-deployment.yaml|image=redis:alpine
 services/telemetry/home-exporters/daikin-prometheus-exporter/daikin-prometheus-exporter-deployment.yaml|image=ghcr.io/ivanversluis/iot-daikin-prometheus-exporter:main
 services/telemetry/home-exporters/daikin-prometheus-exporter/daikin-prometheus-exporter-deployment.yaml|image=ghcr.io/ivanversluis/iot-daikin-prometheus-exporter:main
 services/telemetry/home-exporters/dsmr-p1-prometheus-exporter/dsmr-p1-prometheus-exporter-deployment.yaml|image=ghcr.io/ivanversluis/iot-dsmr-p1-prometheus-exporter:latest

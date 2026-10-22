@@ -74,7 +74,7 @@ variable "allowed_idps" {
 }
 
 variable "policy_ids" {
-  description = "List of existing Cloudflare Access policy UUIDs to attach to this application (in order of precedence)"
+  description = "Empty list preserves dashboard-managed policies. A nonempty list authoritatively manages ALL attached policy UUIDs in precedence order. Switching ownership requires a state move; see the Semaphore migration runbook."
   type        = list(string)
   default     = []
 }
