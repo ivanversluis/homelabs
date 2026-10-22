@@ -30,6 +30,13 @@ resource "authentik_property_mapping_provider_scope" "email_verified_fix" {
         "email_verified": True
     }
   EOT
+
+  # Live Authentik leads. Authentik resets this managed mapping on upgrades, so
+  # the live expression may read email_verified False; Terraform must not rewrite
+  # it silently. To (re)apply the fix deliberately, remove this ignore for one run.
+  lifecycle {
+    ignore_changes = [expression]
+  }
 }
 
 # ── Infrastructure Applications ──────────────────────────────────────────────
