@@ -34,16 +34,14 @@ locals {
 
   managed_hostnames = keys(local.managed_apps)
 
-  # Keep existing ingress rules that we don't manage (e.g., auth.domain, other services)
+  # Live is leading: every rule already in the tunnel is kept exactly as it is
+  # (stale old-domain rules, hand-added routes, duplicates, services and ports).
   existing_ingress = try(data.cloudflare_zero_trust_tunnel_cloudflared_config.existing.config.ingress, [])
+  existing_rules   = [for rule in local.existing_ingress : rule if try(rule.service, "") != "http_status:404"]
+  existing_hosts   = [for rule in local.existing_rules : try(rule.hostname, "")]
 
-  retained_ingress = [
-    for rule in local.existing_ingress : rule
-    if !contains(local.managed_hostnames, try(rule.hostname, "")) && try(rule.service, "") != "http_status:404"
-  ]
-
-  # Build managed ingress rules
-  managed_ingress = [
+  # Only managed hostnames that are missing from the live tunnel are added.
+  missing_ingress = [
     for hostname, config in local.managed_apps : merge(
       {
         hostname = hostname
@@ -52,8 +50,12 @@ locals {
       lookup(config, "no_tls_verify", false) ? {
         origin_request = { no_tls_verify = true }
       } : {}
-    )
+    ) if !contains(local.existing_hosts, hostname)
   ]
+
+  # Apps published through the tunnel that had no DNS record on the current zone.
+  # The other records were created in the Cloudflare dashboard and are not managed.
+  dns_missing_apps = toset(["bookmarks", "headlamp", "homebox", "portainer"])
 }
 
 resource "cloudflare_zero_trust_tunnel_cloudflared_config" "all_apps" {
@@ -62,18 +64,24 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "all_apps" {
 
   config = {
     ingress = concat(
-      local.retained_ingress,
-      local.managed_ingress,
+      local.existing_rules,
+      local.missing_ingress,
       [{ service = "http_status:404" }]
     )
   }
 
-  # Published application routes are maintained in the Cloudflare dashboard,
-  # which is leading (it holds stale and hand-added rules, a duplicate route and
-  # hostnames Terraform does not know). The list above documents the intended
-  # routes and is used when the config has to be created from scratch.
   lifecycle {
     prevent_destroy = true
-    ignore_changes  = [config]
   }
+}
+
+resource "cloudflare_dns_record" "published_app" {
+  for_each = local.dns_missing_apps
+
+  zone_id = var.cloudflare_zone_id
+  name    = each.key
+  type    = "CNAME"
+  content = "${var.cloudflare_tunnel_id}.cfargotunnel.com"
+  proxied = true
+  ttl     = 1
 }
