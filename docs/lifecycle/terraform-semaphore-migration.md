@@ -114,6 +114,41 @@ unset CF VT
 Check the token before using it (replace `<ACCOUNT_ID>`): 
 `curl -s -H "Authorization: Bearer $TOKEN" https://api.cloudflare.com/client/v4/accounts/<ACCOUNT_ID>/tokens/verify`
 
+### 1.5 Let ESO read the inputs
+
+The ESO role (`external-secrets`) gets read access through a list of per-path policies, so it needs
+one for `secret/infra/terraform`. Without it the ExternalSecret reports `SecretSyncedError` with
+`403 permission denied`. Reuse `vrun` from step 1.3:
+
+```bash
+vrun policy write external-secrets-terraform-inputs - \
+  < automation/infra-as-code/terraform/bootstrap/external-secrets-terraform-inputs.hcl
+
+# Append to the current policy list (a plain write would replace it).
+POLS=$(vrun read -format=json auth/kubernetes/role/external-secrets < /dev/null | python3 -c '
+import json, sys
+p = json.load(sys.stdin)["data"]["token_policies"]
+if "external-secrets-terraform-inputs" not in p:
+    p.append("external-secrets-terraform-inputs")
+print(",".join(p))')
+echo "$POLS"   # review: all existing policies must still be listed
+
+vrun write auth/kubernetes/role/external-secrets \
+  bound_service_account_names=external-secrets-operator \
+  bound_service_account_namespaces=external-secrets-system \
+  policies="$POLS" ttl=24h < /dev/null
+```
+
+Then force a sync and check:
+
+```bash
+kubectl -n semaphoreui annotate externalsecret semaphoreui-terraform-env force-sync=$(date +%s) --overwrite
+kubectl -n semaphoreui get externalsecret semaphoreui-terraform-env   # SecretSynced / True
+kubectl -n semaphoreui rollout restart deploy/semaphoreui
+```
+
+Vault's note that the Kubernetes role has no audience configured is informational and can be ignored.
+
 ### Vault variable reference (`secret/infra/terraform`)
 
 | Vault key | Terraform variable | Required |
