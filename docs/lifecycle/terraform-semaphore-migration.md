@@ -257,8 +257,8 @@ copied to Semaphore (step 3 checksum procedure). Rules used:
   `OAUTH2_PROXY_COOKIE_SECRET`) were removed from Terraform instead of being re-generated.
 - **The Cloudflare tunnel keeps every live rule as it is** (stale old-domain rules, hand-added routes, a duplicate
   route, service ports). Terraform only **adds** managed hostnames that are missing from the tunnel, and creates the
-  DNS records for the four apps that had none on the current zone (`bookmarks`, `headlamp`, `homebox`,
-  `portainer`). It never edits or removes an existing rule.
+  DNS records for the apps that had none on the current zone (see `dns_missing_apps` in
+  `tunnel.tf`). It never edits or removes an existing rule.
 - **Authentik attributes follow the live objects**: `redirect_uri_type`, Gatus' refresh threshold, scope list,
   new-tab flag and explicit-consent flow are expressed in code. Provider `goauthentik/authentik` 2026.8.0 matches the
   server (2026.8.4); the lock file was updated accordingly.
