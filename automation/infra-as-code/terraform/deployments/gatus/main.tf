@@ -59,6 +59,7 @@ resource "cloudflare_dns_record" "gatus_cname" {
   content = "${var.cloudflare_tunnel_id}.cfargotunnel.com"
   proxied = true
   ttl     = 1
+  comment = "Managed by Terraform (GitOps, homelabs repo)"
 }
 
 # ── Cloudflare Access service token (optional) ───────────────────────────────

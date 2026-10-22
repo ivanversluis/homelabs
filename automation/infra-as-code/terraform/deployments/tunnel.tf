@@ -1,6 +1,14 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Cloudflare Tunnel Config (Singleton)
-# Manages ALL published application routes in one resource to avoid conflicts.
+# Cloudflare Tunnel Config (Singleton)  --  GitOps: managed by Terraform
+# ─────────────────────────────────────────────────────────────────────────────
+# Source of truth for the published application routes (applied from Semaphore).
+# Cloudflare tunnel routes have no comment field, so this file is the record:
+# a route listed in managed_apps is ours, anything else in the tunnel (for
+# example the Authentik route or older hand-added rules) is left untouched.
+# DNS records created here carry the comment "Managed by Terraform".
+#
+# Every public route must also have a Gatus endpoint (platform/observability/
+# monitoring/gatus); scripts/validate-public-routes.py enforces this in CI.
 # ─────────────────────────────────────────────────────────────────────────────
 
 data "cloudflare_zero_trust_tunnel_cloudflared_config" "existing" {
@@ -25,11 +33,12 @@ locals {
     "homebox.${var.domain}"     = { service = "http://homebox.homebox.svc.cluster.local:80" }
     "homepage.${var.domain}"    = { service = "http://homepage.homepage.svc.cluster.local:80" }
     "forgejo.${var.domain}"     = { service = "http://forgejo.forgejo.svc.cluster.local:3000" }
-    "n8n.${var.domain}"         = { service = "http://n8n.n8n.svc.cluster.local:80" }
+    "n8n.${var.domain}"         = { service = "http://n8n.n8n.svc.cluster.local" }
     "bookmarks.${var.domain}"   = { service = "http://linkding.linkding.svc.cluster.local:9090" }
     "termix.${var.domain}"      = { service = "http://termix.termix.svc.cluster.local:3000" }
     "stargate.${var.domain}"    = { service = "http://vaultwarden.vaultwarden.svc.cluster.local:80" }
     "gatus.${var.domain}"       = { service = "http://kong-kong-proxy.kong.svc.cluster.local:80" }
+    "auth.${var.domain}"        = { service = "http://authentik-server.identity.svc.cluster.local:9000" }
 
     # Route only (no OIDC). Kong terminates TLS and enforces its own key auth on
     # these hosts; the old "ai" and "mcp" routes became llm-gw and mcp-gw.
@@ -45,8 +54,34 @@ locals {
   # Live is leading: every rule already in the tunnel is kept exactly as it is
   # (stale old-domain rules, hand-added routes, duplicates, services and ports).
   existing_ingress = try(data.cloudflare_zero_trust_tunnel_cloudflared_config.existing.config.ingress, [])
-  existing_rules   = [for rule in local.existing_ingress : rule if try(rule.service, "") != "http_status:404"]
-  existing_hosts   = [for rule in local.existing_rules : try(rule.hostname, "")]
+
+  # Cloudflare returns an empty origin_request object for rules edited in the
+  # dashboard, while the data source reads it as null. Normalising every rule to an
+  # all-null object keeps the plan stable (otherwise every plan shows an update).
+  empty_origin_request = {
+    access                   = null
+    ca_pool                  = null
+    connect_timeout          = null
+    disable_chunked_encoding = null
+    http2_origin             = null
+    http_host_header         = null
+    keep_alive_connections   = null
+    keep_alive_timeout       = null
+    match_sn_ito_host        = null
+    no_happy_eyeballs        = null
+    no_tls_verify            = null
+    origin_server_name       = null
+    proxy_type               = null
+    tcp_keep_alive           = null
+    tls_timeout              = null
+  }
+
+  existing_rules = [
+    for rule in local.existing_ingress : merge(rule, {
+      origin_request = try(rule.origin_request, null) != null ? rule.origin_request : local.empty_origin_request
+    }) if try(rule.service, "") != "http_status:404"
+  ]
+  existing_hosts = [for rule in local.existing_rules : try(rule.hostname, "")]
 
   # Only managed hostnames that are missing from the live tunnel are added.
   missing_ingress = [
@@ -55,9 +90,9 @@ locals {
         hostname = hostname
         service  = config.service
       },
-      lookup(config, "no_tls_verify", false) ? {
-        origin_request = { no_tls_verify = true }
-      } : {}
+      {
+        origin_request = merge(local.empty_origin_request, lookup(config, "no_tls_verify", false) ? { no_tls_verify = true } : {})
+      }
     ) if !contains(local.existing_hosts, hostname)
   ]
 
@@ -74,7 +109,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "all_apps" {
     ingress = concat(
       local.existing_rules,
       local.missing_ingress,
-      [{ service = "http_status:404" }]
+      [{ service = "http_status:404", origin_request = local.empty_origin_request }]
     )
   }
 
@@ -92,4 +127,5 @@ resource "cloudflare_dns_record" "published_app" {
   content = "${var.cloudflare_tunnel_id}.cfargotunnel.com"
   proxied = true
   ttl     = 1
+  comment = "Managed by Terraform (GitOps, homelabs repo)"
 }
