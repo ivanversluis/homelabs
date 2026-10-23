@@ -6,5 +6,5 @@ metadata:
     app: firewall-manager
 data:
   FM_ENV: "dev"
-  GIT_COMMIT_SHA: "19586e7148a43788c4d375e41062b386a833cc9d"
+  GIT_COMMIT_SHA: "6f9f70e2cd74b3693dcc77f4b7c8d849cd9ad76b"
   GIT_REPO_URL: "https://github.com/ivanversluis/firewall-manager"
