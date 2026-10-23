@@ -18,35 +18,40 @@ data "cloudflare_zero_trust_tunnel_cloudflared_config" "existing" {
 
 locals {
   # Define all managed hostnames and their origin services
+  # Ownership metadata lives beside each declared published route. It is used
+  # by CI for Gatus/Homepage grouping; group is not part of the Cloudflare API
+  # payload (only service and optional no_tls_verify are consumed below).
+  # Classification follows docs/repository-layout.md; no hostnames, origins,
+  # DNS records or tunnel rules are changed by this metadata.
   # NOTE: Use the Service port (not container/targetPort) when they differ.
   # kube-proxy DNATs ClusterIP:servicePort → PodIP:targetPort.
   # The cloudflared egress policy uses the post-DNAT port (targetPort).
   managed_apps = {
-    "grafana.${var.domain}"     = { service = "http://grafana.observability.svc.cluster.local:3000" }
-    "headlamp.${var.domain}"    = { service = "http://headlamp.headlamp.svc.cluster.local:80" }
-    "openwebui.${var.domain}"   = { service = "http://openwebui.ai.svc.cluster.local:8080" }
-    "semaphoreui.${var.domain}" = { service = "http://semaphoreui.semaphoreui.svc.cluster.local:3000" }
-    "argocd.${var.domain}"      = { service = "http://argocd-server.argocd.svc.cluster.local:80" }
-    "storage.${var.domain}"     = { service = "http://kong-kong-proxy.kong.svc.cluster.local:80" }
-    "vault.${var.domain}"       = { service = "http://vault.vault.svc.cluster.local:8200" }
-    "portainer.${var.domain}"   = { service = "https://portainer.portainer.svc.cluster.local:9443", no_tls_verify = true }
-    "homebox.${var.domain}"     = { service = "http://homebox.homebox.svc.cluster.local:80" }
-    "homepage.${var.domain}"    = { service = "http://homepage.homepage.svc.cluster.local:80" }
-    "forgejo.${var.domain}"     = { service = "http://forgejo.forgejo.svc.cluster.local:3000" }
-    "n8n.${var.domain}"         = { service = "http://n8n.n8n.svc.cluster.local" }
-    "bookmarks.${var.domain}"   = { service = "http://linkding.linkding.svc.cluster.local:9090" }
-    "termix.${var.domain}"      = { service = "http://termix.termix.svc.cluster.local:3000" }
-    "stargate.${var.domain}"    = { service = "http://vaultwarden.vaultwarden.svc.cluster.local:80" }
-    "gatus.${var.domain}"       = { service = "http://kong-kong-proxy.kong.svc.cluster.local:80" }
-    "auth.${var.domain}"        = { service = "http://authentik-server.identity.svc.cluster.local:9000" }
+    "grafana.${var.domain}"     = { service = "http://grafana.observability.svc.cluster.local:3000", group = "10-platform" }
+    "headlamp.${var.domain}"    = { service = "http://headlamp.headlamp.svc.cluster.local:80", group = "20-infra" }
+    "openwebui.${var.domain}"   = { service = "http://openwebui.ai.svc.cluster.local:8080", group = "40-workloads" }
+    "semaphoreui.${var.domain}" = { service = "http://semaphoreui.semaphoreui.svc.cluster.local:3000", group = "20-infra" }
+    "argocd.${var.domain}"      = { service = "http://argocd-server.argocd.svc.cluster.local:80", group = "20-infra" }
+    "storage.${var.domain}"     = { service = "http://kong-kong-proxy.kong.svc.cluster.local:80", group = "10-platform" }
+    "vault.${var.domain}"       = { service = "http://vault.vault.svc.cluster.local:8200", group = "20-infra" }
+    "portainer.${var.domain}"   = { service = "https://portainer.portainer.svc.cluster.local:9443", no_tls_verify = true, group = "20-infra" }
+    "homebox.${var.domain}"     = { service = "http://homebox.homebox.svc.cluster.local:80", group = "40-workloads" }
+    "homepage.${var.domain}"    = { service = "http://homepage.homepage.svc.cluster.local:80", group = "40-workloads" }
+    "forgejo.${var.domain}"     = { service = "http://forgejo.forgejo.svc.cluster.local:3000", group = "40-workloads" }
+    "n8n.${var.domain}"         = { service = "http://n8n.n8n.svc.cluster.local", group = "40-workloads" }
+    "bookmarks.${var.domain}"   = { service = "http://linkding.linkding.svc.cluster.local:9090", group = "40-workloads" }
+    "termix.${var.domain}"      = { service = "http://termix.termix.svc.cluster.local:3000", group = "40-workloads" }
+    "stargate.${var.domain}"    = { service = "http://vaultwarden.vaultwarden.svc.cluster.local:80", group = "40-workloads" }
+    "gatus.${var.domain}"       = { service = "http://kong-kong-proxy.kong.svc.cluster.local:80", group = "10-platform" }
+    "auth.${var.domain}"        = { service = "http://authentik-server.identity.svc.cluster.local:9000", group = "30-services" }
 
     # Route only (no OIDC). Kong terminates TLS and enforces its own key auth on
     # these hosts; the old "ai" and "mcp" routes became llm-gw and mcp-gw.
-    "llm-gw.${var.domain}"     = { service = "https://kong-kong-proxy.kong.svc.cluster.local", no_tls_verify = true }
-    "mcp-gw.${var.domain}"     = { service = "https://kong-kong-proxy.kong.svc.cluster.local", no_tls_verify = true }
-    "fm-dev.${var.domain}"     = { service = "http://fm-webui.firewall-manager-dev.svc.cluster.local" }
-    "fm-staging.${var.domain}" = { service = "http://fm-webui.firewall-manager-staging.svc.cluster.local" }
-    "fm-prod.${var.domain}"    = { service = "http://fm-webui.firewall-manager-prod.svc.cluster.local" }
+    "llm-gw.${var.domain}"     = { service = "https://kong-kong-proxy.kong.svc.cluster.local", no_tls_verify = true, group = "30-services" }
+    "mcp-gw.${var.domain}"     = { service = "https://kong-kong-proxy.kong.svc.cluster.local", no_tls_verify = true, group = "30-services" }
+    "fm-dev.${var.domain}"     = { service = "http://fm-webui.firewall-manager-dev.svc.cluster.local", group = "40-workloads" }
+    "fm-staging.${var.domain}" = { service = "http://fm-webui.firewall-manager-staging.svc.cluster.local", group = "40-workloads" }
+    "fm-prod.${var.domain}"    = { service = "http://fm-webui.firewall-manager-prod.svc.cluster.local", group = "40-workloads" }
   }
 
   managed_hostnames = keys(local.managed_apps)
