@@ -5,6 +5,8 @@ on:
     paths:
       - "automation/infra-as-code/terraform/deployments/tunnel.tf"
       - "platform/observability/monitoring/gatus/**"
+      - "workloads/apps/homepage/homepage-configmap.yaml"
+      - "docs/networking/ingress-overview.md"
       - "scripts/validate-public-routes.py"
       - ".github/workflows/public-routes-consistency.yml"
   push:
@@ -12,6 +14,8 @@ on:
     paths:
       - "automation/infra-as-code/terraform/deployments/tunnel.tf"
       - "platform/observability/monitoring/gatus/**"
+      - "workloads/apps/homepage/homepage-configmap.yaml"
+      - "docs/networking/ingress-overview.md"
       - "scripts/validate-public-routes.py"
       - ".github/workflows/public-routes-consistency.yml"
   workflow_dispatch:
@@ -24,5 +28,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Every public tunnel route is monitored by Gatus and vice versa
+      - name: Public route, monitoring, navigation and documentation are consistent
         run: python3 scripts/validate-public-routes.py
