@@ -54,7 +54,7 @@ services:
       AUTHENTIK_HOST_BROWSER: https://authentik.${CLOUDFLARE_DOMAIN}
   # --- Gateway ---
   kong:
-    image: kong:3.9.3
+    image: kong:3.9.4
     networks:
       auth-net:
       docker-bridge:
