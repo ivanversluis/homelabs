@@ -28,7 +28,7 @@ spec:
 
     image:
       repository: semaphoreui/semaphore
-      tag: "v2.19.16"
+      tag: "v2.19.17"
 
     # All recurring operational schedules are expressed in local homelab time.
     extraEnvVariables:
@@ -65,7 +65,7 @@ spec:
     # The checksum is the official SHA256 for terraform_1.15.9_linux_amd64.zip.
     extraInitContainers:
       - name: install-terraform
-        image: semaphoreui/semaphore:v2.19.16
+        image: semaphoreui/semaphore:v2.19.17
         command:
           - sh
           - -ec
