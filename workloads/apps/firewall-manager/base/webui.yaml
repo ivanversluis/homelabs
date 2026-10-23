@@ -35,6 +35,11 @@ spec:
             secretKeyRef:
               name: fm-secrets
               key: FLASK_SECRET_KEY
+        - name: FM_IMPORT_SHARED_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: fm-secrets
+              key: FM_IMPORT_SHARED_TOKEN
         - name: FM_ENV
           valueFrom:
             configMapKeyRef:
