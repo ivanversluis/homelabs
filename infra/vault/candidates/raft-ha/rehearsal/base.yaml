@@ -85,7 +85,7 @@ spec:
                 values: [k8s-worker01, k8s-worker02, k8s-worker03]
   containers:
     - name: vault
-      image: hashicorp/vault:2.0.4
+      image: hashicorp/vault:2.2.1
       imagePullPolicy: IfNotPresent
       command: ["/bin/sh", "-ec"]
       args: ["exec vault server -config=/config/file.hcl"]

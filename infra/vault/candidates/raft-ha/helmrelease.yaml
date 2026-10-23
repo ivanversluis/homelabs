@@ -32,7 +32,7 @@ spec:
       enabled: true
       image:
         repository: hashicorp/vault
-        tag: "2.0.4"
+        tag: "2.2.1"
       standalone:
         enabled: false
       ha:

@@ -96,7 +96,7 @@ spec:
           mountPath: /vault/data
   containers:
     - name: vault
-      image: hashicorp/vault:2.0.4
+      image: hashicorp/vault:2.2.1
       imagePullPolicy: IfNotPresent
       command: ["/bin/sh", "-ec"]
       args:
