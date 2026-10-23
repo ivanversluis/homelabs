@@ -13,72 +13,110 @@ data:
     target: _blank
 
   services.yaml: |
-    - AI:
-        - Open WebUI:
-            href: "https://openwebui.${DOMAIN}"
-            description: LLM Chat Interface
-            icon: openai.png
-        - AI Gateway:
+    # Navigation follows docs/repository-layout.md.
+    # Public-route inventory and group metadata are checked against tunnel.tf by CI.
+    - Platform:
+        - Gatus:
+            href: "https://gatus.${DOMAIN}"
+            description: Public-route and internal health monitoring
+            icon: gatus.png
+        - Grafana:
+            href: "https://grafana.${DOMAIN}"
+            description: Observability and dashboards
+            icon: grafana.png
+        - Longhorn:
+            href: "https://storage.${DOMAIN}"
+            description: Kubernetes persistent storage
+            icon: longhorn.png
+
+    - Infrastructure:
+        - Semaphore UI:
+            href: "https://semaphoreui.${DOMAIN}"
+            description: Terraform and Ansible automation
+            icon: semaphore-ui.png
+        - Argo CD:
+            href: "https://argocd.${DOMAIN}"
+            description: Application deployment control
+            icon: argocd.png
+        - Headlamp:
+            href: "https://headlamp.${DOMAIN}"
+            description: Kubernetes administration
+            icon: kubernetes.png
+        - Vault:
+            href: "https://vault.${DOMAIN}"
+            description: Secrets backend and management
+            icon: hashicorp-vault.png
+        - Portainer:
+            href: "https://portainer.${DOMAIN}"
+            description: Container administration
+            icon: portainer.png
+
+    - Services:
+        - Authentik:
+            href: "https://auth.${DOMAIN}"
+            description: Shared OIDC identity provider
+            icon: authentik.png
+        - Kong LLM Gateway:
             href: "https://llm-gw.${DOMAIN}/v1/models"
-            description: Kong AI Proxy (Azure OpenAI)
+            description: API endpoint; API key required (HTTP 401 without a key)
+            icon: kong.png
+        - Kong MCP Gateway:
+            href: "https://mcp-gw.${DOMAIN}/healthz"
+            description: Kong MCP gateway health endpoint
             icon: kong.png
 
-    - Development:
+    - Workloads:
+        - Open WebUI:
+            href: "https://openwebui.${DOMAIN}"
+            description: AI chat interface
+            icon: openai.png
+        - Homepage:
+            href: "https://homepage.${DOMAIN}"
+            description: Homelab service catalog
+            icon: homepage.png
+        - Homebox:
+            href: "https://homebox.${DOMAIN}"
+            description: Home inventory
+            icon: homebox.png
+        - Vaultwarden:
+            href: "https://stargate.${DOMAIN}"
+            description: Password vault
+            icon: vaultwarden.png
         - Forgejo:
             href: "https://forgejo.${DOMAIN}"
             description: Self-hosted Git
             icon: gitea.png
-        - N8N:
+        - n8n:
             href: "https://n8n.${DOMAIN}"
-            description: Workflow Automation
+            description: Workflow automation
             icon: n8n.png
-        - Semaphore:
-            href: "https://semaphoreui.${DOMAIN}"
-            description: Ansible / Terraform UI
-            icon: semaphore-ui.png
-
-    - Infrastructure:
-        - Headlamp:
-            href: "https://headlamp.${DOMAIN}"
-            description: Kubernetes Dashboard
-            icon: kubernetes.png
-        - Authentik:
-            href: "https://auth.${DOMAIN}"
-            description: Identity Provider
-            icon: authentik.png
-        - Vault:
-            href: "https://vault.${DOMAIN}"
-            description: Secrets Manager
-            icon: hashicorp-vault.png
-        - Grafana:
-            href: "https://grafana.${DOMAIN}"
-            description: Observability
-            icon: grafana.png
-        - Portainer:
-            href: "https://portainer.${DOMAIN}"
-            description: Container Management
-            icon: portainer.png
-        - ArgoCD:
-            href: "https://argocd.${DOMAIN}"
-            description: GitOps Deployment
-            icon: argocd.png
-
-    - Homelab:
         - Linkding:
             href: "https://bookmarks.${DOMAIN}"
-            description: Bookmark Manager
+            description: Bookmarks
             icon: linkding.png
-        - Homebox:
-            href: "https://homebox.${DOMAIN}"
-            description: Inventory Management
-            icon: homebox.png
         - Termix:
             href: "https://termix.${DOMAIN}"
-            description: Web Terminal
+            description: Web terminal
             icon: terminal.png
+        - Firewall Manager Dev:
+            href: "https://fm-dev.${DOMAIN}"
+            description: Firewall Manager development environment
+            icon: mdi-firewall
+        - Firewall Manager Staging:
+            href: "https://fm-staging.${DOMAIN}"
+            description: Firewall Manager staging environment
+            icon: mdi-firewall
+        - Firewall Manager Production:
+            href: "https://fm-prod.${DOMAIN}"
+            description: Firewall Manager production environment
+            icon: mdi-firewall
+
+    # Retained for navigation, but not a declared/public Terraform tunnel host.
+    # Do not treat this legacy link as publicly reachable without live verification.
+    - Unmanaged / verify:
         - Pi-hole:
             href: "https://pihole.${DOMAIN}/admin"
-            description: DNS Ad-Blocker
+            description: Legacy DNS link; not in managed Cloudflare Tunnel inventory
             icon: pi-hole.png
 
   widgets.yaml: |

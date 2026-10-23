@@ -107,8 +107,8 @@ The repository is organized by architectural responsibility rather than by insta
 - `compute/pi4` - reserved for the Raspberry Pi 4 Kubernetes rebuild.
 - `compute/synology` - Synology-specific desired state and current Container Manager definitions.
 - `platform` - Kubernetes system capabilities: networking, storage, virtualization, observability, and cluster security controllers.
-- `infra` - shared infrastructure and management components that run on the platform, such as Vault, Kong, Headlamp, Portainer, SemaphoreUI, OpenClaw, and AI tooling.
-- `services` - shared runtime services consumed by clients or workloads, currently DNS, identity, and tunnel services.
+- `infra` - operations and management control plane: Vault, Argo CD, Headlamp, Portainer, SemaphoreUI and OpenClaw.
+- `services` - shared runtime/data-plane capabilities: Kong Gateway, Authentik, Pi-hole/Unbound, Cloudflare Tunnel and telemetry exporters.
 - `workloads/apps` - application workloads.
 - `workloads/vms` - KubeVirt virtual-machine workloads.
 - `automation` - Ansible, Terraform, and operational automation.
@@ -116,6 +116,8 @@ The repository is organized by architectural responsibility rather than by insta
 - `docs` - architecture, lifecycle, and operating documentation.
 
 See [`docs/repository-layout.md`](docs/repository-layout.md) for the classification rules and GitOps ownership model.
+
+For a complete grouped public-route inventory, Kubernetes Ingress paths, Gatus checks, Homepage navigation and Terraform/Cloudflare ownership, see the [ingress overview](docs/networking/ingress-overview.md). The overview explicitly separates declared routes from unverified live Cloudflare configuration.
 
 Before merging the compute-folder migration, follow [`docs/lifecycle/compute-layout-migration.md`](docs/lifecycle/compute-layout-migration.md) to suspend the live Flux root and switch its path to `./compute/eliteboxes`.
 
