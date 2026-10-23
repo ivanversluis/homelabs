@@ -49,7 +49,7 @@ data:
         title: "Homelab Gatus"
 
   10-edge.yaml: |
-    # 00-edge | 1 checks
+    # 00-edge | 1 synthetic check
     endpoints:
           - name: cloudflare-domain
             group: 00-edge
@@ -70,7 +70,7 @@ data:
               - "[RESPONSE_TIME] < 2000"
             alerts: &discord_alert
               - type: discord
-                description: "Architecture group check failed"
+                description: "Public edge check failed"
                 failure-threshold: 3
                 success-threshold: 2
                 send-on-resolved: true
@@ -149,7 +149,7 @@ data:
               - "[BODY] == pat(*Headlamp*)"
             alerts: &discord_alert
               - type: discord
-                description: "Architecture group check failed"
+                description: "Infrastructure check failed"
                 failure-threshold: 3
                 success-threshold: 2
                 send-on-resolved: true
@@ -194,8 +194,6 @@ data:
               - "[BODY] == pat(*Semaphore*)"
             alerts: *discord_alert
 
-          # Authentik (OIDC provider for every SSO app)
-
           - name: portainer-status
             group: 20-infra
             url: "https://portainer.${DOMAIN}/api/status"
@@ -214,6 +212,7 @@ data:
   40-services.yaml: |
     # 30-services | 3 checks
     endpoints:
+          # Authentik is the OIDC provider used by SSO applications.
           - name: authentik
             group: 30-services
             url: "https://auth.${DOMAIN}/-/health/live/"
@@ -232,7 +231,7 @@ data:
               - "[RESPONSE_TIME] < 2500"
             alerts: &discord_alert
               - type: discord
-                description: "Architecture group check failed"
+                description: "Shared service check failed"
                 failure-threshold: 3
                 success-threshold: 2
                 send-on-resolved: true
@@ -287,7 +286,7 @@ data:
               - "[BODY] == pat(*Open WebUI*)"
             alerts: &discord_alert
               - type: discord
-                description: "AI check failed"
+                description: "Workload check failed"
                 failure-threshold: 3
                 success-threshold: 2
                 send-on-resolved: true
@@ -441,7 +440,7 @@ data:
             alerts: *discord_alert
 
   60-compute-synology.yaml: |
-    # 50-compute-synology | 1 checks
+    # 50-compute-synology | 1 disabled check
     endpoints:
       # GitLab disabled until published as a managed route.
       - name: gitlab-synology
