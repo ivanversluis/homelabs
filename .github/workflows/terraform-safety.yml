@@ -44,8 +44,13 @@ jobs:
       - name: Mock Cloudflare policy ownership and update behavior
         working-directory: automation/infra-as-code/terraform/modules/cloudflare-published-app
         run: |
+          # The standalone module requires only the Cloudflare provider, while
+          # the deployments lock covers multiple providers/constraints. Its
+          # copied lock is temporary and needs its dependency metadata synced.
+          # Provider binaries come from the already lock-verified deployments
+          # directory; no provider upgrade, state or live credentials are used.
           cp ../../deployments/.terraform.lock.hcl .terraform.lock.hcl
-          terraform init -backend=false -input=false -lockfile=readonly -plugin-dir=../../deployments/.terraform/providers
+          terraform init -backend=false -input=false -plugin-dir=../../deployments/.terraform/providers
           terraform test -no-color
       - name: Test restart gate and Authentik environment handling
         run: |
