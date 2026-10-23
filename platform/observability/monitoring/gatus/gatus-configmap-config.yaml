@@ -1,13 +1,10 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# Gatus configuration - every PUBLIC route has a check here, grouped by function.
-# Public routes are published by Terraform (automation/infra-as-code/terraform/
-# deployments/tunnel.tf); scripts/validate-public-routes.py (CI) fails when a
-# route has no endpoint here or an endpoint points at an unpublished host.
-#
-# Groups (UI order):  00-edge  10-platform  20-ai  30-apps  35-firewall-manager
-#                     40-storage  50-admin  60-synology  70-network
-# Internal-only checks (ingress via Kubernetes services) come later.
-# ─────────────────────────────────────────────────────────────────────────────
+# Gatus health checks are grouped by the repository architecture.
+# 00-edge synthetic checks; 10-platform Kubernetes capabilities;
+# 20-infra operations; 30-services shared services;
+# 40-workloads applications; 50-compute-synology NAS-only checks.
+# Managed public hosts: automation/infra-as-code/terraform/deployments/tunnel.tf
+# Ownership/coverage validation: scripts/validate-public-routes.py
+# Ingress overview: docs/networking/ingress-overview.md
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -28,9 +25,9 @@ data:
     ui:
       title: "Homelab Status"
       header: "Homelab Status"
-      description: "Public-route health checks for the homelab GitOps platform"
+      description: "Health checks grouped by platform, infra, services and workloads"
       dashboard-heading: "Homelab Status"
-      dashboard-subheading: "Cloudflare Tunnel, platform services, and application checks"
+      dashboard-subheading: "Public ingress and internal checks grouped by architecture"
       dark-mode: true
       default-sort-by: group
       buttons:
@@ -52,12 +49,12 @@ data:
         title: "Homelab Gatus"
 
   10-edge.yaml: |
-    # Edge: Cloudflare tunnel, certificate and domain checks
+    # 00-edge | 1 checks
     endpoints:
-          - name: gatus
+          - name: cloudflare-domain
             group: 00-edge
-            url: "https://gatus.${DOMAIN}/health"
-            interval: 60s
+            url: "https://homepage.${DOMAIN}/"
+            interval: 5m
             client: &cloudflare_client
               timeout: 10s
               dns-resolver: "tcp://1.1.1.1:53"
@@ -67,31 +64,19 @@ data:
               hide-port: true
               hide-errors: false
             conditions:
-              - "[STATUS] == 200"
-              - "[CERTIFICATE_EXPIRATION] > 168h"
-              - "[RESPONSE_TIME] < 1500"
-            alerts: &discord_alert
-              - type: discord
-                description: "Public edge check failed"
-                failure-threshold: 3
-                success-threshold: 2
-                send-on-resolved: true
-
-          - name: cloudflare-domain
-            group: 00-edge
-            url: "https://homepage.${DOMAIN}/"
-            interval: 5m
-            client: *cloudflare_client
-            ui: *safe_public_ui
-            conditions:
               - "[STATUS] < 500"
               - "[CERTIFICATE_EXPIRATION] > 168h"
               - "[DOMAIN_EXPIRATION] > 720h"
               - "[RESPONSE_TIME] < 2000"
-            alerts: *discord_alert
+            alerts: &discord_alert
+              - type: discord
+                description: "Architecture group check failed"
+                failure-threshold: 3
+                success-threshold: 2
+                send-on-resolved: true
 
   20-platform.yaml: |
-    # Platform: identity, GitOps, secrets, observability, automation
+    # 10-platform | 3 checks
     endpoints:
           - name: grafana-api-health
             group: 10-platform
@@ -117,21 +102,60 @@ data:
                 success-threshold: 2
                 send-on-resolved: true
 
-          - name: headlamp
+          - name: gatus
             group: 10-platform
-            url: "https://headlamp.${DOMAIN}/"
+            url: "https://gatus.${DOMAIN}/health"
             interval: 60s
             client: *cloudflare_client
             ui: *safe_public_ui
             conditions:
               - "[STATUS] == 200"
               - "[CERTIFICATE_EXPIRATION] > 168h"
-              - "[RESPONSE_TIME] < 2500"
-              - "[BODY] == pat(*Headlamp*)"
+              - "[RESPONSE_TIME] < 1500"
             alerts: *discord_alert
 
-          - name: argocd-version
+          - name: longhorn-ui
             group: 10-platform
+            url: "https://storage.${DOMAIN}/ping"
+            interval: 60s
+            client: *cloudflare_client
+            ui: *safe_public_ui
+            conditions:
+              - "[STATUS] == 200"
+              - "[CERTIFICATE_EXPIRATION] > 168h"
+              - "[RESPONSE_TIME] < 3000"
+              - "[BODY] == pat(*OK*)"
+            alerts: *discord_alert
+
+  30-infra.yaml: |
+    # 20-infra | 5 checks
+    endpoints:
+          - name: headlamp
+            group: 20-infra
+            url: "https://headlamp.${DOMAIN}/"
+            interval: 60s
+            client: &cloudflare_client
+              timeout: 10s
+              dns-resolver: "tcp://1.1.1.1:53"
+            ui: &safe_public_ui
+              hide-url: true
+              hide-hostname: true
+              hide-port: true
+              hide-errors: false
+            conditions:
+              - "[STATUS] == 200"
+              - "[CERTIFICATE_EXPIRATION] > 168h"
+              - "[RESPONSE_TIME] < 2500"
+              - "[BODY] == pat(*Headlamp*)"
+            alerts: &discord_alert
+              - type: discord
+                description: "Architecture group check failed"
+                failure-threshold: 3
+                success-threshold: 2
+                send-on-resolved: true
+
+          - name: argocd-version
+            group: 20-infra
             url: "https://argocd.${DOMAIN}/api/version"
             interval: 60s
             client: *cloudflare_client
@@ -144,7 +168,7 @@ data:
             alerts: *discord_alert
 
           - name: vault-sys-health
-            group: 10-platform
+            group: 20-infra
             url: "https://vault.${DOMAIN}/v1/sys/health"
             interval: 60s
             client: *cloudflare_client
@@ -158,7 +182,7 @@ data:
             alerts: *discord_alert
 
           - name: semaphore-ui
-            group: 10-platform
+            group: 20-infra
             url: "https://semaphoreui.${DOMAIN}/"
             interval: 60s
             client: *cloudflare_client
@@ -171,23 +195,81 @@ data:
             alerts: *discord_alert
 
           # Authentik (OIDC provider for every SSO app)
-          - name: authentik
-            group: 10-platform
-            url: "https://auth.${DOMAIN}/-/health/live/"
+
+          - name: portainer-status
+            group: 20-infra
+            url: "https://portainer.${DOMAIN}/api/status"
             interval: 60s
             client: *cloudflare_client
+            headers:
+              x-api-key: "$PORTAINER_MONITOR_TOKEN"
             ui: *safe_public_ui
+            conditions:
+              - "[STATUS] == 200"
+              - "[CERTIFICATE_EXPIRATION] > 168h"
+              - "[RESPONSE_TIME] < 3000"
+              - "has([BODY].Version) == true"
+            alerts: *discord_alert
+
+  40-services.yaml: |
+    # 30-services | 3 checks
+    endpoints:
+          - name: authentik
+            group: 30-services
+            url: "https://auth.${DOMAIN}/-/health/live/"
+            interval: 60s
+            client: &cloudflare_client
+              timeout: 10s
+              dns-resolver: "tcp://1.1.1.1:53"
+            ui: &safe_public_ui
+              hide-url: true
+              hide-hostname: true
+              hide-port: true
+              hide-errors: false
             conditions:
               - "[STATUS] == any(200, 204)"
               - "[CERTIFICATE_EXPIRATION] > 168h"
               - "[RESPONSE_TIME] < 2500"
+            alerts: &discord_alert
+              - type: discord
+                description: "Architecture group check failed"
+                failure-threshold: 3
+                success-threshold: 2
+                send-on-resolved: true
+
+          - name: llm-gateway
+            group: 30-services
+            url: "https://llm-gw.${DOMAIN}/v1/models"
+            interval: 60s
+            client: *cloudflare_client
+            ui: *safe_public_ui
+            conditions:
+              - "[STATUS] == 401"
+              - "[CERTIFICATE_EXPIRATION] > 168h"
+              - "[RESPONSE_TIME] < 3000"
+              - "[BODY].message == pat(*API key*)"
             alerts: *discord_alert
 
-  30-ai.yaml: |
-    # AI: Open WebUI and the Kong gateways
+          # Kong MCP gateway health route (static response, no auth).
+
+          - name: mcp-gateway
+            group: 30-services
+            url: "https://mcp-gw.${DOMAIN}/healthz"
+            interval: 60s
+            client: *cloudflare_client
+            ui: *safe_public_ui
+            conditions:
+              - "[STATUS] == 200"
+              - "[CERTIFICATE_EXPIRATION] > 168h"
+              - "[RESPONSE_TIME] < 3000"
+              - "[BODY].status == ok"
+            alerts: *discord_alert
+
+  50-workloads.yaml: |
+    # 40-workloads | 8 checks
     endpoints:
           - name: openwebui
-            group: 20-ai
+            group: 40-workloads
             url: "https://openwebui.${DOMAIN}/"
             interval: 60s
             client: &cloudflare_client
@@ -211,61 +293,21 @@ data:
                 send-on-resolved: true
 
           # Kong LLM gateway. An unauthenticated request must be rejected: 401 proves the route is up and key auth is enforced.
-          - name: llm-gateway
-            group: 20-ai
-            url: "https://llm-gw.${DOMAIN}/v1/models"
-            interval: 60s
-            client: *cloudflare_client
-            ui: *safe_public_ui
-            conditions:
-              - "[STATUS] == 401"
-              - "[CERTIFICATE_EXPIRATION] > 168h"
-              - "[RESPONSE_TIME] < 3000"
-              - "[BODY].message == pat(*API key*)"
-            alerts: *discord_alert
 
-          # Kong MCP gateway health route (static response, no auth).
-          - name: mcp-gateway
-            group: 20-ai
-            url: "https://mcp-gw.${DOMAIN}/healthz"
-            interval: 60s
-            client: *cloudflare_client
-            ui: *safe_public_ui
-            conditions:
-              - "[STATUS] == 200"
-              - "[CERTIFICATE_EXPIRATION] > 168h"
-              - "[RESPONSE_TIME] < 3000"
-              - "[BODY].status == ok"
-            alerts: *discord_alert
-
-  40-apps.yaml: |
-    # Applications
-    endpoints:
           - name: homepage
-            group: 30-apps
+            group: 40-workloads
             url: "https://homepage.${DOMAIN}/api/healthcheck"
             interval: 60s
-            client: &cloudflare_client
-              timeout: 10s
-              dns-resolver: "tcp://1.1.1.1:53"
-            ui: &safe_public_ui
-              hide-url: true
-              hide-hostname: true
-              hide-port: true
-              hide-errors: false
+            client: *cloudflare_client
+            ui: *safe_public_ui
             conditions:
               - "[STATUS] == 200"
               - "[CERTIFICATE_EXPIRATION] > 168h"
               - "[RESPONSE_TIME] < 2000"
-            alerts: &discord_alert
-              - type: discord
-                description: "Application check failed"
-                failure-threshold: 3
-                success-threshold: 2
-                send-on-resolved: true
+            alerts: *discord_alert
 
           - name: homebox
-            group: 30-apps
+            group: 40-workloads
             url: "https://homebox.${DOMAIN}/"
             interval: 60s
             client: *cloudflare_client
@@ -278,7 +320,7 @@ data:
             alerts: *discord_alert
 
           - name: vaultwarden
-            group: 30-apps
+            group: 40-workloads
             url: "https://stargate.${DOMAIN}/"
             interval: 60s
             client: *cloudflare_client
@@ -291,7 +333,7 @@ data:
             alerts: *discord_alert
 
           - name: forgejo
-            group: 30-apps
+            group: 40-workloads
             url: "https://forgejo.${DOMAIN}/"
             interval: 60s
             client: *cloudflare_client
@@ -304,7 +346,7 @@ data:
             alerts: *discord_alert
 
           - name: linkding
-            group: 30-apps
+            group: 40-workloads
             url: "https://bookmarks.${DOMAIN}/"
             interval: 60s
             client: *cloudflare_client
@@ -317,7 +359,7 @@ data:
             alerts: *discord_alert
 
           - name: n8n
-            group: 30-apps
+            group: 40-workloads
             url: "https://n8n.${DOMAIN}/healthz"
             interval: 60s
             client: *cloudflare_client
@@ -329,7 +371,7 @@ data:
             alerts: *discord_alert
 
           - name: termix
-            group: 30-apps
+            group: 40-workloads
             url: "https://termix.${DOMAIN}/"
             interval: 60s
             client: *cloudflare_client
@@ -341,11 +383,11 @@ data:
               - "[BODY] == pat(*Termix*)"
             alerts: *discord_alert
 
-  45-firewall-manager.yaml: |
-    # Firewall Manager environments (public setup-status endpoint)
+  55-workloads-firewall-manager.yaml: |
+    # 40-workloads | 3 checks
     endpoints:
           - name: firewall-manager-dev
-            group: 35-firewall-manager
+            group: 40-workloads
             url: "https://fm-dev.${DOMAIN}/api/setup/status"
             interval: 60s
             client: &cloudflare_client
@@ -370,7 +412,7 @@ data:
                 send-on-resolved: true
 
           - name: firewall-manager-staging
-            group: 35-firewall-manager
+            group: 40-workloads
             url: "https://fm-staging.${DOMAIN}/api/setup/status"
             interval: 60s
             client: *cloudflare_client
@@ -384,8 +426,9 @@ data:
             alerts: *discord_alert
 
           # Add "[BODY].initialized == true" once the first-run setup wizard of this environment is completed.
+
           - name: firewall-manager-prod
-            group: 35-firewall-manager
+            group: 40-workloads
             url: "https://fm-prod.${DOMAIN}/api/setup/status"
             interval: 60s
             client: *cloudflare_client
@@ -397,54 +440,12 @@ data:
               - "[BODY].database_accessible == true"
             alerts: *discord_alert
 
-  50-storage-admin.yaml: |
-    # Storage and administration
+  60-compute-synology.yaml: |
+    # 50-compute-synology | 1 checks
     endpoints:
-          - name: longhorn-ui
-            group: 40-storage
-            url: "https://storage.${DOMAIN}/ping"
-            interval: 60s
-            client: &cloudflare_client
-              timeout: 10s
-              dns-resolver: "tcp://1.1.1.1:53"
-            ui: &safe_public_ui
-              hide-url: true
-              hide-hostname: true
-              hide-port: true
-              hide-errors: false
-            conditions:
-              - "[STATUS] == 200"
-              - "[CERTIFICATE_EXPIRATION] > 168h"
-              - "[RESPONSE_TIME] < 3000"
-              - "[BODY] == pat(*OK*)"
-            alerts: &discord_alert
-              - type: discord
-                description: "Storage/admin check failed"
-                failure-threshold: 3
-                success-threshold: 2
-                send-on-resolved: true
-
-          - name: portainer-status
-            group: 50-admin
-            url: "https://portainer.${DOMAIN}/api/status"
-            interval: 60s
-            client: *cloudflare_client
-            headers:
-              x-api-key: "$PORTAINER_MONITOR_TOKEN"
-            ui: *safe_public_ui
-            conditions:
-              - "[STATUS] == 200"
-              - "[CERTIFICATE_EXPIRATION] > 168h"
-              - "[RESPONSE_TIME] < 3000"
-              - "has([BODY].Version) == true"
-            alerts: *discord_alert
-
-  60-synology.yaml: |
-    endpoints:
-      # GitLab is currently running on Synology NAS.
-      # Keep disabled until gitlab.${DOMAIN} is confirmed in Cloudflare Tunnel.
+      # GitLab disabled until published as a managed route.
       - name: gitlab-synology
-        group: 60-synology
+        group: 50-compute-synology
         enabled: false
         url: "https://gitlab.${DOMAIN}/users/sign_in"
         interval: 2m
@@ -464,17 +465,12 @@ data:
           - "[RESPONSE_TIME] < 3000"
           - "[BODY] == pat(*GitLab*)"
 
-  70-network.yaml: |
+  70-services-network.yaml: |
+    # 30-services | 3 checks
     endpoints:
-      # WireGuard tunnel status via Kong → RouterOS REST API
-      # All 3 endpoints query the same /interface/wireguard/peer list.
-      # RouterOS returns JSON fields in alphabetical order within each peer object;
-      # "interface" immediately precedes "last-handshake" alphabetically.
-      # So pat(*"interface":"<name>","last-handshake"*) matches only when that
-      # specific peer is connected — if disabled or not yet handshaked, the
-      # last-handshake field is absent and the consecutive substring cannot match.
+      # Internal WireGuard peer checks via Kong api-gw; not public routes.
       - name: WG1 (route64-org-ams)
-        group: 70-network
+        group: 30-services
         url: "https://api-gw.${DOMAIN}/mikrotik/interface/wireguard/peers"
         interval: 60s
         client: &wg_client
@@ -498,7 +494,7 @@ data:
             send-on-resolved: true
 
       - name: WG2 (18110-wg)
-        group: 70-network
+        group: 30-services
         url: "https://api-gw.${DOMAIN}/mikrotik/interface/wireguard/peers"
         interval: 60s
         client: *wg_client
@@ -511,7 +507,7 @@ data:
         alerts: *wg_alert
 
       - name: WG3 (3221-v3-wg)
-        group: 70-network
+        group: 30-services
         url: "https://api-gw.${DOMAIN}/mikrotik/interface/wireguard/peers"
         interval: 60s
         client: *wg_client
