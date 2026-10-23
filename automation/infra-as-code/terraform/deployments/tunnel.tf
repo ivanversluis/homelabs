@@ -35,6 +35,7 @@ locals {
     "storage.${var.domain}"     = { service = "http://kong-kong-proxy.kong.svc.cluster.local:80", group = "10-platform" }
     "vault.${var.domain}"       = { service = "http://vault.vault.svc.cluster.local:8200", group = "20-infra" }
     "portainer.${var.domain}"   = { service = "https://portainer.portainer.svc.cluster.local:9443", no_tls_verify = true, group = "20-infra" }
+    "oasm.${var.domain}"      = { service = "http://kong-kong-proxy.kong.svc.cluster.local:80", group = "40-workloads" }
     "homebox.${var.domain}"     = { service = "http://homebox.homebox.svc.cluster.local:80", group = "40-workloads" }
     "homepage.${var.domain}"    = { service = "http://homepage.homepage.svc.cluster.local:80", group = "40-workloads" }
     "forgejo.${var.domain}"     = { service = "http://forgejo.forgejo.svc.cluster.local:3000", group = "40-workloads" }
@@ -103,7 +104,7 @@ locals {
 
   # Apps published through the tunnel that had no DNS record on the current zone.
   # The other records were created in the Cloudflare dashboard and are not managed.
-  dns_missing_apps = toset(["bookmarks", "headlamp", "homebox", "portainer", "llm-gw", "mcp-gw", "fm-dev", "fm-staging", "fm-prod"])
+  dns_missing_apps = toset(["bookmarks", "headlamp", "homebox", "portainer", "llm-gw", "mcp-gw", "fm-dev", "fm-staging", "fm-prod", "oasm"])
 }
 
 resource "cloudflare_zero_trust_tunnel_cloudflared_config" "all_apps" {

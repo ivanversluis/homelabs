@@ -7,6 +7,7 @@ services/telemetry/home-exporters/daikin-prometheus-exporter/daikin-prometheus-e
 services/telemetry/home-exporters/dsmr-p1-prometheus-exporter/dsmr-p1-prometheus-exporter-deployment.yaml|image=ghcr.io/ivanversluis/iot-dsmr-p1-prometheus-exporter:latest
 services/telemetry/home-exporters/goodwe-prometheus-exporter/goodwe-prometheus-exporter-deployment.yaml|image=ghcr.io/ivanversluis/iot-goodwe-prometheus-exporter:main
 services/telemetry/home-exporters/shelly-prometheus-exporter/shelly-prometheus-exporter-deployment.yaml|image=ghcr.io/ivanversluis/iot-shelly-prometheus-exporter:main
+workloads/apps/openasm/geoip.yaml|image=ghcr.io/l1ttps/geoip-proxy:latest
 workloads/apps/firewall-manager/base/api.yaml|image=ghcr.io/ivanversluis/firewall-manager-api:latest
 workloads/apps/firewall-manager/base/webui.yaml|image=ghcr.io/ivanversluis/firewall-manager-webui:latest
 workloads/apps/firewall-manager/base/worker.yaml|image=ghcr.io/ivanversluis/firewall-manager-worker:latest

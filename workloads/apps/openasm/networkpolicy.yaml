@@ -1,0 +1,149 @@
+# Global Calico zt-default-deny supplies isolation. Explicit per-component grants follow.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: allow-dns}
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+      ports:
+        - {protocol: UDP, port: 53}
+        - {protocol: TCP, port: 53}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: allow-kong-oauth}
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: oauth2-proxy}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kong}
+      ports: [{protocol: TCP, port: 4180}]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kong}
+      ports: [{protocol: TCP, port: 8443}, {protocol: TCP, port: 8000}]
+    - to:
+        - podSelector:
+            matchLabels: {app: oasm-console}
+      ports: [{protocol: TCP, port: 80}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: allow-console-proxy}
+spec:
+  podSelector:
+    matchLabels: {app: oasm-console}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {app.kubernetes.io/name: oauth2-proxy}
+      ports: [{protocol: TCP, port: 80}]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: {app: oasm-api}
+      ports: [{protocol: TCP, port: 6276}]
+    - to:
+        - podSelector:
+            matchLabels: {app: oasm-rustfs}
+      ports: [{protocol: TCP, port: 9000}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: allow-api-dependencies}
+spec:
+  podSelector:
+    matchLabels: {app: oasm-api}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {app: oasm-console}
+      ports: [{protocol: TCP, port: 6276}]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: {app: oasm-postgres}
+      ports: [{protocol: TCP, port: 5432}]
+    - to:
+        - podSelector:
+            matchLabels: {app: oasm-redis}
+      ports: [{protocol: TCP, port: 6379}]
+    - to:
+        - podSelector:
+            matchLabels: {app: oasm-rustfs}
+      ports: [{protocol: TCP, port: 9000}]
+    - to:
+        - podSelector:
+            matchLabels: {app: oasm-geoip}
+      ports: [{protocol: TCP, port: 4360}]
+    # Target import, marketplace metadata, and external integrations require HTTPS.
+    # Scanner containers are NOT deployed here.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16]
+      ports: [{protocol: TCP, port: 443}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: allow-db-from-api}
+spec:
+  podSelector:
+    matchLabels: {app: oasm-postgres}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {app: oasm-api}
+      ports: [{protocol: TCP, port: 5432}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: allow-redis-from-api}
+spec:
+  podSelector:
+    matchLabels: {app: oasm-redis}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {app: oasm-api}
+      ports: [{protocol: TCP, port: 6379}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: allow-storage}
+spec:
+  podSelector:
+    matchLabels: {app: oasm-rustfs}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {app: oasm-api}
+        - podSelector:
+            matchLabels: {app: oasm-console}
+      ports: [{protocol: TCP, port: 9000}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: allow-geoip}
+spec:
+  podSelector:
+    matchLabels: {app: oasm-geoip}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {app: oasm-api}
+      ports: [{protocol: TCP, port: 4360}]
