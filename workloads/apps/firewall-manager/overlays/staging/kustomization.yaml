@@ -15,6 +15,7 @@ labels:
 
 # Staging-specific patches
 patches:
+  - path: patches/remove-static-secret.yaml
   - path: patches/configmap.yaml
   - path: patches/replicas.yaml
   - path: patches/ingress.yaml
