@@ -117,6 +117,8 @@ The repository is organized by architectural responsibility rather than by insta
 
 See [`docs/repository-layout.md`](docs/repository-layout.md) for the classification rules and GitOps ownership model.
 
+For a complete grouped public-route inventory, Kubernetes Ingress paths, Gatus checks, Homepage navigation and Terraform/Cloudflare ownership, see the [ingress overview](docs/networking/ingress-overview.md). The overview explicitly separates declared routes from unverified live Cloudflare configuration.
+
 Before merging the compute-folder migration, follow [`docs/lifecycle/compute-layout-migration.md`](docs/lifecycle/compute-layout-migration.md) to suspend the live Flux root and switch its path to `./compute/eliteboxes`.
 
 ## Platform stack
