@@ -18,7 +18,7 @@ spec:
         # (plugin updates on a read-only root FS) is non-fatal, so a failure here
         # is logged and the gateway still reports real migration problems itself.
         - name: migrate-state
-          image: ghcr.io/openclaw/openclaw:2026.9.9
+          image: ghcr.io/openclaw/openclaw:2026.10.6
           imagePullPolicy: IfNotPresent
           command:
             - sh
