@@ -5,12 +5,16 @@ on:
     paths:
       - "automation/infra-as-code/terraform/**"
       - "automation/n8n/cloudflare-home-ip/**"
+      - "scripts/validate-vault-terraform-ownership.py"
+      - "scripts/test-validate-vault-terraform-ownership.py"
       - ".github/workflows/terraform-safety.yml"
   push:
     branches: [main]
     paths:
       - "automation/infra-as-code/terraform/**"
       - "automation/n8n/cloudflare-home-ip/**"
+      - "scripts/validate-vault-terraform-ownership.py"
+      - "scripts/test-validate-vault-terraform-ownership.py"
       - ".github/workflows/terraform-safety.yml"
   workflow_dispatch:
 
@@ -37,6 +41,10 @@ jobs:
         run: |
           terraform init -backend=false -input=false -lockfile=readonly
           terraform validate -no-color
+      - name: Guard Terraform-managed Vault secret ownership
+        run: |
+          python3 scripts/test-validate-vault-terraform-ownership.py
+          python3 scripts/validate-vault-terraform-ownership.py
       - name: Check modified resource modules
         run: |
           terraform fmt -check -recursive automation/infra-as-code/terraform/modules/cloudflare-published-app
