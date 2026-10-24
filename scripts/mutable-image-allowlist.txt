@@ -10,9 +10,6 @@ services/telemetry/home-exporters/shelly-prometheus-exporter/shelly-prometheus-e
 workloads/apps/firewall-manager/base/api.yaml|image=ghcr.io/ivanversluis/firewall-manager-api:latest
 workloads/apps/firewall-manager/base/webui.yaml|image=ghcr.io/ivanversluis/firewall-manager-webui:latest
 workloads/apps/firewall-manager/base/worker.yaml|image=ghcr.io/ivanversluis/firewall-manager-worker:latest
-workloads/apps/firewall-manager/overlays/dev/kustomization.yaml|newTag=dev
-workloads/apps/firewall-manager/overlays/dev/kustomization.yaml|newTag=dev
-workloads/apps/firewall-manager/overlays/dev/kustomization.yaml|newTag=dev
 workloads/apps/firewall-manager/overlays/prod/kustomization.yaml|newTag=latest
 workloads/apps/firewall-manager/overlays/prod/kustomization.yaml|newTag=latest
 workloads/apps/firewall-manager/overlays/prod/kustomization.yaml|newTag=latest
