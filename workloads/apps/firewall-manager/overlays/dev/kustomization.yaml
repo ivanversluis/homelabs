@@ -31,8 +31,8 @@ patches:
 
 images:
   - name: ghcr.io/ivanversluis/firewall-manager-api
-    newTag: dev-b508d52
+    newTag: dev-c7c5354
   - name: ghcr.io/ivanversluis/firewall-manager-webui
-    newTag: dev-b508d52
+    newTag: dev-c7c5354
   - name: ghcr.io/ivanversluis/firewall-manager-worker
-    newTag: dev-b508d52
+    newTag: dev-c7c5354
