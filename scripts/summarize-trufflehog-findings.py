@@ -8,11 +8,12 @@ import json
 from pathlib import Path
 import re
 import sys
-from typing import Any, TextIO
+from typing import Any, Iterator, TextIO
 
 
 COMMIT_RE = re.compile(r"^[0-9a-fA-F]{7,64}$")
 CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
+SENSITIVE_FIELDS = ("Raw", "RawV2", "Redacted", "ExtraData")
 
 
 def safe_cell(value: Any, *, limit: int = 512) -> str:
@@ -21,6 +22,33 @@ def safe_cell(value: Any, *, limit: int = 512) -> str:
     text = CONTROL_RE.sub("?", text)
     text = text.replace("\\", "\\\\").replace("|", "\\|").replace("`", "\\`")
     return text[:limit] or "-"
+
+
+def string_values(value: Any) -> Iterator[str]:
+    """Yield non-empty strings from a candidate-bearing JSON value."""
+    if isinstance(value, str):
+        if value:
+            yield value
+    elif isinstance(value, dict):
+        for nested in value.values():
+            yield from string_values(nested)
+    elif isinstance(value, list):
+        for nested in value:
+            yield from string_values(nested)
+
+
+def reject_candidate_overlap(
+    finding: dict[str, Any], metadata_values: tuple[str, ...], index: int
+) -> None:
+    """Fail closed when candidate-bearing data could enter summary metadata."""
+    candidates = {
+        candidate
+        for field in SENSITIVE_FIELDS
+        for candidate in string_values(finding.get(field))
+    }
+    rendered_values = metadata_values + tuple(safe_cell(value) for value in metadata_values)
+    if any(candidate in value for candidate in candidates for value in rendered_values):
+        raise ValueError(f"finding {index} has candidate-bearing output metadata")
 
 
 def finding_row(finding: dict[str, Any], index: int) -> tuple[str, str, str, str, str]:
@@ -47,11 +75,13 @@ def finding_row(finding: dict[str, Any], index: int) -> tuple[str, str, str, str
     if not isinstance(line, int) or isinstance(line, bool) or line < 1:
         raise ValueError(f"finding {index} lacks a valid Git line")
 
+    commit = commit.lower()
+    reject_candidate_overlap(finding, (detector, path, commit, str(line)), index)
     return (
         safe_cell(detector, limit=96),
         "true" if verified else "false",
         safe_cell(path),
-        commit.lower(),
+        commit,
         str(line),
     )
 
