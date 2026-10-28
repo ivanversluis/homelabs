@@ -15,23 +15,18 @@ playbook = yaml.safe_load((ROOT / "automation/ansible/playbooks/97-disk-path-inv
 assert playbook["hosts"] == "k8s_homelab"
 assert playbook["gather_facts"] is False and playbook["serial"] == 1
 tasks = playbook["tasks"]
-script = next(t["ansible.builtin.raw"] for t in tasks if "ansible.builtin.raw" in t)
-assert next(t for t in tasks if "ansible.builtin.raw" in t)["changed_when"] is False
+remote = next(t for t in tasks if "ansible.builtin.raw" in t)
+assert remote["changed_when"] is False
+assert "disk-path-investigation.sh" in remote["ansible.builtin.raw"]
+assert "lookup(" in remote["ansible.builtin.raw"]
+script = (ROOT / "automation/ansible/scripts/disk-path-investigation.sh").read_text()
 assert all(token not in script for token in (
     "rm -rf ", "crictl ", "fstrim ", "systemctl stop",
     "kubectl delete", "journalctl --vacuum", "du --apparent-size",
 ))
 vars = playbook["vars"]
-for key, replacement in (
-    ("disk_path_max_levels", "4"),
-    ("disk_path_top_entries", "10"),
-    ("disk_path_longhorn_levels", "2"),
-    ("disk_path_timeout_seconds", "30"),
-):
-    script = script.replace("{{ " + key + " | int }}", replacement)
-script = script.replace("{{ inventory_hostname }}", "synthetic-worker")
-
-assert "{{" not in script, "Unexpanded Ansible template"
+assert vars["disk_path_max_levels"] <= 7
+assert "{{" not in script, "Shell helper must not depend on remote Jinja substitution"
 with tempfile.TemporaryDirectory(prefix="test-disk-path-") as directory:
     root = Path(directory) / "root"
     deep = root / "var" / "lib" / "containerd"
@@ -46,7 +41,12 @@ with tempfile.TemporaryDirectory(prefix="test-disk-path-") as directory:
 
     env = dict(os.environ,
                DISK_INSPECTION_ROOT=str(root),
-               DISK_INSPECTION_LONGHORN_PATH=str(longhorn))
+               DISK_INSPECTION_LONGHORN_PATH=str(longhorn),
+               DISK_INSPECTION_NODE_NAME="synthetic-worker",
+               DISK_PATH_MAX_LEVELS="4",
+               DISK_PATH_TOP_ENTRIES="10",
+               DISK_PATH_LONGHORN_LEVELS="2",
+               DISK_PATH_TIMEOUT_SECONDS="30")
     result = subprocess.run(["bash", "-c", script], env=env,
                             text=True, capture_output=True, timeout=40)
     assert result.returncode == 0, (result.stdout[-4000:], result.stderr)
@@ -60,7 +60,6 @@ with tempfile.TemporaryDirectory(prefix="test-disk-path-") as directory:
     assert "Longhorn storage path" in out
     assert str(longhorn) in out
     assert "DEEPEST INVESTIGATED PATH" in out
-    assert "No further child directory" not in out or "Longhorn" in out
     assert (deep / "test-image.bin").stat().st_size == 1024 * 1024
     assert (longhorn / "test-replica.bin").stat().st_size == 131072
 
