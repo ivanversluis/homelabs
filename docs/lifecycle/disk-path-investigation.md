@@ -9,7 +9,9 @@ It does **not** list all first-level directories or drill into the largest ones.
 `96-containerd-image-prune.yml` removes unused CRI images and must not be
 treated as a diagnostic.
 
-The new `97-disk-path-investigation.yml` is strictly **read-only**: no image
+The new `97-disk-path-investigation.yml` runs the controller-loaded
+`automation/ansible/scripts/disk-path-investigation.sh` over the existing
+SSH/raw route, without creating a remote script file. It is strictly **read-only**: no image
 pruning, log cleanup, deletions, restarts, draining, or PVC modifications.
 
 ## What the report contains
@@ -102,6 +104,7 @@ only then select a separate, supported cleanup action.
 ## Validation and limitations
 
 ```bash
+bash -n automation/ansible/scripts/disk-path-investigation.sh
 python3 scripts/lifecycle/tests/disk-path-investigation.py
 bash scripts/lifecycle/tests/configure-semaphore-disk-investigation.sh
 bash -n scripts/lifecycle/configure-semaphore-disk-investigation.sh
