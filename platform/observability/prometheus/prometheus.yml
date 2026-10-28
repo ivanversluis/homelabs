@@ -263,3 +263,30 @@ scrape_configs:
         action: keep
     scrape_interval: 30s
     scrape_timeout: 15s
+
+  # Longhorn v1.12.1 exposes metrics on every longhorn-manager:9500/metrics.
+  # Scrape backend service endpoints individually (not the ClusterIP, which
+  # load-balances to a single manager and hides failed/unschedulable nodes).
+  # Grafana queries the standalone observability Prometheus, not KPS.
+  - job_name: 'longhorn-manager'
+    metrics_path: '/metrics'
+    kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+            - longhorn-system
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name]
+        action: keep
+        regex: longhorn-backend
+      - source_labels: [__meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: manager
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: manager_pod
+      - source_labels: [__meta_kubernetes_pod_node_name]
+        target_label: manager_node
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+    scrape_interval: 30s
+    scrape_timeout: 15s

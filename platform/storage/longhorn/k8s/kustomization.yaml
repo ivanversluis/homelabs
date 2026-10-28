@@ -7,6 +7,8 @@ resources:
   # longhorn-worker StorageClass: default, reclaimPolicy: Retain
   # Ensures PVs survive PVC/namespace deletion (GitOps-safe).
   - config/longhorn-worker-sc.yaml
+  # Additive, source-scoped policy; does not modify Longhorn vendor policy.
+  - monitoring-prometheus-netpol.yaml
 
 patches:
   - path: patches/default-setting.yaml

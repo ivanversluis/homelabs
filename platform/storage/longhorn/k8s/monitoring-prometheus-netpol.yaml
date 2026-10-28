@@ -1,0 +1,27 @@
+---
+# Longhorn 1.12.1 manager:9500 serves /metrics AND its REST API.
+# Keep this allow ingress restricted to only observability/Prometheus; an
+# unrestricted port allow would expose the Longhorn management API.
+# Longhorn's own restrictInternalTraffic policy remains unchanged.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-observability-prometheus-longhorn-metrics
+  namespace: longhorn-system
+spec:
+  podSelector:
+    matchLabels:
+      app: longhorn-manager
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - protocol: TCP
+          port: 9500

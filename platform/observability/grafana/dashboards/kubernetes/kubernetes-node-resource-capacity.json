@@ -562,6 +562,155 @@
           "range": false
         }
       ]
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Longhorn replica-eligible nodes (of 3)",
+      "description": "Measures Longhorn node + disk scheduling directly; a Kubernetes Ready node can still be unable to host a replica.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 0,
+        "y": 27
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 2
+              },
+              {
+                "color": "green",
+                "value": 3
+              }
+            ]
+          },
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum((min by(node) (longhorn_node_status{job=\"longhorn-manager\",condition=~\"ready|schedulable|allowScheduling\"})) * on(node) (max by(node) (min by(node,disk) (longhorn_disk_status{job=\"longhorn-manager\",condition=~\"ready|schedulable\"})))) or vector(0)",
+          "refId": "A",
+          "instant": true,
+          "range": false
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Longhorn unschedulable disks",
+      "description": "Reports disk Schedulable=0 from Longhorn; not the Kubernetes root filesystem usage metric.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 12,
+        "y": 27
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "count(min by(node,disk) (longhorn_disk_status{job=\"longhorn-manager\",condition=\"schedulable\"}) == 0) or on() (vector(0) and on() (sum(up{job=\"longhorn-manager\"}) > 0))",
+          "refId": "A",
+          "instant": true,
+          "range": false
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "text",
+      "title": "Longhorn storage scheduling",
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 24,
+        "h": 2
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "[View Longhorn scheduling, disk conditions, and capacity](/d/k8s-longhorn-scheduling) · **2 replica-schedulable nodes is the minimum for 2-replica volumes; aim to restore 3 for failure/rebuild headroom.**"
+      }
     }
   ],
   "description": "Kubernetes telemetry managed in Git. Follow the dashboard links to investigate related signals.",
@@ -617,6 +766,15 @@
       "title": "Resource warnings",
       "type": "link",
       "url": "/d/k8s-node-resource-capacity",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "dashboard"
+    },
+    {
+      "title": "Longhorn scheduling",
+      "type": "link",
+      "url": "/d/k8s-longhorn-scheduling",
       "includeVars": true,
       "keepTime": true,
       "targetBlank": false,

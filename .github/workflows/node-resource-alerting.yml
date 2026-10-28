@@ -10,6 +10,9 @@ on:
       - scripts/test-grafana-provisioning.py
       - scripts/test-node-resource-alerting.py
       - scripts/test-pvc-capacity-alerting.py
+      - scripts/test-longhorn-alerting.py
+      - platform/storage/longhorn/k8s/kustomization.yaml
+      - platform/storage/longhorn/k8s/monitoring-prometheus-netpol.yaml
       - platform/observability/observability-netpol.yaml
       - .github/workflows/node-resource-alerting.yml
   push:
@@ -48,11 +51,15 @@ jobs:
           echo "$validation_tools_dir" >> "$GITHUB_PATH"
       - name: Test PVC dashboard metrics and alert rules
         run: python3 scripts/test-pvc-capacity-alerting.py
+      - name: Validate Longhorn scheduling dashboard, NetPol and alert semantics
+        run: python3 scripts/test-longhorn-alerting.py
       - name: Test dashboard wiring and resource alert semantics
         run: python3 scripts/test-node-resource-alerting.py
       - name: Validate all dashboards and query regressions
         run: python3 scripts/test-grafana-dashboards.py
       - name: Smoke-test provisioning with the configured Grafana image
         run: python3 scripts/test-grafana-provisioning.py
-      - name: Render observability manifests
-        run: kubectl kustomize platform/observability > /tmp/observability.yaml
+      - name: Render observability and Longhorn manifests
+        run: |
+          kubectl kustomize platform/observability > /tmp/observability.yaml
+          kubectl kustomize platform/storage/longhorn/k8s > /tmp/longhorn.yaml

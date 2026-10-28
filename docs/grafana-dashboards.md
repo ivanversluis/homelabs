@@ -7,7 +7,7 @@ between related dashboards.
 
 | Folder | Entry point | Drill-downs |
 | --- | --- | --- |
-| Kubernetes | Kubernetes Platform Overview | Workloads, Node Health, Node Resource Capacity, Time Sync |
+| Kubernetes | Kubernetes Platform Overview | Workloads, Node Health, Node Resource Capacity, PVC Capacity, Longhorn Scheduling & Disk Capacity, Time Sync |
 | DNS | DNS Overview | CoreDNS, Pi-hole visibility and client drill-down, Unbound |
 | Home | Home Climate / DSMR Smart Meter & Solar | GoodWe inverter detail in Home Energy, Shelly sensors |
 | Firewall Manager | Firewall Manager - Overview | Golden Signals, RED service signals, USE resource signals |
@@ -120,6 +120,7 @@ and time-sync alert groups keep their existing alert folder and IDs.
 Local checks:
 
 ```bash
+python3 scripts/test-longhorn-alerting.py
 python3 scripts/test-grafana-dashboards.py
 python3 scripts/test-node-resource-alerting.py
 python3 scripts/test-grafana-provisioning.py  # Docker required
