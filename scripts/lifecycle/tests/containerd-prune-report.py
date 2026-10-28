@@ -21,6 +21,6 @@ assert prune['failed_when'] is False
 assert 'timeout --signal=TERM --kill-after=10s 20m' in prune['ansible.builtin.raw']
 assert play['vars']['containerd_cri_timeout'] == '30s'
 order = [task['name'] for task in play['tasks']]
-assert order.index('Print cleanup result and reclaimed capacity') < order.index('Fail after reporting if CRI image removal was incomplete')
-assert tasks['Fail after reporting if CRI image removal was incomplete']['ansible.builtin.assert']['that']
+assert order.index('Print cleanup result and reclaimed capacity') < order.index('Fail after reporting if image removal was incomplete')
+assert tasks['Fail after reporting if image removal was incomplete']['ansible.builtin.assert']['that']
 print('PASS: byte-unit accounting and partial-cleanup reporting')
