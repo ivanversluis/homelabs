@@ -40,6 +40,7 @@ playbooks/
   90-control-tower-validation.yml    full validation, ansible-certificate route
   95-disk-report.yml                 read-only node filesystem report
   96-containerd-image-prune.yml      weekly CRI-native unused-image cleanup, serial per node
+  97-disk-path-investigation.yml     manual read-only root and Longhorn disk drill-down
 ```
 
 ## Two SSH routes
@@ -67,6 +68,11 @@ The recurring containerd image-prune task is provisioned idempotently in Semapho
 `scripts/lifecycle/configure-semaphore-image-prune.sh`. See
 [`../../docs/lifecycle/containerd-image-prune.md`](../../docs/lifecycle/containerd-image-prune.md)
 for its schedule, output, and manual run procedure.
+
+For read-only disk pressure investigation from Semaphore (no host shell login), use
+`playbooks/97-disk-path-investigation.yml`. Provision its manual task template with
+`bash scripts/lifecycle/configure-semaphore-disk-investigation.sh`; see
+[`../../docs/lifecycle/disk-path-investigation.md`](../../docs/lifecycle/disk-path-investigation.md).
 
 ## Non-negotiables
 
