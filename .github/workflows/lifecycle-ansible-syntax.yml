@@ -72,6 +72,9 @@ jobs:
       - name: Test Semaphore image-prune provisioning
         run: bash scripts/lifecycle/tests/configure-semaphore-image-prune.sh
 
+      - name: Test containerd prune accounting and failure handling
+        run: python scripts/lifecycle/tests/containerd-prune-report.py
+
       - name: Test read-only disk investigation and Semaphore template
         run: |
           python scripts/lifecycle/tests/disk-path-investigation.py
