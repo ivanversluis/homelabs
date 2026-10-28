@@ -23,7 +23,7 @@ data:
               message: |
                 {{ range .Alerts }}
                 [{{ .Status | toUpper }}] {{ .Labels.alertname }}
-                Instance: {{ .Labels.instance }}{{ if .Labels.node }} | Node: {{ .Labels.node }}{{ end }}
+                Instance: {{ .Labels.instance }}{{ if .Labels.node }} | Node: {{ .Labels.node }}{{ end }}{{ if .Labels.namespace }} | Namespace: {{ .Labels.namespace }}{{ end }}{{ if .Labels.persistentvolumeclaim }} | PVC: {{ .Labels.persistentvolumeclaim }}{{ end }}
                 Severity: {{ .Labels.severity }}
                 {{ .Annotations.summary }}
                 {{ if .Annotations.description }}{{ .Annotations.description }}{{ end }}
