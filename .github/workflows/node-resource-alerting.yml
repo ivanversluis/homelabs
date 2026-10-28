@@ -9,6 +9,8 @@ on:
       - scripts/test-grafana-dashboards.py
       - scripts/test-grafana-provisioning.py
       - scripts/test-node-resource-alerting.py
+      - scripts/test-pvc-capacity-alerting.py
+      - platform/observability/observability-netpol.yaml
       - .github/workflows/node-resource-alerting.yml
   push:
     branches: [main]
@@ -44,6 +46,8 @@ jobs:
           awk '$2 == "prometheus-3.5.0.linux-amd64.tar.gz"' sha256sums.txt | sha256sum --check
           tar -xzf prometheus-3.5.0.linux-amd64.tar.gz --strip-components=1 prometheus-3.5.0.linux-amd64/promtool
           echo "$validation_tools_dir" >> "$GITHUB_PATH"
+      - name: Test PVC dashboard metrics and alert rules
+        run: python3 scripts/test-pvc-capacity-alerting.py
       - name: Test dashboard wiring and resource alert semantics
         run: python3 scripts/test-node-resource-alerting.py
       - name: Validate all dashboards and query regressions
