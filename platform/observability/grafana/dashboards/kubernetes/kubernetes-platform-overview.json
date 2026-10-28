@@ -639,6 +639,15 @@
       "keepTime": true,
       "targetBlank": false,
       "icon": "dashboard"
+    },
+    {
+      "title": "Longhorn storage",
+      "type": "link",
+      "url": "/d/k8s-longhorn-scheduling",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "dashboard"
     }
   ]
 }
