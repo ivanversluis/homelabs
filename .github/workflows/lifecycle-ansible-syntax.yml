@@ -58,6 +58,7 @@ jobs:
           bash -n scripts/lifecycle/bootstrap-control-tower.sh
           bash -n scripts/lifecycle/check-vault-health.sh
           bash -n scripts/lifecycle/configure-semaphore-image-prune.sh
+          bash -n automation/ansible/scripts/disk-path-investigation.sh
           bash -n scripts/lifecycle/configure-semaphore-disk-investigation.sh
           bash -n scripts/lifecycle/tests/configure-semaphore-disk-investigation.sh
           bash -n scripts/lifecycle/semaphore-control-tower-run.sh
