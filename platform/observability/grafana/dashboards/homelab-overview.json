@@ -219,13 +219,13 @@
       "title": "Kubernetes",
       "gridPos": {
         "x": 0,
-        "y": 4,
+        "y": 8,
         "w": 12,
         "h": 7
       },
       "options": {
         "mode": "markdown",
-        "content": "- [Kubernetes PVC Capacity & Usage](/d/k8s-pvc-capacity)\n- [Kubernetes Node Resource Capacity](/d/k8s-node-resource-capacity)\n- [Kubernetes Node Health](/d/k8s-node-health)\n- [Kubernetes Platform Overview](/d/k8s-platform-overview)\n- [Kubernetes Time Sync](/d/k8s-time-sync)\n- [Kubernetes Workloads](/d/k8s-workloads)"
+        "content": "- [Kubernetes PVC Capacity & Usage](/d/k8s-pvc-capacity)\n- [Longhorn Scheduling & Disk Capacity](/d/k8s-longhorn-scheduling)\n- [Kubernetes Node Resource Capacity](/d/k8s-node-resource-capacity)\n- [Kubernetes Node Health](/d/k8s-node-health)\n- [Kubernetes Platform Overview](/d/k8s-platform-overview)\n- [Kubernetes Time Sync](/d/k8s-time-sync)\n- [Kubernetes Workloads](/d/k8s-workloads)"
       }
     },
     {
@@ -234,7 +234,7 @@
       "title": "DNS",
       "gridPos": {
         "x": 12,
-        "y": 4,
+        "y": 8,
         "w": 12,
         "h": 7
       },
@@ -249,7 +249,7 @@
       "title": "Home",
       "gridPos": {
         "x": 0,
-        "y": 11,
+        "y": 15,
         "w": 12,
         "h": 7
       },
@@ -264,7 +264,7 @@
       "title": "Firewall Manager",
       "gridPos": {
         "x": 12,
-        "y": 11,
+        "y": 15,
         "w": 12,
         "h": 7
       },
@@ -279,7 +279,7 @@
       "title": "Platform Services",
       "gridPos": {
         "x": 0,
-        "y": 18,
+        "y": 22,
         "w": 12,
         "h": 7
       },
@@ -287,6 +287,140 @@
         "mode": "markdown",
         "content": "- [HashiCorp Vault](/d/hashicorp-vault)\n- [Prometheus Storage & Scrapers](/d/prometheus-storage)"
       }
+    },
+    {
+      "id": 20,
+      "type": "stat",
+      "title": "Longhorn schedulable nodes",
+      "description": "The cluster expects three Longhorn storage nodes. Fewer than three eligible nodes reduces replica placement options.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 2
+              },
+              {
+                "color": "green",
+                "value": 3
+              }
+            ]
+          },
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum((min by(node) (longhorn_node_status{job=\"longhorn-manager\",condition=~\"ready|schedulable|allowScheduling\"})) * on(node) (max by(node) (min by(node,disk) (longhorn_disk_status{job=\"longhorn-manager\",condition=~\"ready|schedulable\"})))) or vector(0)",
+          "refId": "A",
+          "instant": true,
+          "range": false
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "type": "stat",
+      "title": "Longhorn unschedulable disks",
+      "description": "Counts disks where Longhorn has declared replica scheduling unavailable. 0 is healthy only while scrape telemetry is present.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "count(min by(node,disk) (longhorn_disk_status{job=\"longhorn-manager\",condition=\"schedulable\"}) == 0) or on() (vector(0) and on() (sum(up{job=\"longhorn-manager\"}) > 0))",
+          "refId": "A",
+          "instant": true,
+          "range": false
+        }
+      ]
     }
   ],
   "id": null,
@@ -299,6 +433,15 @@
       "title": "Kubernetes",
       "type": "link",
       "url": "/d/k8s-platform-overview",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "dashboard"
+    },
+    {
+      "title": "Longhorn storage",
+      "type": "link",
+      "url": "/d/k8s-longhorn-scheduling",
       "includeVars": true,
       "keepTime": true,
       "targetBlank": false,
