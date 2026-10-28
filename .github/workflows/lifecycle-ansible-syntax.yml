@@ -9,6 +9,7 @@ on:
       - "scripts/lifecycle/**"
       - "infra/semaphoreui/semaphoreui-helmrelease.yaml"
       - "docs/lifecycle/containerd-image-prune.md"
+      - "docs/lifecycle/disk-path-investigation.md"
       - ".github/workflows/lifecycle-ansible-syntax.yml"
   pull_request:
     paths:
@@ -16,6 +17,7 @@ on:
       - "scripts/lifecycle/**"
       - "infra/semaphoreui/semaphoreui-helmrelease.yaml"
       - "docs/lifecycle/containerd-image-prune.md"
+      - "docs/lifecycle/disk-path-investigation.md"
       - ".github/workflows/lifecycle-ansible-syntax.yml"
   workflow_dispatch:
 
@@ -56,6 +58,8 @@ jobs:
           bash -n scripts/lifecycle/bootstrap-control-tower.sh
           bash -n scripts/lifecycle/check-vault-health.sh
           bash -n scripts/lifecycle/configure-semaphore-image-prune.sh
+          bash -n scripts/lifecycle/configure-semaphore-disk-investigation.sh
+          bash -n scripts/lifecycle/tests/configure-semaphore-disk-investigation.sh
           bash -n scripts/lifecycle/semaphore-control-tower-run.sh
           bash -n scripts/lifecycle/tests/configure-semaphore-image-prune.sh
           bash -n scripts/lifecycle/tests/check-vault-health.sh
@@ -66,3 +70,8 @@ jobs:
 
       - name: Test Semaphore image-prune provisioning
         run: bash scripts/lifecycle/tests/configure-semaphore-image-prune.sh
+
+      - name: Test read-only disk investigation and Semaphore template
+        run: |
+          python scripts/lifecycle/tests/disk-path-investigation.py
+          bash scripts/lifecycle/tests/configure-semaphore-disk-investigation.sh
