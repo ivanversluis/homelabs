@@ -30,7 +30,7 @@ def panels(dashboard):
 
 
 def expand(expr, values=None):
-    values = {'__rate_interval': '5m', '__interval': '5m', 'namespace': '.*',
+    values = {'__rate_interval': '5m', '__interval': '5m', 'namespace': '.*', 'pvc': '.*',
               'pod': '.*', 'node': '.*', 'device': '.*', 'client': 'client-a',
               'device_id': '.*', **(values or {})}
     return re.sub(r'\$\{?(\w+)(?::\w+)?\}?', lambda m: values[m[1]], expr)
