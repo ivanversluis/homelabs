@@ -161,7 +161,7 @@ template_payload="$(jq -cn \
   --argjson repository_id "$repository_id" \
   --arg name "$SEMAPHORE_TEMPLATE_NAME" \
   --arg branch "$SEMAPHORE_GIT_BRANCH" \
-  --arg arguments '["playbook=playbooks/97-disk-path-investigation.yml","limit=${SEMAPHORE_LIMIT}"]' \
+  --arg arguments "$(jq -cn --arg limit "$SEMAPHORE_LIMIT" '["playbook=playbooks/97-disk-path-investigation.yml", ("limit=" + $limit)]')" \
   '{
     project_id: $project_id,
     repository_id: $repository_id,
