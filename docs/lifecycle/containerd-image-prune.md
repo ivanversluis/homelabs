@@ -29,7 +29,7 @@ does not answer. A failure stops the remaining nodes. No drain or reboot is perf
 
 For every node, the Semaphore task output records:
 
-- `df -hP /` and exact root-used bytes before and after;
+- `df -hP /` and exact root-used bytes before and after (using unambiguous `df -B1 --output=used` for accounting);
 - `du -sh /var/lib/containerd` and exact containerd bytes before and after;
 - CRI image count before and after;
 - running container count before and after;
