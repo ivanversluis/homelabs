@@ -225,7 +225,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "- [Kubernetes Node Resource Capacity](/d/k8s-node-resource-capacity)\n- [Kubernetes Node Health](/d/k8s-node-health)\n- [Kubernetes Platform Overview](/d/k8s-platform-overview)\n- [Kubernetes Time Sync](/d/k8s-time-sync)\n- [Kubernetes Workloads](/d/k8s-workloads)"
+        "content": "- [Kubernetes PVC Capacity & Usage](/d/k8s-pvc-capacity)\n- [Kubernetes Node Resource Capacity](/d/k8s-node-resource-capacity)\n- [Kubernetes Node Health](/d/k8s-node-health)\n- [Kubernetes Platform Overview](/d/k8s-platform-overview)\n- [Kubernetes Time Sync](/d/k8s-time-sync)\n- [Kubernetes Workloads](/d/k8s-workloads)"
       }
     },
     {
