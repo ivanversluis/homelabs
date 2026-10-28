@@ -73,7 +73,8 @@
     - name: Prune unused CRI images and retain partial-error evidence
       ansible.builtin.raw: |
         set -eu
-        crictl --timeout {{ containerd_cri_timeout | quote }} --runtime-endpoint {{ containerd_cri_endpoint | quote }} --image-endpoint {{ containerd_cri_endpoint | quote }} rmi --prune
+        timeout --signal=TERM --kill-after=10s 20m \
+          crictl --timeout {{ containerd_cri_timeout | quote }} --runtime-endpoint {{ containerd_cri_endpoint | quote }} --image-endpoint {{ containerd_cri_endpoint | quote }} rmi --prune
       become: true
       vars:
         ansible_become: true
@@ -147,8 +148,8 @@
     - name: Count image-removal errors even when crictl returns exit code zero
       ansible.builtin.set_fact:
         containerd_prune_failed_image_operations: >-
-          {{ ((containerd_prune_result.stdout | default('')) ~
-              (containerd_prune_result.stderr | default(''))
+          {{ (((containerd_prune_result.stdout | default('')) ~
+               (containerd_prune_result.stderr | default('')))
               | regex_findall('RemoveImage from image service failed|DeadlineExceeded|failed to remove image')
               | length) }}
       changed_when: false
