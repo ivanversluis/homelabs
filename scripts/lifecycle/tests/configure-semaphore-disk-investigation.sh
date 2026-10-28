@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-if [[ "$MOCK_CURL_MODE" == true ]]; then
+if [[ "${MOCK_CURL_MODE:-false}" == true ]]; then
   method=GET
   payload=''
   url=''
