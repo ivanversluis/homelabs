@@ -64,14 +64,14 @@ Then in Semaphore select **Homelab Ops - Disk path investigation
 (k8s-worker03)** → **Run**. Read the node breakdown in task output,
 including the deepest investigated paths. **No shell login is required.**
 
-To add a separate named task for a different host or the full pool:
+To add a separate named task for another host:
 
 ```bash
 SEMAPHORE_LIMIT=k8s-worker01 bash scripts/lifecycle/configure-semaphore-disk-investigation.sh
-SEMAPHORE_LIMIT=workers bash scripts/lifecycle/configure-semaphore-disk-investigation.sh
+SEMAPHORE_LIMIT=k8s-worker02 bash scripts/lifecycle/configure-semaphore-disk-investigation.sh
 ```
 
-Only the four known nodes, `workers`, and `k8s_homelab` are accepted.
+Only the four known node names are accepted. Run one host at a time to keep the Vault SSH certificate lifetime and disk-scan load predictable.
 The template does not allow runtime changes to CLI arguments or Git branch.
 Creating or updating a Semaphore task requires cluster/API access from the
 administration workstation; execution afterwards uses the Semaphore UI.
