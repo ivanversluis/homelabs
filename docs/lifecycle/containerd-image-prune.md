@@ -27,6 +27,11 @@ Semaphore schedule
 The playbook fails immediately if `crictl` is missing, containerd is inactive, or the CRI endpoint
 does not answer. A failure stops the remaining nodes. No drain or reboot is performed.
 
+The client uses a 30-second timeout for individual CRI operations, with a
+20-minute overall command limit. If individual image operations time out, the
+playbook still records the after-state before reporting the run as incomplete.
+Per-image timeouts can occur even when the command exits with status zero.
+
 For every node, the Semaphore task output records:
 
 - `df -hP /` and exact root-used bytes before and after (using unambiguous `df -B1 --output=used` for accounting);
