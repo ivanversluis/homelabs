@@ -115,7 +115,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "**Longhorn node Ready / Schedulable / AllowScheduling and disk Schedulable are separate from Kubernetes node health.** Three Longhorn-labeled workers are expected; both StorageClasses currently request **2 replicas**. Alerts: disk **>65% / 10m**, **>72% / 2m** (ahead of the default 75% scheduling boundary), disk or node unschedulable, fewer than three eligible nodes, and degraded/faulted volumes. **Longhorn condition metrics are the authoritative scheduling indicator:** reserved and allocated capacity can block new replicas before a disk reaches 75%. Missing metrics are not treated as healthy."
+        "content": "**Longhorn node Ready / Schedulable / AllowScheduling and disk Schedulable are separate from Kubernetes node health.** Three Longhorn-labeled workers are expected (and the eligible count is cluster-wide); both StorageClasses currently request **2 replicas**. Alerts: disk **>65% / 10m**, **>72% / 2m** (ahead of the default 75% scheduling boundary), disk or node unschedulable, fewer than three eligible nodes, and degraded/faulted volumes. **Longhorn condition metrics are the authoritative scheduling indicator:** reserved and allocated capacity can block new replicas before a disk reaches 75%. Missing metrics are not treated as healthy."
       }
     },
     {
@@ -174,7 +174,7 @@
       "id": 3,
       "type": "stat",
       "title": "Nodes eligible (with disk)",
-      "description": "Node must be ready, schedulable, scheduling allowed, and have at least one Longhorn-schedulable disk.",
+      "description": "Cluster-wide count of Longhorn nodes with every Ready/Schedulable/AllowScheduling condition true and at least one disk Ready and Schedulable; independent of node filter.",
       "gridPos": {
         "x": 6,
         "y": 3,
@@ -232,7 +232,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(min by(node) (longhorn_node_status{job=\"longhorn-manager\",condition=~\"ready|schedulable|allowScheduling\",node=~\"$node\"}) * on(node) max by(node) (min by (node,disk) (longhorn_disk_status{job=\"longhorn-manager\",condition=\"schedulable\",node=~\"$node\"})))",
+          "expr": "sum((min by(node) (longhorn_node_status{job=\"longhorn-manager\",condition=~\"ready|schedulable|allowScheduling\"})) * on(node) (max by(node) (min by(node,disk) (longhorn_disk_status{job=\"longhorn-manager\",condition=~\"ready|schedulable\"})))) or vector(0)",
           "refId": "A",
           "instant": true,
           "range": false
@@ -297,7 +297,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "count(min by (node,disk) (longhorn_disk_status{job=\"longhorn-manager\",condition=\"schedulable\",node=~\"$node\"}) == 0)",
+          "expr": "count(min by(node,disk) (longhorn_disk_status{job=\"longhorn-manager\",condition=\"schedulable\",node=~\"$node\"}) == 0) or on() (vector(0) and on() (sum(up{job=\"longhorn-manager\"}) > 0))",
           "refId": "A",
           "instant": true,
           "range": false
@@ -362,7 +362,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "count(max by(volume) (longhorn_volume_robustness{job=\"longhorn-manager\",state=~\"degraded|faulted\"} == 1))",
+          "expr": "count(max by(volume) (longhorn_volume_robustness{job=\"longhorn-manager\",state=~\"degraded|faulted\"} == 1)) or on() (vector(0) and on() (sum(up{job=\"longhorn-manager\"}) > 0))",
           "refId": "A",
           "instant": true,
           "range": false
