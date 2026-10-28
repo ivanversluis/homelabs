@@ -164,7 +164,14 @@
         ansible_become: true
       register: disk_path_report
       changed_when: false
+      failed_when: false  # print partial results before marking incomplete scans failed
 
     - name: Show report in the Semaphore task output
       ansible.builtin.debug:
         msg: "{{ disk_path_report.stdout_lines }}"
+
+    - name: Fail the task if a disk scan was incomplete
+      ansible.builtin.assert:
+        that:
+          - disk_path_report.rc | int == 0
+        fail_msg: "Disk scan on {{ inventory_hostname }} was incomplete or failed; inspect the partial report above."
