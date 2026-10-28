@@ -22,7 +22,7 @@ COOKIE_FILE=""
 log() { printf '[semaphore-disk-investigation] %s\n' "$*"; }
 fail() { printf '[semaphore-disk-investigation] ERROR: %s\n' "$*" >&2; exit 1; }
 case "$SEMAPHORE_LIMIT" in
-  k8s-master01|k8s-worker01|k8s-worker02|k8s-worker03|workers|k8s_homelab) ;;
+  k8s-master01|k8s-worker01|k8s-worker02|k8s-worker03) ;;
   *) fail "SEMAPHORE_LIMIT must match a known host or group" ;;
 esac
 SEMAPHORE_TEMPLATE_NAME="${SEMAPHORE_TEMPLATE_NAME:-Homelab Ops - Disk path investigation ($SEMAPHORE_LIMIT)}"
