@@ -10,8 +10,7 @@
 
   vars:
     containerd_cri_endpoint: unix:///run/containerd/containerd.sock
-    # Default 2s client timeout caused many individual RemoveImage DeadlineExceeded logs.
-    # Apply a bounded timeout per CRI operation; never retry/loop removal automatically.
+    # Longer per-operation timeout for overloaded containerd image GC.
     containerd_cri_timeout: 30s
 
   tasks:
@@ -47,7 +46,7 @@
         set -eu
         root_used_bytes="$(df -B1 --output=used / | awk 'NR == 2 {print $1}')"
         case "$root_used_bytes" in
-          ''|*[!0-9]*) echo "ERROR: invalid exact root-used bytes: $root_used_bytes" >&2; exit 1 ;;
+          ''|*[!0-9]*) echo "ERROR: invalid root-used bytes: $root_used_bytes" >&2; exit 1 ;;
         esac
         containerd_used_bytes="$(du -sxB1 /var/lib/containerd | awk '{print $1}')"
         image_count="$(crictl --timeout {{ containerd_cri_timeout | quote }} --runtime-endpoint {{ containerd_cri_endpoint | quote }} --image-endpoint {{ containerd_cri_endpoint | quote }} images -q | sort -u | wc -l | tr -d '[:space:]')"
@@ -79,8 +78,7 @@
       vars:
         ansible_become: true
       register: containerd_prune_result
-      # crictl can exit 0 while logging per-image RPC failures. Always collect
-      # after-state first and check stderr/stdout/rc at the very end.
+      # Always collect capacity after the attempted pruning even if RPC calls fail.
       changed_when: false
       failed_when: false
 
@@ -98,7 +96,7 @@
 
         root_used_bytes="$(df -B1 --output=used / | awk 'NR == 2 {print $1}')"
         case "$root_used_bytes" in
-          ''|*[!0-9]*) echo "ERROR: invalid exact root-used bytes: $root_used_bytes" >&2; exit 1 ;;
+          ''|*[!0-9]*) echo "ERROR: invalid root-used bytes: $root_used_bytes" >&2; exit 1 ;;
         esac
         containerd_used_bytes="$(du -sxB1 /var/lib/containerd | awk '{print $1}')"
         image_count="$(crictl --timeout {{ containerd_cri_timeout | quote }} --runtime-endpoint {{ containerd_cri_endpoint | quote }} --image-endpoint {{ containerd_cri_endpoint | quote }} images -q | sort -u | wc -l | tr -d '[:space:]')"
@@ -145,62 +143,24 @@
              | int }}
       changed_when: false
 
-    - name: Count image-removal errors even when crictl returns exit code zero
+    - name: Count per-image RPC errors even when crictl exits successfully
       ansible.builtin.set_fact:
-        containerd_prune_failed_image_operations: >-
+        containerd_prune_error_lines: >-
           {{ (((containerd_prune_result.stdout | default('')) ~ '\n' ~
                (containerd_prune_result.stderr | default('')))
-              | regex_findall('(?im)^.*(?:RemoveImage from image service failed|DeadlineExceeded|failed to remove image).*
-      changed_when: false
-
-    - name: Print cleanup result and reclaimed capacity
-      ansible.builtin.debug:
-        msg:
-          - "Root filesystem used bytes: {{ containerd_prune_root_before_bytes }} -> {{ containerd_prune_root_after_bytes }}"
-          - "Containerd used bytes: {{ containerd_prune_store_before_bytes }} -> {{ containerd_prune_store_after_bytes }}"
-          - "Images before/after: {{ (containerd_prune_before.stdout_lines | select('match', '^image_count=') | first) }} -> {{ (containerd_prune_after.stdout_lines | select('match', '^image_count=') | first) }}"
-          - "crictl exit code: {{ containerd_prune_result.rc }}; detected removal errors: {{ containerd_prune_failed_image_operations }}"
-          - "Prune output (first 12 lines): {{ (containerd_prune_result.stdout_lines | default([]))[:12] }}"
-          - "Prune output (last 12 lines): {{ (containerd_prune_result.stdout_lines | default([]))[-12:] }}"
-          - "Prune stderr (first 12 lines): {{ (containerd_prune_result.stderr_lines | default([]))[:12] }}"
-          - "Prune stderr (last 12 lines): {{ (containerd_prune_result.stderr_lines | default([]))[-12:] }}"
-          - "{{ containerd_prune_after.stdout_lines }}"
-          - >-
-            Root filesystem reclaimed MiB:
-            {{ ((containerd_prune_root_before_bytes | int - containerd_prune_root_after_bytes | int) / 1048576) | round(1) }}
-          - >-
-            Containerd reclaimed MiB:
-            {{ ((containerd_prune_store_before_bytes | int - containerd_prune_store_after_bytes | int) / 1048576) | round(1) }}
-      changed_when: >-
-        {{ (containerd_prune_root_before_bytes | int > containerd_prune_root_after_bytes | int)
-           or (containerd_prune_store_before_bytes | int > containerd_prune_store_after_bytes | int) }}
-
-    - name: Fail after reporting if CRI image removal was incomplete
-      ansible.builtin.assert:
-        that:
-          - containerd_prune_result.rc | int == 0
-          - containerd_prune_failed_image_operations | int == 0
-        fail_msg: >-
-          Cleanup may have reclaimed space but encountered
-          {{ containerd_prune_failed_image_operations }} image-removal errors
-          (crictl exit code {{ containerd_prune_result.rc }}).
-          Investigate containerd I/O and retry only after reviewing the output.
-          Do not manually delete files from /var/lib/containerd.
-        success_msg: >-
-          CRI prune completed with no detected per-image errors.
-          Verify usage and image counts in the task output.
-)
+              | regex_findall('(?im)^.*(?:RemoveImage from image service failed|DeadlineExceeded|failed to remove image).*$')
               | length) }}
       changed_when: false
 
     - name: Print cleanup result and reclaimed capacity
       ansible.builtin.debug:
         msg:
-          - "Root filesystem used bytes: {{ containerd_prune_root_before_bytes }} -> {{ containerd_prune_root_after_bytes }}"
+          - "Root used bytes: {{ containerd_prune_root_before_bytes }} -> {{ containerd_prune_root_after_bytes }}"
           - "Containerd used bytes: {{ containerd_prune_store_before_bytes }} -> {{ containerd_prune_store_after_bytes }}"
-          - "Images before/after: {{ (containerd_prune_before.stdout_lines | select('match', '^image_count=') | first) }} -> {{ (containerd_prune_after.stdout_lines | select('match', '^image_count=') | first) }}"
-          - "crictl exit code: {{ containerd_prune_result.rc }}; detected removal errors: {{ containerd_prune_failed_image_operations }}"
-          - "Prune output: {{ containerd_prune_result.stdout_lines | default([]) }}"
+          - "Image counts: {{ (containerd_prune_before.stdout_lines | select('match', '^image_count=') | first) }} -> {{ (containerd_prune_after.stdout_lines | select('match', '^image_count=') | first) }}"
+          - "crictl exit code: {{ containerd_prune_result.rc }}; failed image-removal lines: {{ containerd_prune_error_lines }}"
+          - "Prune stdout (first/last 12): {{ (containerd_prune_result.stdout_lines | default([]))[:12] + (containerd_prune_result.stdout_lines | default([]))[-12:] }}"
+          - "Prune stderr (first/last 12): {{ (containerd_prune_result.stderr_lines | default([]))[:12] + (containerd_prune_result.stderr_lines | default([]))[-12:] }}"
           - "{{ containerd_prune_after.stdout_lines }}"
           - >-
             Root filesystem reclaimed MiB:
@@ -209,20 +169,16 @@
             Containerd reclaimed MiB:
             {{ ((containerd_prune_store_before_bytes | int - containerd_prune_store_after_bytes | int) / 1048576) | round(1) }}
       changed_when: >-
-        {{ (containerd_prune_root_before_bytes | int > containerd_prune_root_after_bytes | int)
-           or (containerd_prune_store_before_bytes | int > containerd_prune_store_after_bytes | int) }}
+        (containerd_prune_root_before_bytes | int > containerd_prune_root_after_bytes | int)
+        or (containerd_prune_store_before_bytes | int > containerd_prune_store_after_bytes | int)
 
-    - name: Fail after reporting if CRI image removal was incomplete
+    - name: Fail after reporting if image removal was incomplete
       ansible.builtin.assert:
         that:
           - containerd_prune_result.rc | int == 0
-          - containerd_prune_failed_image_operations | int == 0
+          - containerd_prune_error_lines | int == 0
         fail_msg: >-
-          Cleanup may have reclaimed space but encountered
-          {{ containerd_prune_failed_image_operations }} image-removal errors
-          (crictl exit code {{ containerd_prune_result.rc }}).
-          Investigate containerd I/O and retry only after reviewing the output.
-          Do not manually delete files from /var/lib/containerd.
-        success_msg: >-
-          CRI prune completed with no detected per-image errors.
-          Verify usage and image counts in the task output.
+          Containerd cleanup is incomplete: {{ containerd_prune_error_lines }} image-removal
+          error line(s), crictl rc={{ containerd_prune_result.rc }}.
+          The before/after measurements above remain valid. Check CRI health and disk latency.
+        success_msg: No per-image CRI errors detected. Review capacity and image counts above.
