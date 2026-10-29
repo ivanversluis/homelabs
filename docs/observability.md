@@ -103,6 +103,11 @@ DNS dashboards include:
 - Unbound Recursive Resolver
 
 Prometheus alert rules are stored in `platform/observability/prometheus/prometheus-alerts.yml` and cover CoreDNS error/latency conditions plus Pi-hole and Unbound exporter/upstream failures. Grafana's provisioned alert rules remain under `platform/observability/grafana/`.
+Longhorn disk/node scheduling metrics are scraped from each Longhorn Manager endpoint
+at TCP/9500 and displayed in the managed Longhorn Scheduling & Disk Capacity dashboard.
+The ingress exception is owned by the Longhorn Kustomization and restricts the
+Longhorn management port to the standalone observability/Prometheus pod. See
+[Longhorn scheduling alerts](longhorn-scheduling-alerting.md).
 
 ### Grafana sizing and Cloudflare 502s
 

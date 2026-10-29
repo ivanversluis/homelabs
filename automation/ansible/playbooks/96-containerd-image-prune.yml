@@ -10,6 +10,8 @@
 
   vars:
     containerd_cri_endpoint: unix:///run/containerd/containerd.sock
+    # Longer per-operation timeout for overloaded containerd image GC.
+    containerd_cri_timeout: 30s
 
   tasks:
     - name: Verify crictl and containerd before cleanup
@@ -27,7 +29,7 @@
           exit 1
         fi
 
-        if ! crictl --runtime-endpoint {{ containerd_cri_endpoint | quote }} info >/dev/null; then
+        if ! crictl --timeout {{ containerd_cri_timeout | quote }} --runtime-endpoint {{ containerd_cri_endpoint | quote }} --image-endpoint {{ containerd_cri_endpoint | quote }} info >/dev/null; then
           echo "ERROR: CRI health check failed for {{ containerd_cri_endpoint }} on {{ inventory_hostname }}" >&2
           exit 1
         fi
@@ -42,14 +44,17 @@
     - name: Collect usage before image cleanup
       ansible.builtin.raw: |
         set -eu
-        root_used_bytes="$(df -B1P --output=used / | tail -n 1 | tr -d '[:space:]')"
-        containerd_used_bytes="$(du -sB1 /var/lib/containerd | awk '{print $1}')"
-        image_count="$(crictl --runtime-endpoint {{ containerd_cri_endpoint | quote }} images -q | sort -u | wc -l | tr -d '[:space:]')"
-        running_container_count="$(crictl --runtime-endpoint {{ containerd_cri_endpoint | quote }} ps -q | wc -l | tr -d '[:space:]')"
+        root_used_bytes="$(df -B1 --output=used / | awk 'NR == 2 {print $1}')"
+        case "$root_used_bytes" in
+          ''|*[!0-9]*) echo "ERROR: invalid root-used bytes: $root_used_bytes" >&2; exit 1 ;;
+        esac
+        containerd_used_bytes="$(du -sxB1 /var/lib/containerd | awk '{print $1}')"
+        image_count="$(crictl --timeout {{ containerd_cri_timeout | quote }} --runtime-endpoint {{ containerd_cri_endpoint | quote }} --image-endpoint {{ containerd_cri_endpoint | quote }} images -q | sort -u | wc -l | tr -d '[:space:]')"
+        running_container_count="$(crictl --timeout {{ containerd_cri_timeout | quote }} --runtime-endpoint {{ containerd_cri_endpoint | quote }} --image-endpoint {{ containerd_cri_endpoint | quote }} ps -q | wc -l | tr -d '[:space:]')"
 
         echo "===== BEFORE cleanup: {{ inventory_hostname }} ====="
         df -hP /
-        du -sh /var/lib/containerd
+        awk -v b="$containerd_used_bytes" 'BEGIN {printf "containerd_used_GiB=%.2f\n", b / 1073741824}'
         echo "root_used_bytes=$root_used_bytes"
         echo "containerd_used_bytes=$containerd_used_bytes"
         echo "image_count=$image_count"
@@ -64,15 +69,18 @@
       ansible.builtin.debug:
         msg: "{{ containerd_prune_before.stdout_lines }}"
 
-    - name: Prune unused CRI images
+    - name: Prune unused CRI images and retain partial-error evidence
       ansible.builtin.raw: |
         set -eu
-        crictl --runtime-endpoint {{ containerd_cri_endpoint | quote }} rmi --prune
+        timeout --signal=TERM --kill-after=10s 20m \
+          crictl --timeout {{ containerd_cri_timeout | quote }} --runtime-endpoint {{ containerd_cri_endpoint | quote }} --image-endpoint {{ containerd_cri_endpoint | quote }} rmi --prune
       become: true
       vars:
         ansible_become: true
       register: containerd_prune_result
-      changed_when: "'Deleted:' in containerd_prune_result.stdout"
+      # Always collect capacity after the attempted pruning even if RPC calls fail.
+      changed_when: false
+      failed_when: false
 
     - name: Verify containerd and collect usage after image cleanup
       ansible.builtin.raw: |
@@ -84,16 +92,19 @@
           exit 1
         fi
 
-        crictl --runtime-endpoint {{ containerd_cri_endpoint | quote }} info >/dev/null
+        crictl --timeout {{ containerd_cri_timeout | quote }} --runtime-endpoint {{ containerd_cri_endpoint | quote }} --image-endpoint {{ containerd_cri_endpoint | quote }} info >/dev/null
 
-        root_used_bytes="$(df -B1P --output=used / | tail -n 1 | tr -d '[:space:]')"
-        containerd_used_bytes="$(du -sB1 /var/lib/containerd | awk '{print $1}')"
-        image_count="$(crictl --runtime-endpoint {{ containerd_cri_endpoint | quote }} images -q | sort -u | wc -l | tr -d '[:space:]')"
-        running_container_count="$(crictl --runtime-endpoint {{ containerd_cri_endpoint | quote }} ps -q | wc -l | tr -d '[:space:]')"
+        root_used_bytes="$(df -B1 --output=used / | awk 'NR == 2 {print $1}')"
+        case "$root_used_bytes" in
+          ''|*[!0-9]*) echo "ERROR: invalid root-used bytes: $root_used_bytes" >&2; exit 1 ;;
+        esac
+        containerd_used_bytes="$(du -sxB1 /var/lib/containerd | awk '{print $1}')"
+        image_count="$(crictl --timeout {{ containerd_cri_timeout | quote }} --runtime-endpoint {{ containerd_cri_endpoint | quote }} --image-endpoint {{ containerd_cri_endpoint | quote }} images -q | sort -u | wc -l | tr -d '[:space:]')"
+        running_container_count="$(crictl --timeout {{ containerd_cri_timeout | quote }} --runtime-endpoint {{ containerd_cri_endpoint | quote }} --image-endpoint {{ containerd_cri_endpoint | quote }} ps -q | wc -l | tr -d '[:space:]')"
 
         echo "===== AFTER cleanup: {{ inventory_hostname }} ====="
         df -hP /
-        du -sh /var/lib/containerd
+        awk -v b="$containerd_used_bytes" 'BEGIN {printf "containerd_used_GiB=%.2f\n", b / 1073741824}'
         echo "root_used_bytes=$root_used_bytes"
         echo "containerd_used_bytes=$containerd_used_bytes"
         echo "image_count=$image_count"
@@ -132,15 +143,42 @@
              | int }}
       changed_when: false
 
+    - name: Count per-image RPC errors even when crictl exits successfully
+      ansible.builtin.set_fact:
+        containerd_prune_error_lines: >-
+          {{ (((containerd_prune_result.stdout | default('')) ~ '\n' ~
+               (containerd_prune_result.stderr | default('')))
+              | regex_findall('(?im)^.*(?:RemoveImage from image service failed|DeadlineExceeded|failed to remove image).*$')
+              | length) }}
+      changed_when: false
+
     - name: Print cleanup result and reclaimed capacity
       ansible.builtin.debug:
         msg:
-          - "Prune output: {{ containerd_prune_result.stdout_lines | default([]) }}"
+          - "Root used bytes: {{ containerd_prune_root_before_bytes }} -> {{ containerd_prune_root_after_bytes }}"
+          - "Containerd used bytes: {{ containerd_prune_store_before_bytes }} -> {{ containerd_prune_store_after_bytes }}"
+          - "Image counts: {{ (containerd_prune_before.stdout_lines | select('match', '^image_count=') | first) }} -> {{ (containerd_prune_after.stdout_lines | select('match', '^image_count=') | first) }}"
+          - "crictl exit code: {{ containerd_prune_result.rc }}; failed image-removal lines: {{ containerd_prune_error_lines }}"
+          - "Prune stdout (first/last 12): {{ (containerd_prune_result.stdout_lines | default([]))[:12] + (containerd_prune_result.stdout_lines | default([]))[-12:] }}"
+          - "Prune stderr (first/last 12): {{ (containerd_prune_result.stderr_lines | default([]))[:12] + (containerd_prune_result.stderr_lines | default([]))[-12:] }}"
           - "{{ containerd_prune_after.stdout_lines }}"
           - >-
             Root filesystem reclaimed MiB:
             {{ ((containerd_prune_root_before_bytes | int - containerd_prune_root_after_bytes | int) / 1048576) | round(1) }}
           - >-
-            /var/lib/containerd reclaimed MiB:
+            Containerd reclaimed MiB:
             {{ ((containerd_prune_store_before_bytes | int - containerd_prune_store_after_bytes | int) / 1048576) | round(1) }}
+      changed_when: >-
+        (containerd_prune_root_before_bytes | int > containerd_prune_root_after_bytes | int)
+        or (containerd_prune_store_before_bytes | int > containerd_prune_store_after_bytes | int)
 
+    - name: Fail after reporting if image removal was incomplete
+      ansible.builtin.assert:
+        that:
+          - containerd_prune_result.rc | int == 0
+          - containerd_prune_error_lines | int == 0
+        fail_msg: >-
+          Containerd cleanup is incomplete: {{ containerd_prune_error_lines }} image-removal
+          error line(s), crictl rc={{ containerd_prune_result.rc }}.
+          The before/after measurements above remain valid. Check CRI health and disk latency.
+        success_msg: No per-image CRI errors detected. Review capacity and image counts above.

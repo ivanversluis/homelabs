@@ -25,6 +25,8 @@ resources:
   - grafana/alerting-notification-policies-configmap.yaml
   - grafana/alerting-rules-time-sync-configmap.yaml
   - grafana/alerting-rules-node-resources-configmap.yaml
+  - grafana/alerting-rules-pvc-configmap.yaml
+  - grafana/alerting-rules-longhorn-configmap.yaml
   - grafana/deployment.yaml
   - grafana/service.yaml
   # Vault integration
@@ -122,6 +124,22 @@ configMapGenerator:
   - name: grafana-dashboard-kubernetes-node-resources
     files:
       - kubernetes-node-resource-capacity.json=grafana/dashboards/kubernetes/kubernetes-node-resource-capacity.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-kubernetes-longhorn
+    files:
+      - kubernetes-longhorn-scheduling.json=grafana/dashboards/kubernetes/kubernetes-longhorn-scheduling.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
+  - name: grafana-dashboard-kubernetes-pvc
+    files:
+      - kubernetes-pvc-capacity.json=grafana/dashboards/kubernetes/kubernetes-pvc-capacity.json
     options:
       labels:
         app.kubernetes.io/name: grafana

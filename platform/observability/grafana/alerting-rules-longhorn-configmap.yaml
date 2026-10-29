@@ -1,0 +1,1167 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-alerting-rules-longhorn
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: alerting
+data:
+  rules-longhorn.yaml: |
+    {
+      "apiVersion": 1,
+      "groups": [
+        {
+          "orgId": 1,
+          "name": "longhorn-storage",
+          "folder": "Homelab",
+          "interval": "1m",
+          "rules": [
+            {
+              "uid": "longhorn_disk_warning",
+              "title": "LonghornDiskUsageWarning",
+              "condition": "C",
+              "data": [
+                {
+                  "refId": "A",
+                  "relativeTimeRange": {
+                    "from": 300,
+                    "to": 0
+                  },
+                  "datasourceUid": "prometheus",
+                  "model": {
+                    "datasource": {
+                      "type": "prometheus",
+                      "uid": "prometheus"
+                    },
+                    "editorMode": "code",
+                    "expr": "100 * (max by (node,disk) (longhorn_disk_usage_bytes{job=\"longhorn-manager\"}) / clamp_min(max by (node,disk) (longhorn_disk_capacity_bytes{job=\"longhorn-manager\"}), 1))",
+                    "instant": true,
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "range": false,
+                    "refId": "A"
+                  }
+                },
+                {
+                  "refId": "B",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "A",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "reducer": "last",
+                    "refId": "B",
+                    "type": "reduce"
+                  }
+                },
+                {
+                  "refId": "C",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "conditions": [
+                      {
+                        "evaluator": {
+                          "params": [
+                            65
+                          ],
+                          "type": "gt"
+                        },
+                        "operator": {
+                          "type": "and"
+                        },
+                        "query": {
+                          "params": [
+                            "C"
+                          ]
+                        },
+                        "reducer": {
+                          "params": [],
+                          "type": "last"
+                        },
+                        "type": "query"
+                      }
+                    ],
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "B",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "refId": "C",
+                    "type": "threshold"
+                  }
+                }
+              ],
+              "noDataState": "NoData",
+              "execErrState": "Alerting",
+              "for": "10m",
+              "labels": {
+                "severity": "warning",
+                "component": "longhorn",
+                "engine": "grafana"
+              },
+              "annotations": {
+                "summary": "Longhorn disk usage approaching replica scheduling limit",
+                "description": "Longhorn disk {{ $labels.disk }} on {{ $labels.node }} has used {{ printf \"%.1f\" $values.B.Value }}% for 10m. Plan cleanup/capacity before the default ~75% scheduling boundary.",
+                "__dashboardUid__": "k8s-longhorn-scheduling",
+                "__panelId__": "8"
+              }
+            },
+            {
+              "uid": "longhorn_disk_critical",
+              "title": "LonghornDiskUsageCritical",
+              "condition": "C",
+              "data": [
+                {
+                  "refId": "A",
+                  "relativeTimeRange": {
+                    "from": 300,
+                    "to": 0
+                  },
+                  "datasourceUid": "prometheus",
+                  "model": {
+                    "datasource": {
+                      "type": "prometheus",
+                      "uid": "prometheus"
+                    },
+                    "editorMode": "code",
+                    "expr": "100 * (max by (node,disk) (longhorn_disk_usage_bytes{job=\"longhorn-manager\"}) / clamp_min(max by (node,disk) (longhorn_disk_capacity_bytes{job=\"longhorn-manager\"}), 1))",
+                    "instant": true,
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "range": false,
+                    "refId": "A"
+                  }
+                },
+                {
+                  "refId": "B",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "A",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "reducer": "last",
+                    "refId": "B",
+                    "type": "reduce"
+                  }
+                },
+                {
+                  "refId": "C",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "conditions": [
+                      {
+                        "evaluator": {
+                          "params": [
+                            72
+                          ],
+                          "type": "gt"
+                        },
+                        "operator": {
+                          "type": "and"
+                        },
+                        "query": {
+                          "params": [
+                            "C"
+                          ]
+                        },
+                        "reducer": {
+                          "params": [],
+                          "type": "last"
+                        },
+                        "type": "query"
+                      }
+                    ],
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "B",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "refId": "C",
+                    "type": "threshold"
+                  }
+                }
+              ],
+              "noDataState": "NoData",
+              "execErrState": "Alerting",
+              "for": "2m",
+              "labels": {
+                "severity": "critical",
+                "component": "longhorn",
+                "engine": "grafana"
+              },
+              "annotations": {
+                "summary": "Longhorn disk usage near the replica scheduling limit",
+                "description": "Disk {{ $labels.disk }} on {{ $labels.node }} has used {{ printf \"%.1f\" $values.B.Value }}% for 2m. Longhorn may already block new replicas due to reservations or scheduled capacity.",
+                "__dashboardUid__": "k8s-longhorn-scheduling",
+                "__panelId__": "8"
+              }
+            },
+            {
+              "uid": "longhorn_disk_unschedulable",
+              "title": "LonghornDiskUnschedulable",
+              "condition": "C",
+              "data": [
+                {
+                  "refId": "A",
+                  "relativeTimeRange": {
+                    "from": 300,
+                    "to": 0
+                  },
+                  "datasourceUid": "prometheus",
+                  "model": {
+                    "datasource": {
+                      "type": "prometheus",
+                      "uid": "prometheus"
+                    },
+                    "editorMode": "code",
+                    "expr": "min by (node,disk,condition_reason) (longhorn_disk_status{job=\"longhorn-manager\",condition=\"schedulable\"})",
+                    "instant": true,
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "range": false,
+                    "refId": "A"
+                  }
+                },
+                {
+                  "refId": "B",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "A",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "reducer": "last",
+                    "refId": "B",
+                    "type": "reduce"
+                  }
+                },
+                {
+                  "refId": "C",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "conditions": [
+                      {
+                        "evaluator": {
+                          "params": [
+                            1
+                          ],
+                          "type": "lt"
+                        },
+                        "operator": {
+                          "type": "and"
+                        },
+                        "query": {
+                          "params": [
+                            "C"
+                          ]
+                        },
+                        "reducer": {
+                          "params": [],
+                          "type": "last"
+                        },
+                        "type": "query"
+                      }
+                    ],
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "B",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "refId": "C",
+                    "type": "threshold"
+                  }
+                }
+              ],
+              "noDataState": "NoData",
+              "execErrState": "Alerting",
+              "for": "2m",
+              "labels": {
+                "severity": "critical",
+                "component": "longhorn",
+                "engine": "grafana"
+              },
+              "annotations": {
+                "summary": "Longhorn disk cannot schedule new replicas",
+                "description": "Disk {{ $labels.disk }} on {{ $labels.node }} is not schedulable. {{ if $labels.condition_reason }}Reason: {{ $labels.condition_reason }}. {{ end }}Inspect Longhorn Nodes, disk conditions and physical space.",
+                "__dashboardUid__": "k8s-longhorn-scheduling",
+                "__panelId__": "7"
+              }
+            },
+            {
+              "uid": "longhorn_disk_not_ready",
+              "title": "LonghornDiskNotReady",
+              "condition": "C",
+              "data": [
+                {
+                  "refId": "A",
+                  "relativeTimeRange": {
+                    "from": 300,
+                    "to": 0
+                  },
+                  "datasourceUid": "prometheus",
+                  "model": {
+                    "datasource": {
+                      "type": "prometheus",
+                      "uid": "prometheus"
+                    },
+                    "editorMode": "code",
+                    "expr": "min by (node,disk,condition_reason) (longhorn_disk_status{job=\"longhorn-manager\",condition=\"ready\"})",
+                    "instant": true,
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "range": false,
+                    "refId": "A"
+                  }
+                },
+                {
+                  "refId": "B",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "A",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "reducer": "last",
+                    "refId": "B",
+                    "type": "reduce"
+                  }
+                },
+                {
+                  "refId": "C",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "conditions": [
+                      {
+                        "evaluator": {
+                          "params": [
+                            1
+                          ],
+                          "type": "lt"
+                        },
+                        "operator": {
+                          "type": "and"
+                        },
+                        "query": {
+                          "params": [
+                            "C"
+                          ]
+                        },
+                        "reducer": {
+                          "params": [],
+                          "type": "last"
+                        },
+                        "type": "query"
+                      }
+                    ],
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "B",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "refId": "C",
+                    "type": "threshold"
+                  }
+                }
+              ],
+              "noDataState": "NoData",
+              "execErrState": "Alerting",
+              "for": "2m",
+              "labels": {
+                "severity": "critical",
+                "component": "longhorn",
+                "engine": "grafana"
+              },
+              "annotations": {
+                "summary": "Longhorn disk is not ready",
+                "description": "Disk {{ $labels.disk }} on {{ $labels.node }} is not ready. {{ if $labels.condition_reason }}Reason: {{ $labels.condition_reason }}. {{ end }}Check mount and Longhorn disk status.",
+                "__dashboardUid__": "k8s-longhorn-scheduling",
+                "__panelId__": "7"
+              }
+            },
+            {
+              "uid": "longhorn_node_not_ready",
+              "title": "LonghornNodeNotReady",
+              "condition": "C",
+              "data": [
+                {
+                  "refId": "A",
+                  "relativeTimeRange": {
+                    "from": 300,
+                    "to": 0
+                  },
+                  "datasourceUid": "prometheus",
+                  "model": {
+                    "datasource": {
+                      "type": "prometheus",
+                      "uid": "prometheus"
+                    },
+                    "editorMode": "code",
+                    "expr": "min by (node,condition_reason) (longhorn_node_status{job=\"longhorn-manager\",condition=\"ready\"})",
+                    "instant": true,
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "range": false,
+                    "refId": "A"
+                  }
+                },
+                {
+                  "refId": "B",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "A",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "reducer": "last",
+                    "refId": "B",
+                    "type": "reduce"
+                  }
+                },
+                {
+                  "refId": "C",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "conditions": [
+                      {
+                        "evaluator": {
+                          "params": [
+                            1
+                          ],
+                          "type": "lt"
+                        },
+                        "operator": {
+                          "type": "and"
+                        },
+                        "query": {
+                          "params": [
+                            "C"
+                          ]
+                        },
+                        "reducer": {
+                          "params": [],
+                          "type": "last"
+                        },
+                        "type": "query"
+                      }
+                    ],
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "B",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "refId": "C",
+                    "type": "threshold"
+                  }
+                }
+              ],
+              "noDataState": "NoData",
+              "execErrState": "Alerting",
+              "for": "2m",
+              "labels": {
+                "severity": "critical",
+                "component": "longhorn",
+                "engine": "grafana"
+              },
+              "annotations": {
+                "summary": "Longhorn node is not ready",
+                "description": "Node {{ $labels.node }} is not Longhorn Ready. {{ if $labels.condition_reason }}Reason: {{ $labels.condition_reason }}. {{ end }}This differs from the Kubernetes node Ready condition.",
+                "__dashboardUid__": "k8s-longhorn-scheduling",
+                "__panelId__": "6"
+              }
+            },
+            {
+              "uid": "longhorn_node_scheduling_blocked",
+              "title": "LonghornNodeSchedulingBlocked",
+              "condition": "C",
+              "data": [
+                {
+                  "refId": "A",
+                  "relativeTimeRange": {
+                    "from": 300,
+                    "to": 0
+                  },
+                  "datasourceUid": "prometheus",
+                  "model": {
+                    "datasource": {
+                      "type": "prometheus",
+                      "uid": "prometheus"
+                    },
+                    "editorMode": "code",
+                    "expr": "min by(node,condition,condition_reason) (longhorn_node_status{job=\"longhorn-manager\",condition=~\"schedulable|allowScheduling\"})",
+                    "instant": true,
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "range": false,
+                    "refId": "A"
+                  }
+                },
+                {
+                  "refId": "B",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "A",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "reducer": "last",
+                    "refId": "B",
+                    "type": "reduce"
+                  }
+                },
+                {
+                  "refId": "C",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "conditions": [
+                      {
+                        "evaluator": {
+                          "params": [
+                            1
+                          ],
+                          "type": "lt"
+                        },
+                        "operator": {
+                          "type": "and"
+                        },
+                        "query": {
+                          "params": [
+                            "C"
+                          ]
+                        },
+                        "reducer": {
+                          "params": [],
+                          "type": "last"
+                        },
+                        "type": "query"
+                      }
+                    ],
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "B",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "refId": "C",
+                    "type": "threshold"
+                  }
+                }
+              ],
+              "noDataState": "NoData",
+              "execErrState": "Alerting",
+              "for": "2m",
+              "labels": {
+                "severity": "warning",
+                "component": "longhorn",
+                "engine": "grafana"
+              },
+              "annotations": {
+                "summary": "Longhorn node scheduling is blocked",
+                "description": "Node {{ $labels.node }} has a Longhorn scheduling condition disabled. {{ if $labels.condition_reason }}Reason: {{ $labels.condition_reason }}. {{ end }}Check Longhorn node scheduling and Kubernetes cordon state.",
+                "__dashboardUid__": "k8s-longhorn-scheduling",
+                "__panelId__": "6"
+              }
+            },
+            {
+              "uid": "longhorn_schedulable_nodes_low",
+              "title": "LonghornSchedulableNodesLow",
+              "condition": "C",
+              "data": [
+                {
+                  "refId": "A",
+                  "relativeTimeRange": {
+                    "from": 300,
+                    "to": 0
+                  },
+                  "datasourceUid": "prometheus",
+                  "model": {
+                    "datasource": {
+                      "type": "prometheus",
+                      "uid": "prometheus"
+                    },
+                    "editorMode": "code",
+                    "expr": "sum((min by(node) (longhorn_node_status{job=\"longhorn-manager\",condition=~\"ready|schedulable|allowScheduling\"})) * on(node) (max by(node) (min by (node,disk) (longhorn_disk_status{job=\"longhorn-manager\",condition=~\"ready|schedulable\"})))) or vector(0)",
+                    "instant": true,
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "range": false,
+                    "refId": "A"
+                  }
+                },
+                {
+                  "refId": "B",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "A",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "reducer": "last",
+                    "refId": "B",
+                    "type": "reduce"
+                  }
+                },
+                {
+                  "refId": "C",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "conditions": [
+                      {
+                        "evaluator": {
+                          "params": [
+                            3
+                          ],
+                          "type": "lt"
+                        },
+                        "operator": {
+                          "type": "and"
+                        },
+                        "query": {
+                          "params": [
+                            "C"
+                          ]
+                        },
+                        "reducer": {
+                          "params": [],
+                          "type": "last"
+                        },
+                        "type": "query"
+                      }
+                    ],
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "B",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "refId": "C",
+                    "type": "threshold"
+                  }
+                }
+              ],
+              "noDataState": "NoData",
+              "execErrState": "Alerting",
+              "for": "3m",
+              "labels": {
+                "severity": "critical",
+                "component": "longhorn",
+                "engine": "grafana"
+              },
+              "annotations": {
+                "summary": "Longhorn has fewer than three replica-schedulable nodes",
+                "description": "Only {{ printf \"%.0f\" $values.B.Value }} of three configured Longhorn worker nodes are ready, allowed and have a schedulable disk. Two-replica volumes have little placement headroom.",
+                "__dashboardUid__": "k8s-longhorn-scheduling",
+                "__panelId__": "3"
+              }
+            },
+            {
+              "uid": "longhorn_volume_degraded",
+              "title": "LonghornVolumeDegraded",
+              "condition": "C",
+              "data": [
+                {
+                  "refId": "A",
+                  "relativeTimeRange": {
+                    "from": 300,
+                    "to": 0
+                  },
+                  "datasourceUid": "prometheus",
+                  "model": {
+                    "datasource": {
+                      "type": "prometheus",
+                      "uid": "prometheus"
+                    },
+                    "editorMode": "code",
+                    "expr": "max by(volume,pvc_namespace,pvc) (longhorn_volume_robustness{job=\"longhorn-manager\",state=\"degraded\"})",
+                    "instant": true,
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "range": false,
+                    "refId": "A"
+                  }
+                },
+                {
+                  "refId": "B",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "A",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "reducer": "last",
+                    "refId": "B",
+                    "type": "reduce"
+                  }
+                },
+                {
+                  "refId": "C",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "conditions": [
+                      {
+                        "evaluator": {
+                          "params": [
+                            0
+                          ],
+                          "type": "gt"
+                        },
+                        "operator": {
+                          "type": "and"
+                        },
+                        "query": {
+                          "params": [
+                            "C"
+                          ]
+                        },
+                        "reducer": {
+                          "params": [],
+                          "type": "last"
+                        },
+                        "type": "query"
+                      }
+                    ],
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "B",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "refId": "C",
+                    "type": "threshold"
+                  }
+                }
+              ],
+              "noDataState": "NoData",
+              "execErrState": "Alerting",
+              "for": "2m",
+              "labels": {
+                "severity": "warning",
+                "component": "longhorn",
+                "engine": "grafana"
+              },
+              "annotations": {
+                "summary": "Longhorn volume is degraded",
+                "description": "Volume {{ $labels.volume }} is degraded. {{ if $labels.pvc }}PVC: {{ $labels.pvc_namespace }}/{{ $labels.pvc }}. {{ end }}Check replica count, rebuild progress and disk availability.",
+                "__dashboardUid__": "k8s-longhorn-scheduling",
+                "__panelId__": "5"
+              }
+            },
+            {
+              "uid": "longhorn_volume_faulted",
+              "title": "LonghornVolumeFaulted",
+              "condition": "C",
+              "data": [
+                {
+                  "refId": "A",
+                  "relativeTimeRange": {
+                    "from": 300,
+                    "to": 0
+                  },
+                  "datasourceUid": "prometheus",
+                  "model": {
+                    "datasource": {
+                      "type": "prometheus",
+                      "uid": "prometheus"
+                    },
+                    "editorMode": "code",
+                    "expr": "max by(volume,pvc_namespace,pvc) (longhorn_volume_robustness{job=\"longhorn-manager\",state=\"faulted\"})",
+                    "instant": true,
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "range": false,
+                    "refId": "A"
+                  }
+                },
+                {
+                  "refId": "B",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "A",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "reducer": "last",
+                    "refId": "B",
+                    "type": "reduce"
+                  }
+                },
+                {
+                  "refId": "C",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "conditions": [
+                      {
+                        "evaluator": {
+                          "params": [
+                            0
+                          ],
+                          "type": "gt"
+                        },
+                        "operator": {
+                          "type": "and"
+                        },
+                        "query": {
+                          "params": [
+                            "C"
+                          ]
+                        },
+                        "reducer": {
+                          "params": [],
+                          "type": "last"
+                        },
+                        "type": "query"
+                      }
+                    ],
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "B",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "refId": "C",
+                    "type": "threshold"
+                  }
+                }
+              ],
+              "noDataState": "NoData",
+              "execErrState": "Alerting",
+              "for": "1m",
+              "labels": {
+                "severity": "critical",
+                "component": "longhorn",
+                "engine": "grafana"
+              },
+              "annotations": {
+                "summary": "Longhorn volume is faulted",
+                "description": "Volume {{ $labels.volume }} is faulted. {{ if $labels.pvc }}PVC: {{ $labels.pvc_namespace }}/{{ $labels.pvc }}. {{ end }}Investigate volume availability immediately.",
+                "__dashboardUid__": "k8s-longhorn-scheduling",
+                "__panelId__": "5"
+              }
+            },
+            {
+              "uid": "longhorn_manager_scrape_failed",
+              "title": "LonghornManagerScrapeFailed",
+              "condition": "C",
+              "data": [
+                {
+                  "refId": "A",
+                  "relativeTimeRange": {
+                    "from": 300,
+                    "to": 0
+                  },
+                  "datasourceUid": "prometheus",
+                  "model": {
+                    "datasource": {
+                      "type": "prometheus",
+                      "uid": "prometheus"
+                    },
+                    "editorMode": "code",
+                    "expr": "up{job=\"longhorn-manager\"}",
+                    "instant": true,
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "range": false,
+                    "refId": "A"
+                  }
+                },
+                {
+                  "refId": "B",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "A",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "reducer": "last",
+                    "refId": "B",
+                    "type": "reduce"
+                  }
+                },
+                {
+                  "refId": "C",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "conditions": [
+                      {
+                        "evaluator": {
+                          "params": [
+                            1
+                          ],
+                          "type": "lt"
+                        },
+                        "operator": {
+                          "type": "and"
+                        },
+                        "query": {
+                          "params": [
+                            "C"
+                          ]
+                        },
+                        "reducer": {
+                          "params": [],
+                          "type": "last"
+                        },
+                        "type": "query"
+                      }
+                    ],
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "B",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "refId": "C",
+                    "type": "threshold"
+                  }
+                }
+              ],
+              "noDataState": "NoData",
+              "execErrState": "Alerting",
+              "for": "5m",
+              "labels": {
+                "severity": "warning",
+                "component": "longhorn",
+                "engine": "grafana"
+              },
+              "annotations": {
+                "summary": "Longhorn manager scrape has failed",
+                "description": "Metrics scrape failed for {{ $labels.instance }} (manager node {{ $labels.manager_node }}). This can hide node or disk scheduling problems.",
+                "__dashboardUid__": "k8s-longhorn-scheduling",
+                "__panelId__": "11"
+              }
+            },
+            {
+              "uid": "longhorn_manager_targets_low",
+              "title": "LonghornManagerTargetsMissing",
+              "condition": "C",
+              "data": [
+                {
+                  "refId": "A",
+                  "relativeTimeRange": {
+                    "from": 300,
+                    "to": 0
+                  },
+                  "datasourceUid": "prometheus",
+                  "model": {
+                    "datasource": {
+                      "type": "prometheus",
+                      "uid": "prometheus"
+                    },
+                    "editorMode": "code",
+                    "expr": "count(up{job=\"longhorn-manager\"}) or vector(0)",
+                    "instant": true,
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "range": false,
+                    "refId": "A"
+                  }
+                },
+                {
+                  "refId": "B",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "A",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "reducer": "last",
+                    "refId": "B",
+                    "type": "reduce"
+                  }
+                },
+                {
+                  "refId": "C",
+                  "relativeTimeRange": {
+                    "from": 0,
+                    "to": 0
+                  },
+                  "datasourceUid": "__expr__",
+                  "model": {
+                    "conditions": [
+                      {
+                        "evaluator": {
+                          "params": [
+                            3
+                          ],
+                          "type": "lt"
+                        },
+                        "operator": {
+                          "type": "and"
+                        },
+                        "query": {
+                          "params": [
+                            "C"
+                          ]
+                        },
+                        "reducer": {
+                          "params": [],
+                          "type": "last"
+                        },
+                        "type": "query"
+                      }
+                    ],
+                    "datasource": {
+                      "type": "__expr__",
+                      "uid": "__expr__"
+                    },
+                    "expression": "B",
+                    "intervalMs": 1000,
+                    "maxDataPoints": 43200,
+                    "refId": "C",
+                    "type": "threshold"
+                  }
+                }
+              ],
+              "noDataState": "NoData",
+              "execErrState": "Alerting",
+              "for": "5m",
+              "labels": {
+                "severity": "critical",
+                "component": "longhorn",
+                "engine": "grafana"
+              },
+              "annotations": {
+                "summary": "Fewer than three Longhorn manager endpoints discovered",
+                "description": "Prometheus sees {{ printf \"%.0f\" $values.B.Value }} manager scrape targets, but three worker managers are expected from the repository's node selectors. Check DaemonSet, endpoints and network policies.",
+                "__dashboardUid__": "k8s-longhorn-scheduling",
+                "__panelId__": "11"
+              }
+            }
+          ]
+        }
+      ]
+    }

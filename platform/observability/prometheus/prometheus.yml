@@ -236,3 +236,57 @@ scrape_configs:
         target_label: namespace
     scrape_interval: 15s
     scrape_timeout: 10s
+
+  # PVC filesystem usage: kubelet /metrics via authenticated API server proxy.
+  # Keep only PVC volume stats; cAdvisor /metrics/cadvisor does not expose these.
+  - job_name: 'kubernetes-kubelet-volumes'
+    scheme: https
+    authorization:
+      credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      - target_label: __address__
+        replacement: kubernetes.default.svc:443
+      - source_labels: [__meta_kubernetes_node_name]
+        target_label: __metrics_path__
+        replacement: /api/v1/nodes/$1/proxy/metrics
+      - source_labels: [__meta_kubernetes_node_name]
+        target_label: node
+      - source_labels: [__meta_kubernetes_node_name]
+        target_label: instance
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: kubelet_volume_stats_(capacity_bytes|used_bytes|available_bytes|inodes|inodes_used|inodes_free)
+        action: keep
+    scrape_interval: 30s
+    scrape_timeout: 15s
+
+  # Longhorn v1.12.1 exposes metrics on every longhorn-manager:9500/metrics.
+  # Scrape backend service endpoints individually (not the ClusterIP, which
+  # load-balances to a single manager and hides failed/unschedulable nodes).
+  # Grafana queries the standalone observability Prometheus, not KPS.
+  - job_name: 'longhorn-manager'
+    metrics_path: '/metrics'
+    kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+            - longhorn-system
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name]
+        action: keep
+        regex: longhorn-backend
+      - source_labels: [__meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: manager
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: manager_pod
+      - source_labels: [__meta_kubernetes_pod_node_name]
+        target_label: manager_node
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+    scrape_interval: 30s
+    scrape_timeout: 15s

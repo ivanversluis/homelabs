@@ -21,6 +21,7 @@ The maintenance process itself is now reusable rather than being a one-off recov
 
 ## Start here
 
+- [Disk path investigation](./disk-path-investigation.md) — read-only disk usage root and Longhorn drill-down via Semaphore.
 - [Recurring platform upgrade](./recurring-platform-upgrade.md) — normal future Arch + Kubernetes
   maintenance sequence.
 - [Terraform in Semaphore UI](./terraform-semaphore-migration.md) — moving the Terraform state, inputs and Vault access from a local working directory into Semaphore, with the manual operator steps.

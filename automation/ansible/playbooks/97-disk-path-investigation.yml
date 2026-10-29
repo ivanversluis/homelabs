@@ -1,0 +1,55 @@
+---
+# Read-only root filesystem and Longhorn disk-path diagnosis.
+# Intended for Semaphore -> Vault ephemeral SSH certificate -> ansible -> sudo.
+# Raw avoids remote Python dependencies and does not create files, prune data,
+# cross into other filesystem mounts, change Longhorn, or restart services.
+- name: Homelab Ops read-only disk path investigation
+  hosts: k8s_homelab
+  gather_facts: false
+  serial: 1
+  any_errors_fatal: true
+
+  vars:
+    disk_path_max_levels: 5
+    disk_path_top_entries: 15
+    disk_path_longhorn_levels: 2
+    disk_path_timeout_seconds: 120
+
+  tasks:
+    - name: Validate bounded, low-priority read-only scan configuration
+      ansible.builtin.assert:
+        that:
+          - disk_path_max_levels | int >= 1
+          - disk_path_max_levels | int <= 7
+          - disk_path_longhorn_levels | int >= 0
+          - disk_path_longhorn_levels | int <= 3
+          - disk_path_top_entries | int >= 3
+          - disk_path_top_entries | int <= 50
+          - disk_path_timeout_seconds | int >= 30
+          - disk_path_timeout_seconds | int <= 300
+        fail_msg: Disk investigation parameters must remain bounded to limit I/O.
+
+    - name: Report all root-level directory sizes and follow largest paths
+      ansible.builtin.raw: >-
+        DISK_PATH_MAX_LEVELS={{ disk_path_max_levels | int }}
+        DISK_PATH_LONGHORN_LEVELS={{ disk_path_longhorn_levels | int }}
+        DISK_PATH_TOP_ENTRIES={{ disk_path_top_entries | int }}
+        DISK_PATH_TIMEOUT_SECONDS={{ disk_path_timeout_seconds | int }}
+        /bin/bash -c
+        {{ lookup('ansible.builtin.file', playbook_dir ~ '/../scripts/disk-path-investigation.sh') | quote }}
+      become: true
+      vars:
+        ansible_become: true
+      register: disk_path_report
+      changed_when: false
+      failed_when: false  # print partial results before marking incomplete scans failed
+
+    - name: Show report in the Semaphore task output
+      ansible.builtin.debug:
+        msg: "{{ disk_path_report.stdout_lines }}"
+
+    - name: Fail the task if a disk scan was incomplete
+      ansible.builtin.assert:
+        that:
+          - disk_path_report.rc | int == 0
+        fail_msg: "Disk scan on {{ inventory_hostname }} was incomplete or failed; inspect the partial report above."

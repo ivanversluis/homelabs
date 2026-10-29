@@ -106,6 +106,14 @@ spec:
               mountPath: /etc/grafana/provisioning/alerting/notification-policies.yaml
               subPath: notification-policies.yaml
               readOnly: true
+            - name: alerting-rules-longhorn
+              mountPath: /etc/grafana/provisioning/alerting/rules-longhorn.yaml
+              subPath: rules-longhorn.yaml
+              readOnly: true
+            - name: alerting-rules-pvc
+              mountPath: /etc/grafana/provisioning/alerting/rules-pvc.yaml
+              subPath: rules-pvc.yaml
+              readOnly: true
             - name: alerting-rules-node-resources
               mountPath: /etc/grafana/provisioning/alerting/rules-node-resources.yaml
               subPath: rules-node-resources.yaml
@@ -172,6 +180,12 @@ spec:
         - name: alerting-notification-policies
           configMap:
             name: grafana-alerting-notification-policies
+        - name: alerting-rules-longhorn
+          configMap:
+            name: grafana-alerting-rules-longhorn
+        - name: alerting-rules-pvc
+          configMap:
+            name: grafana-alerting-rules-pvc
         - name: alerting-rules-node-resources
           configMap:
             name: grafana-alerting-rules-node-resources
@@ -269,10 +283,20 @@ spec:
           projected:
             sources:
               - configMap:
+                  name: grafana-dashboard-kubernetes-longhorn
+                  items:
+                    - key: kubernetes-longhorn-scheduling.json
+                      path: kubernetes-longhorn-scheduling.json
+              - configMap:
                   name: grafana-dashboard-kubernetes-node-resources
                   items:
                     - key: kubernetes-node-resource-capacity.json
                       path: kubernetes-node-resource-capacity.json
+              - configMap:
+                  name: grafana-dashboard-kubernetes-pvc
+                  items:
+                    - key: kubernetes-pvc-capacity.json
+                      path: kubernetes-pvc-capacity.json
               - configMap:
                   name: grafana-dashboard-kubernetes-nodes
                   items:
