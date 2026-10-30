@@ -32,7 +32,7 @@ spec:
       enabled: true
       image:
         repository: hashicorp/vault
-        tag: "2.0.4"
+        tag: "2.2.1"
       standalone:
         enabled: false
       ha:
@@ -77,7 +77,7 @@ spec:
       # any existing database and avoiding a root/chown init container.
       extraInitContainers:
         - name: prepare-raft-directory
-          image: busybox:1.36
+          image: busybox:1.38
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-ec"]
           args:
