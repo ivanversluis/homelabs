@@ -27,7 +27,7 @@ spec:
         fsGroup: 0
       containers:
         - name: openwebui
-          image: ghcr.io/open-webui/open-webui:v0.11.4
+          image: ghcr.io/open-webui/open-webui:v0.12.5
           ports:
             - containerPort: 8080
               name: http
