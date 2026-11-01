@@ -163,6 +163,7 @@ spec:
           port: 8000
         - protocol: TCP
           port: 8002
+---
 # Firewall manager -> Kong proxy (OIDC via auth.${DOMAIN} routes through Kong)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
