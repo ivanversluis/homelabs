@@ -163,3 +163,22 @@ spec:
           port: 8000
         - protocol: TCP
           port: 8002
+# Firewall manager -> Kong proxy (OIDC via auth.${DOMAIN} routes through Kong)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-to-kong
+  namespace: firewall-manager-dev
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 8000
+        - protocol: TCP
+          port: 8443
