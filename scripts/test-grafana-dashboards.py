@@ -147,8 +147,21 @@ for volume in spec['volumes']:
         cm = cms[configmap['name']]
         for item in configmap['items']:
             assert '/' not in item['path'], 'Projection must have file symlinks, not folder symlinks'
-            dashboard = json.loads(cm['data'][item['key']])
+            dashboard_json = cm['data'][item['key']]
+            dashboard = json.loads(dashboard_json)
             uid = dashboard['uid']
+            if uid == 'home-energy-insights':
+                # Flux is configured with strict postBuild substitution. Its
+                # controller must preserve *all* Grafana ${...} expressions.
+                assert cm['metadata'].get('annotations', {}).get(
+                    'kustomize.toolkit.fluxcd.io/substitute') == 'disabled', (
+                    'Grafana energy ConfigMap would fail Flux envsubst'
+                )
+                assert '${__to:date:seconds}' in dashboard_json
+                assert '${__from:date:seconds}' in dashboard_json
+                assert '${elec_t1_eur_kwh}' in dashboard_json
+                assert '${gas_eur_m3}' in dashboard_json
+                assert '${DOMAIN}' not in dashboard_json
             assert uid not in mounted
             mounted[uid] = dashboard
             assert item['path'] == paths[uid].name
