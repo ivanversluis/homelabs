@@ -105,6 +105,32 @@ ConfigMap is mounted as `Home/home-energy-insights.json` via the
 existing hashed projected ConfigMap mechanism. The Home folder and other
 dashboards stay unchanged.
 
+**Flux postBuild substitution:** This dashboard uses Grafana interpolation
+(`${__to:date:seconds}`, `${__from:date:seconds}`, and
+`${elec_t1_eur_kwh}` among others). Flux also interprets `${...}`
+sequences during strict postBuild substitution. Without an exemption,
+the entire observability reconciliation fails before this dashboard
+ConfigMap can be applied, leaving Grafana on the previous revision.
+
+The generated `grafana-dashboard-home-energy-insights` ConfigMap therefore
+has the **resource-scoped** annotation
+`kustomize.toolkit.fluxcd.io/substitute: disabled` in
+`platform/observability/kustomization.yaml`. It prevents Flux from
+processing *only* this dashboard's JSON; Grafana expands the variables at
+query time. The other resources continue using Flux substitutions,
+including `${DOMAIN}` for Authentik integration. The dashboard test asserts
+that this annotation survives `kubectl kustomize` and that the Grafana
+expressions remain intact. Do not remove the annotation or apply it
+globally to all observability resources.
+
+After the fix merges, reconcile using:
+```bash
+flux reconcile kustomization observability -n flux-system --with-source
+flux get kustomizations observability -n flux-system
+kubectl -n observability rollout status deployment/grafana
+kubectl -n observability exec deploy/grafana -- ls -l /var/lib/grafana/dashboards/Home/home-energy-insights.json
+```
+
 Run the existing test suite:
 ```bash
 python3 scripts/test-grafana-dashboards.py
