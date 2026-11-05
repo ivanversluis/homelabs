@@ -255,7 +255,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "- [DSMR Smart Meter & Solar](/d/dsmr-energy)\n- [Home Climate](/d/home-climate)\n- [Home Energy](/d/home-energy)\n- [Shelly Devices](/d/shelly-devices)"
+        "content": "- [Energy Usage & Costs](/d/home-energy-insights)\n- [DSMR Smart Meter & Solar](/d/dsmr-energy)\n- [Home Climate](/d/home-climate)\n- [Home Energy](/d/home-energy)\n- [Shelly Devices](/d/shelly-devices)"
       }
     },
     {

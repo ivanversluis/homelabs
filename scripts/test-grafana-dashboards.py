@@ -32,8 +32,20 @@ def panels(dashboard):
 def expand(expr, values=None):
     values = {'__rate_interval': '5m', '__interval': '5m', 'namespace': '.*', 'pvc': '.*',
               'pod': '.*', 'node': '.*', 'device': '.*', 'client': 'client-a',
-              'device_id': '.*', **(values or {})}
-    return re.sub(r'\$\{?(\w+)(?::\w+)?\}?', lambda m: values[m[1]], expr)
+              'device_id': '.*', '__from': '0', '__to': '300',
+              '__range_s': '300', 'elec_t1_eur_kwh': '0.2703',
+              'elec_t2_eur_kwh': '0.2703', 'credit_t1_eur_kwh': '0.2703',
+              'credit_t2_eur_kwh': '0.2703', 'feedin_fee_eur_kwh': '0',
+              'elec_fixed_eur_day': '-0.13', 'gas_eur_m3': '1.59',
+              'gas_fixed_eur_day': '1.04', **(values or {})}
+    # Consume the entire Grafana interpolation, including date:seconds.
+    # The old pattern only consumed ':date', leaving ':seconds}' for promtool.
+    return re.sub(r'\$\{(\w+)(?::\w+)*\}|\$(\w+)', lambda m: values[m[1] or m[2]], expr)
+
+
+assert expand('last_over_time(up[15m] @ ${__from:date:seconds})') == 'last_over_time(up[15m] @ 0)'
+assert expand('last_over_time(up[15m] @ ${__to:date:seconds})') == 'last_over_time(up[15m] @ 300)'
+assert expand('up{namespace="$namespace"}') == 'up{namespace=".*"}'
 
 
 dashboards = {}
@@ -45,6 +57,30 @@ for path in sorted(SOURCE.rglob('*.json')):
     dashboards[uid] = dashboard
     paths[uid] = path
 assert len(dashboards) >= 21, 'Expected the existing dashboards and two entry points'
+
+# Energy accounting must use boundary meter registers and make contract input editable.
+energy = dashboards['home-energy-insights']
+assert energy['timezone'] == 'Europe/Amsterdam'
+assert energy['time'] == {'from': 'now/d', 'to': 'now'}
+assert energy['editable'] is False
+assert len(energy['templating']['list']) == 8
+assert all(v['type'] == 'textbox' for v in energy['templating']['list'])
+energy_panels = {p['id']: p for p in energy['panels']}
+for panel_id, register in [(1, 'dsmr_electricity_import_total_kwh_tariff_1'),
+                            (2, 'dsmr_electricity_export_total_kwh_tariff_1'),
+                            (4, 'dsmr_gas_total_m3'),
+                            (5, 'goodwe_total_generation_kwh')]:
+    expr = energy_panels[panel_id]['targets'][0]['expr']
+    assert register in expr
+    assert '${__from:date:seconds}' in expr and '${__to:date:seconds}' in expr
+    assert 'last_over_time(' in expr and '[15m] @' in expr
+for chart_id, duration in [(20, '1h'), (23, '1d'), (26, '30d')]:
+    expr = energy_panels[chart_id]['targets'][0]['expr']
+    assert f'offset {duration}' in expr, (chart_id, expr)
+assert 'gas_eur_m3' in energy_panels[8]['targets'][0]['expr']
+assert '__range_s' in energy_panels[9]['targets'][0]['expr']
+assert '/d/home-energy-insights' in paths['homelab-overview'].read_text()
+assert 'grafana-dashboard-home-energy-insights' in read_yaml(BASE / 'kustomization.yaml').__str__()
 
 ds_config = read_yaml(GRAFANA / 'datasources-configmap.yaml')
 datasources = yaml.safe_load(ds_config['data']['datasources.yaml'])['datasources']

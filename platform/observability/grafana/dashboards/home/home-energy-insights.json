@@ -1,0 +1,2493 @@
+{
+  "uid": "home-energy-insights",
+  "title": "Home Energy | Usage & Costs",
+  "description": "Calendar-hour/day/month/year consumption and illustrative electricity/gas costs from DSMR and GoodWe meter registers.",
+  "tags": [
+    "home",
+    "energy",
+    "costs",
+    "dsmr",
+    "gas",
+    "solar"
+  ],
+  "timezone": "Europe/Amsterdam",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "graphTooltip": 1,
+  "refresh": "5m",
+  "time": {
+    "from": "now/d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "1m",
+      "5m",
+      "15m",
+      "1h"
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "elec_t1_eur_kwh",
+        "label": "Import T1 €/kWh",
+        "description": "Illustrative all-in import price; replace with contract rate for low tariff",
+        "type": "textbox",
+        "query": "0.2703",
+        "current": {
+          "text": "0.2703",
+          "value": "0.2703"
+        },
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
+      },
+      {
+        "name": "elec_t2_eur_kwh",
+        "label": "Import T2 €/kWh",
+        "description": "Illustrative all-in import price; replace with contract rate for normal tariff",
+        "type": "textbox",
+        "query": "0.2703",
+        "current": {
+          "text": "0.2703",
+          "value": "0.2703"
+        },
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
+      },
+      {
+        "name": "credit_t1_eur_kwh",
+        "label": "Export T1 €/kWh",
+        "description": "Illustrative per-kWh export credit used for a simple 2026 netting approximation",
+        "type": "textbox",
+        "query": "0.2703",
+        "current": {
+          "text": "0.2703",
+          "value": "0.2703"
+        },
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
+      },
+      {
+        "name": "credit_t2_eur_kwh",
+        "label": "Export T2 €/kWh",
+        "description": "Illustrative per-kWh export credit used for a simple 2026 netting approximation",
+        "type": "textbox",
+        "query": "0.2703",
+        "current": {
+          "text": "0.2703",
+          "value": "0.2703"
+        },
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
+      },
+      {
+        "name": "feedin_fee_eur_kwh",
+        "label": "Return fee €/kWh",
+        "description": "Any linear supplier return fee, not tier-based return charges",
+        "type": "textbox",
+        "query": "0",
+        "current": {
+          "text": "0",
+          "value": "0"
+        },
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
+      },
+      {
+        "name": "elec_fixed_eur_day",
+        "label": "Electricity fixed €/day",
+        "description": "Illustrative net daily electricity fixed cost or credit from supplier screenshot",
+        "type": "textbox",
+        "query": "-0.13",
+        "current": {
+          "text": "-0.13",
+          "value": "-0.13"
+        },
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
+      },
+      {
+        "name": "gas_eur_m3",
+        "label": "Gas €/m³",
+        "description": "Illustrative gas variable cost per cubic metre from supplier screenshot",
+        "type": "textbox",
+        "query": "1.59",
+        "current": {
+          "text": "1.59",
+          "value": "1.59"
+        },
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
+      },
+      {
+        "name": "gas_fixed_eur_day",
+        "label": "Gas fixed €/day",
+        "description": "Illustrative gas fixed daily cost from supplier screenshot",
+        "type": "textbox",
+        "query": "1.04",
+        "current": {
+          "text": "1.04",
+          "value": "1.04"
+        },
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "title": "Homelab overview",
+      "type": "link",
+      "url": "/d/homelab-overview",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "dashboard"
+    },
+    {
+      "title": "DSMR technical dashboard",
+      "type": "link",
+      "url": "/d/dsmr-energy",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "dashboard"
+    },
+    {
+      "title": "GoodWe inverter",
+      "type": "link",
+      "url": "/d/home-energy",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "dashboard"
+    },
+    {
+      "title": "This hour",
+      "type": "link",
+      "url": "/d/home-energy-insights?from=now%2Fh&to=now",
+      "includeVars": true,
+      "keepTime": false,
+      "targetBlank": false,
+      "icon": "clock"
+    },
+    {
+      "title": "Today",
+      "type": "link",
+      "url": "/d/home-energy-insights?from=now%2Fd&to=now",
+      "includeVars": true,
+      "keepTime": false,
+      "targetBlank": false,
+      "icon": "clock"
+    },
+    {
+      "title": "Yesterday",
+      "type": "link",
+      "url": "/d/home-energy-insights?from=now-1d%2Fd&to=now%2Fd",
+      "includeVars": true,
+      "keepTime": false,
+      "targetBlank": false,
+      "icon": "clock"
+    },
+    {
+      "title": "This month",
+      "type": "link",
+      "url": "/d/home-energy-insights?from=now%2FM&to=now",
+      "includeVars": true,
+      "keepTime": false,
+      "targetBlank": false,
+      "icon": "clock"
+    },
+    {
+      "title": "Last month",
+      "type": "link",
+      "url": "/d/home-energy-insights?from=now-1M%2FM&to=now%2FM",
+      "includeVars": true,
+      "keepTime": false,
+      "targetBlank": false,
+      "icon": "clock"
+    },
+    {
+      "title": "This year",
+      "type": "link",
+      "url": "/d/home-energy-insights?from=now%2Fy&to=now",
+      "includeVars": true,
+      "keepTime": false,
+      "targetBlank": false,
+      "icon": "clock"
+    },
+    {
+      "title": "Last year",
+      "type": "link",
+      "url": "/d/home-energy-insights?from=now-1y%2Fy&to=now%2Fy",
+      "includeVars": true,
+      "keepTime": false,
+      "targetBlank": false,
+      "icon": "clock"
+    }
+  ],
+  "panels": [
+    {
+      "id": 90,
+      "type": "text",
+      "title": "Guide and calendar shortcuts",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 5
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "### Home energy accounting · estimated costs\n**Calendar selections:** [This hour](/d/home-energy-insights?from=now%2Fh&to=now) · [Today](/d/home-energy-insights?from=now%2Fd&to=now) · [Yesterday](/d/home-energy-insights?from=now-1d%2Fd&to=now%2Fd) · [This month](/d/home-energy-insights?from=now%2FM&to=now) · [Last month](/d/home-energy-insights?from=now-1M%2FM&to=now%2FM) · [This year](/d/home-energy-insights?from=now%2Fy&to=now) · [Last year](/d/home-energy-insights?from=now-1y%2Fy&to=now%2Fy).\n\n**How to read:** KPI totals use cumulative meter readings at both boundaries of the *selected* Grafana time range; these give calendar day/month/year values with the shortcuts (not 30/365-day approximations). Charts below show independent rolling 1h/24h/30d increments. Hourly/daily chart buckets can differ from local calendar boundaries at DST changes. **Euro amounts are illustrative**: the tariff boxes above default to figures inferred from supplier screenshots, not verified contract prices. Costs assume constant prices across the entire selection and approximate per-day fixed charges. 2026 annual saldering, supplier-specific return charges/tax corrections and the 2027 regulation change are **not** modelled as an official bill. No reading close to a boundary = **No data**, not zero."
+      }
+    },
+    {
+      "id": 100,
+      "type": "row",
+      "title": "Selected calendar period · consumption",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Electricity imported",
+      "description": "Cumulative DSMR imports T1 + T2 during the selected time range",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "((sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) + (sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))))",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Electricity exported",
+      "description": "Cumulative DSMR exports T1 + T2 during the selected time range",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "((sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) + (sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))))",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 4,
+        "y": 6,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "yellow"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Net grid electricity",
+      "description": "Imported minus exported kWh. Can be negative if export exceeds import.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(((sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) + (sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds})))) - ((sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) + (sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds})))))",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 8,
+        "y": 6,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Gas consumption",
+      "description": "Cumulative DSMR gas register difference",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(sum(last_over_time(dsmr_gas_total_m3{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_gas_total_m3{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds})))",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 6,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m3",
+          "decimals": 3,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Solar generated",
+      "description": "GoodWe inverter lifetime generation register difference",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(sum(last_over_time(goodwe_total_generation_kwh{job=\"goodwe-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(goodwe_total_generation_kwh{job=\"goodwe-prometheus-exporter\"}[15m] @ ${__from:date:seconds})))",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 16,
+        "y": 6,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Solar used locally (est.)",
+      "description": "Estimated generation minus DSMR grid export; assumes one PV/DSMR site",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "clamp_min(((sum(last_over_time(goodwe_total_generation_kwh{job=\"goodwe-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(goodwe_total_generation_kwh{job=\"goodwe-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) - ((sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) + (sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))))), 0)",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 20,
+        "y": 6,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 101,
+      "type": "row",
+      "title": "Estimated energy costs · selected calendar period",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Electricity cost (net)",
+      "description": "Imported energy at per-tariff prices less assumed export credit, plus feed-in fees and daily fixed electricity cost",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(((sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) * ${elec_t1_eur_kwh} + (sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) * ${elec_t2_eur_kwh}) - ((sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) * ${credit_t1_eur_kwh} + (sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) * ${credit_t2_eur_kwh}) + (((sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) + (sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds})))) * ${feedin_fee_eur_kwh}) + (${elec_fixed_eur_day} * (${__range_s} / 86400)))",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 11,
+        "w": 8,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Gas cost",
+      "description": "Gas consumption × gas price, plus pro-rated daily fixed costs",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "((sum(last_over_time(dsmr_gas_total_m3{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_gas_total_m3{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) * ${gas_eur_m3} + (${gas_fixed_eur_day} * (${__range_s} / 86400)))",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 8,
+        "y": 11,
+        "w": 8,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Combined estimated cost",
+      "description": "Estimated electricity plus gas cost; not supplier invoice",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "((((sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) * ${elec_t1_eur_kwh} + (sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) * ${elec_t2_eur_kwh}) - ((sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) * ${credit_t1_eur_kwh} + (sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) * ${credit_t2_eur_kwh}) + (((sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) + (sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds})))) * ${feedin_fee_eur_kwh}) + (${elec_fixed_eur_day} * (${__range_s} / 86400))) + ((sum(last_over_time(dsmr_gas_total_m3{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_gas_total_m3{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) * ${gas_eur_m3} + (${gas_fixed_eur_day} * (${__range_s} / 86400))))",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 16,
+        "y": 11,
+        "w": 8,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Gross electricity import €",
+      "description": "Before export credit, feed-in charges and fixed costs",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "((sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) * ${elec_t1_eur_kwh} + (sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) * ${elec_t2_eur_kwh})",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Grid export credit €",
+      "description": "Credit calculated using editable export credit tariffs, not guaranteed supplier settlement",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "((sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) * ${credit_t1_eur_kwh} + (sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) * ${credit_t2_eur_kwh})",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 4,
+        "y": 15,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Feed-in charges €",
+      "description": "Exported kWh multiplied by adjustable fee; excludes supplier tiered or fixed return fees",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(((sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) + (sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds})))) * ${feedin_fee_eur_kwh})",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 8,
+        "y": 15,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 13,
+      "type": "stat",
+      "title": "Electricity fixed costs €",
+      "description": "Fixed daily electricity cost including assumed discounts, prorated by selected hours",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(${elec_fixed_eur_day} * (${__range_s} / 86400))",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 15,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 14,
+      "type": "stat",
+      "title": "Gas fixed costs €",
+      "description": "Fixed daily gas cost prorated by selected hours",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(${gas_fixed_eur_day} * (${__range_s} / 86400))",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 16,
+        "y": 15,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 15,
+      "type": "stat",
+      "title": "PV avoided grid purchase € (est.)",
+      "description": "Separate hypothetical value of locally consumed PV at import tariff 2; NOT added to bill calculation",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(clamp_min(((sum(last_over_time(goodwe_total_generation_kwh{job=\"goodwe-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(goodwe_total_generation_kwh{job=\"goodwe-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) - ((sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))) + (sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds}))))), 0) * ${elec_t2_eur_kwh})",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 20,
+        "y": 15,
+        "w": 4,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 102,
+      "type": "row",
+      "title": "Electricity by DSMR tariff · selected period",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 16,
+      "type": "stat",
+      "title": "T1 electricity import",
+      "description": "Low/off-peak import energy during selected period",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds})))",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 6,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 17,
+      "type": "stat",
+      "title": "T2 electricity import",
+      "description": "Normal/peak import energy during selected period",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds})))",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 6,
+        "y": 20,
+        "w": 6,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 18,
+      "type": "stat",
+      "title": "T1 grid export",
+      "description": "Low/off-peak grid export during selected period",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds})))",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 20,
+        "w": 6,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "yellow"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 19,
+      "type": "stat",
+      "title": "T2 grid export",
+      "description": "Normal/peak grid export during selected period",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__to:date:seconds})) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] @ ${__from:date:seconds})))",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 18,
+        "y": 20,
+        "w": 6,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "yellow"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 103,
+      "type": "row",
+      "title": "Hourly usage · rolling 1-hour readings",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "Grid import (+) and export (-) · 1 hour",
+      "description": "Meter difference over one rolling hour at each plotted point; export shown below zero",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "((sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1h))) + (sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1h))))",
+          "legendFormat": "Import",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "1h",
+          "editorMode": "code"
+        },
+        {
+          "expr": "(-1 * ((sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1h))) + (sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1h)))))",
+          "legendFormat": "Export",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "1h",
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 25,
+        "w": 12,
+        "h": 8
+      },
+      "interval": "1h",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "No data",
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 70,
+            "barAlignment": 0,
+            "spanNulls": false,
+            "showPoints": "never",
+            "axisPlacement": "auto",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Import"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Export"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "Gas used · 1 hour",
+      "description": "DSMR gas meter difference over one rolling hour",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(sum(last_over_time(dsmr_gas_total_m3{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_gas_total_m3{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1h)))",
+          "legendFormat": "Gas",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "1h",
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 25,
+        "w": 6,
+        "h": 8
+      },
+      "interval": "1h",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m3",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "No data",
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 70,
+            "barAlignment": 0,
+            "spanNulls": false,
+            "showPoints": "never",
+            "axisPlacement": "auto",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Gas"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 22,
+      "type": "timeseries",
+      "title": "Estimated cost · 1 hour",
+      "description": "Modelled cost per hour, assuming 1/24 of daily fixed charges",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(((sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1h))) * ${elec_t1_eur_kwh} + (sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1h))) * ${elec_t2_eur_kwh}) - ((sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1h))) * ${credit_t1_eur_kwh} + (sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1h))) * ${credit_t2_eur_kwh}) + (((sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1h))) + (sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1h)))) * ${feedin_fee_eur_kwh}) + (${elec_fixed_eur_day} * (1/24)))",
+          "legendFormat": "Electricity",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "1h",
+          "editorMode": "code"
+        },
+        {
+          "expr": "((sum(last_over_time(dsmr_gas_total_m3{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_gas_total_m3{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1h))) * ${gas_eur_m3} + (${gas_fixed_eur_day} * (1/24)))",
+          "legendFormat": "Gas",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "1h",
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 18,
+        "y": 25,
+        "w": 6,
+        "h": 8
+      },
+      "interval": "1h",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "No data",
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 70,
+            "barAlignment": 0,
+            "spanNulls": false,
+            "showPoints": "never",
+            "axisPlacement": "auto",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Electricity"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Gas"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 104,
+      "type": "row",
+      "title": "Daily usage · rolling 24-hour readings",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 33,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 23,
+      "type": "timeseries",
+      "title": "Grid import (+) and export (-) · 24 hours",
+      "description": "Rolling 24-hour energy deltas at daily steps; calendar days around DST can vary",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "((sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1d))) + (sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1d))))",
+          "legendFormat": "Import",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "1d",
+          "editorMode": "code"
+        },
+        {
+          "expr": "(-1 * ((sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1d))) + (sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1d)))))",
+          "legendFormat": "Export",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "1d",
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 34,
+        "w": 12,
+        "h": 8
+      },
+      "interval": "1d",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "No data",
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 70,
+            "barAlignment": 0,
+            "spanNulls": false,
+            "showPoints": "never",
+            "axisPlacement": "auto",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Import"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Export"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 24,
+      "type": "timeseries",
+      "title": "Gas used · 24 hours",
+      "description": "Rolling 24-hour DSMR gas meter difference",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(sum(last_over_time(dsmr_gas_total_m3{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_gas_total_m3{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1d)))",
+          "legendFormat": "Gas",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "1d",
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 34,
+        "w": 6,
+        "h": 8
+      },
+      "interval": "1d",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m3",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "No data",
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 70,
+            "barAlignment": 0,
+            "spanNulls": false,
+            "showPoints": "never",
+            "axisPlacement": "auto",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Gas"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 25,
+      "type": "timeseries",
+      "title": "Estimated cost · 24 hours",
+      "description": "Illustrative electricity and gas cost per 24-hour window with one day fixed costs",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(((sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1d))) * ${elec_t1_eur_kwh} + (sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1d))) * ${elec_t2_eur_kwh}) - ((sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1d))) * ${credit_t1_eur_kwh} + (sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1d))) * ${credit_t2_eur_kwh}) + (((sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1d))) + (sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1d)))) * ${feedin_fee_eur_kwh}) + (${elec_fixed_eur_day} * 1))",
+          "legendFormat": "Electricity",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "1d",
+          "editorMode": "code"
+        },
+        {
+          "expr": "((sum(last_over_time(dsmr_gas_total_m3{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_gas_total_m3{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 1d))) * ${gas_eur_m3} + (${gas_fixed_eur_day} * 1))",
+          "legendFormat": "Gas",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "1d",
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 18,
+        "y": 34,
+        "w": 6,
+        "h": 8
+      },
+      "interval": "1d",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "No data",
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 70,
+            "barAlignment": 0,
+            "spanNulls": false,
+            "showPoints": "never",
+            "axisPlacement": "auto",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Electricity"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Gas"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 105,
+      "type": "row",
+      "title": "Long-term trend · rolling 30 days (NOT calendar months)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 42,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 26,
+      "type": "timeseries",
+      "title": "Grid import (+) and export (-) · 30 days",
+      "description": "Rolling 30-day values; use the calendar shortcuts above for exact month-to-date totals",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "((sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 30d))) + (sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 30d))))",
+          "legendFormat": "Import",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "1d",
+          "editorMode": "code"
+        },
+        {
+          "expr": "(-1 * ((sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 30d))) + (sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 30d)))))",
+          "legendFormat": "Export",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "1d",
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 43,
+        "w": 12,
+        "h": 8
+      },
+      "interval": "1d",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "No data",
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 70,
+            "barAlignment": 0,
+            "spanNulls": false,
+            "showPoints": "never",
+            "axisPlacement": "auto",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Import"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Export"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 27,
+      "type": "timeseries",
+      "title": "Gas used · 30 days",
+      "description": "Rolling 30-day gas consumption; historical range limited by available Prometheus retention",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(sum(last_over_time(dsmr_gas_total_m3{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_gas_total_m3{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 30d)))",
+          "legendFormat": "Gas",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "1d",
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 43,
+        "w": 6,
+        "h": 8
+      },
+      "interval": "1d",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m3",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "No data",
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 70,
+            "barAlignment": 0,
+            "spanNulls": false,
+            "showPoints": "never",
+            "axisPlacement": "auto",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Gas"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 28,
+      "type": "timeseries",
+      "title": "Estimated cost · 30 days",
+      "description": "Rolling 30-day model cost assuming fixed rates and 30 days fixed charges",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "(((sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 30d))) * ${elec_t1_eur_kwh} + (sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_import_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 30d))) * ${elec_t2_eur_kwh}) - ((sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 30d))) * ${credit_t1_eur_kwh} + (sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 30d))) * ${credit_t2_eur_kwh}) + (((sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_1{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 30d))) + (sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_electricity_export_total_kwh_tariff_2{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 30d)))) * ${feedin_fee_eur_kwh}) + (${elec_fixed_eur_day} * 30))",
+          "legendFormat": "Electricity",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "1d",
+          "editorMode": "code"
+        },
+        {
+          "expr": "((sum(last_over_time(dsmr_gas_total_m3{job=\"dsmr-p1-prometheus-exporter\"}[15m])) - sum(last_over_time(dsmr_gas_total_m3{job=\"dsmr-p1-prometheus-exporter\"}[15m] offset 30d))) * ${gas_eur_m3} + (${gas_fixed_eur_day} * 30))",
+          "legendFormat": "Gas",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": true,
+          "instant": false,
+          "interval": "1d",
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 18,
+        "y": 43,
+        "w": 6,
+        "h": 8
+      },
+      "interval": "1d",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "No data",
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 70,
+            "barAlignment": 0,
+            "spanNulls": false,
+            "showPoints": "never",
+            "axisPlacement": "auto",
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Electricity"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Gas"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 106,
+      "type": "row",
+      "title": "Data quality",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 51,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 29,
+      "type": "stat",
+      "title": "DSMR exporter healthy",
+      "description": "DSMR exporter metric 1 means data collection active",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "min(dsmr_up{job=\"dsmr-p1-prometheus-exporter\"})",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 52,
+        "w": 8,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 30,
+      "type": "stat",
+      "title": "GoodWe exporter healthy",
+      "description": "GoodWe exporter metric 1 means inverter scraping active",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "min(goodwe_up{job=\"goodwe-prometheus-exporter\"})",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 8,
+        "y": 52,
+        "w": 8,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 31,
+      "type": "stat",
+      "title": "Age of latest P1 telegram",
+      "description": "Time since last DSMR telegram received; beware stale values and outages",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "time() - max(dsmr_last_telegram_timestamp{job=\"dsmr-p1-prometheus-exporter\"})",
+          "legendFormat": "",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "range": false,
+          "instant": true,
+          "editorMode": "code"
+        }
+      ],
+      "gridPos": {
+        "x": 16,
+        "y": 52,
+        "w": 8,
+        "h": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      }
+    }
+  ]
+}
