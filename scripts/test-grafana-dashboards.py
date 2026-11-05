@@ -38,7 +38,14 @@ def expand(expr, values=None):
               'credit_t2_eur_kwh': '0.2703', 'feedin_fee_eur_kwh': '0',
               'elec_fixed_eur_day': '-0.13', 'gas_eur_m3': '1.59',
               'gas_fixed_eur_day': '1.04', **(values or {})}
-    return re.sub(r'\$\{?(\w+)(?::\w+)?\}?', lambda m: values[m[1]], expr)
+    # Consume the entire Grafana interpolation, including date:seconds.
+    # The old pattern only consumed ':date', leaving ':seconds}' for promtool.
+    return re.sub(r'\$\{(\w+)(?::\w+)*\}|\$(\w+)', lambda m: values[m[1] or m[2]], expr)
+
+
+assert expand('last_over_time(up[15m] @ ${__from:date:seconds})') == 'last_over_time(up[15m] @ 0)'
+assert expand('last_over_time(up[15m] @ ${__to:date:seconds})') == 'last_over_time(up[15m] @ 300)'
+assert expand('up{namespace="$namespace"}') == 'up{namespace=".*"}'
 
 
 dashboards = {}
