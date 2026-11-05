@@ -89,6 +89,14 @@ configMapGenerator:
         app.kubernetes.io/name: grafana
         app.kubernetes.io/component: dashboard
         grafana_dashboard: "true"
+  - name: grafana-dashboard-home-energy-insights
+    files:
+      - home-energy-insights.json=grafana/dashboards/home/home-energy-insights.json
+    options:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
   - name: grafana-dashboard-golden-signals
     files:
       - fm-golden-signals.json=grafana/dashboards/firewall-manager/fm-golden-signals.json
