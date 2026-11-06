@@ -1,0 +1,40 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: openasm
+namePrefix: oasm-
+resources:
+  - ../../../../platform/security/oauth2-proxy/base
+  - externalsecret.yaml
+  - ingress.yaml
+patches:
+  - target:
+      kind: Deployment
+      name: oauth2-proxy
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: --oidc-issuer-url=https://auth.${DOMAIN}/application/o/oasm/
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: --redirect-url=https://oasm.${DOMAIN}/oauth2/callback
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: --upstream=http://oasm-console.openasm.svc.cluster.local:80
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: "--allowed-group=OASM Users"
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: --cookie-name=_oasm_oauth2
+      - op: add
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: OAUTH2_PROXY_CLIENT_ID
+            valueFrom:
+              secretKeyRef: {name: oasm-oidc, key: client-id}
+          - name: OAUTH2_PROXY_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef: {name: oasm-oidc, key: client-secret}
+          - name: OAUTH2_PROXY_COOKIE_SECRET
+            valueFrom:
+              secretKeyRef: {name: oasm-oidc, key: cookie-secret}

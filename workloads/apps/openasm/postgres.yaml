@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oasm-postgres
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: oasm-postgres}
+  template:
+    metadata:
+      labels: {app: oasm-postgres}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 999
+        runAsGroup: 999
+        runAsNonRoot: true
+        fsGroup: 999
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:pg17
+          ports:
+            - {name: postgres, containerPort: 5432}
+          env:
+            - {name: POSTGRES_USER, value: oasm}
+            - {name: POSTGRES_DB, value: oasm}
+            - {name: PGDATA, value: /var/lib/postgresql/data/pgdata}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: oasm-env, key: POSTGRES_PASSWORD}
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/postgresql/data}
+            - {name: pg-run, mountPath: /var/run/postgresql}
+            - {name: tmp, mountPath: /tmp}
+          readinessProbe:
+            exec:
+              command: [sh, -c, "pg_isready -U oasm -d oasm"]
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 150m, memory: 256Mi}
+            limits: {cpu: "1", memory: 2Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: oasm-postgres-data}
+        - name: pg-run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oasm-postgres
+spec:
+  selector: {app: oasm-postgres}
+  ports:
+    - {name: postgres, port: 5432, targetPort: postgres}
