@@ -9,9 +9,22 @@ between related dashboards.
 | --- | --- | --- |
 | Kubernetes | Kubernetes Platform Overview | Workloads, Node Health, Node Resource Capacity, PVC Capacity, Longhorn Scheduling & Disk Capacity, Time Sync |
 | DNS | DNS Overview | CoreDNS, Pi-hole visibility and client drill-down, Unbound |
-| Home | Home Climate / DSMR Smart Meter & Solar | GoodWe inverter detail in Home Energy, Shelly sensors |
+| Home | **Home Energy Usage & Costs** / Home Climate | DSMR Smart Meter & Solar, GoodWe inverter, Shelly sensors |
 | Firewall Manager | Firewall Manager - Overview | Golden Signals, RED service signals, USE resource signals |
 | Platform Services | Prometheus Storage & Scrapers | HashiCorp Vault |
+
+## Home Energy Usage & Costs
+
+The [Home Energy Usage & Costs](../platform/observability/grafana/dashboards/home/home-energy-insights.json)
+dashboard reads DSMR's cumulative four electricity tariff registers, gas meter
+and GoodWe cumulative generation to provide **calendar time-picker totals**
+for an hour/day/month/year and hourly/daily/rolling-30-day trends. It uses
+boundary register differences instead of scanning 365 days of 10-second raw
+samples or interpreting a power graph as energy consumption. All monetary
+amounts are estimates derived from editable tariff fields. See
+[energy dashboard accounting and validation](home-energy-usage-costs.md) for
+rates, limitations (including Dutch net metering ending in 2027),
+time-zone/DST caveats and validation steps.
 
 ## Source and provisioning
 

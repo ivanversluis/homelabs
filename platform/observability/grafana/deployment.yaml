@@ -229,6 +229,11 @@ spec:
                     - key: dsmr-energy.json
                       path: dsmr-energy.json
               - configMap:
+                  name: grafana-dashboard-home-energy-insights
+                  items:
+                    - key: home-energy-insights.json
+                      path: home-energy-insights.json
+              - configMap:
                   name: grafana-dashboard-home-climate
                   items:
                     - key: home-climate.json

@@ -89,6 +89,20 @@ configMapGenerator:
         app.kubernetes.io/name: grafana
         app.kubernetes.io/component: dashboard
         grafana_dashboard: "true"
+  - name: grafana-dashboard-home-energy-insights
+    files:
+      - home-energy-insights.json=grafana/dashboards/home/home-energy-insights.json
+    options:
+      # Grafana expressions such as ${__to:date:seconds} and tariff textboxes
+      # are NOT Flux variables. Prevent strict postBuild envsubst from failing.
+      # Only this dashboard ConfigMap is excluded; other resources still
+      # receive Flux ${DOMAIN} substitution as before.
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
   - name: grafana-dashboard-golden-signals
     files:
       - fm-golden-signals.json=grafana/dashboards/firewall-manager/fm-golden-signals.json
