@@ -33,7 +33,7 @@ spec:
       containers:
         - name: exporter
           # Immutable digest verified in the exporter main-branch GHCR build.
-          image: ghcr.io/ivanversluis/weather-prometheus-exporter@sha256:ca494d82886599d542cc4d528e7602f7811b13f17a1f9500861dd9b96e9b59c7
+          image: ghcr.io/ivanversluis/weather-prometheus-exporter:sha-026a483
           imagePullPolicy: IfNotPresent
           ports:
             - name: metrics
