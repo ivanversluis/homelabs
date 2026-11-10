@@ -307,6 +307,35 @@ test_cases.extend([
     },
 ])
 
+# A prior 30-minute sample of a horizon must NOT make the latest, incomplete
+# scrape look like a complete forecast. The first scrape contains 48 series;
+# at 15m the next snapshot intentionally lacks horizon 20, so raw range-vector
+# last_over_time still has its old value, but latest-scrape count is 23.
+def forecast_with_missing_horizon_on_latest_scrape():
+    data = [
+        {'series': 'weather_up{job="weather-prometheus-exporter"}',
+         'values': '1 _ _ 1 _'},
+        {'series': 'up{job="weather-prometheus-exporter"}',
+         'values': '1 _ _ 1 _'},
+        {'series': 'weather_last_success_timestamp_seconds{job="weather-prometheus-exporter"}',
+         'values': '0 _ _ 900 _'},
+    ]
+    for hour in range(48):
+        values = '50 _ _ _ _' if hour == 20 else '50 _ _ 50 _'
+        data.append({
+            'series': f'weather_forecast_solar_radiation_watts_per_square_meter{{job="weather-prometheus-exporter",horizon_hours="{hour}"}}',
+            'values': values,
+        })
+    return data
+
+
+test_cases.append({
+    'name': 'EV outlook does not combine 30m-old horizon with a newer incomplete scrape',
+    'interval': '5m',
+    'input_series': forecast_with_missing_horizon_on_latest_scrape(),
+    'promql_expr_test': ev_checks((None, 100, None), '16m'),
+})
+
 with tempfile.TemporaryDirectory() as temp:
     path = Path(temp)
     (path / 'queries.yaml').write_text(yaml.safe_dump({'groups': [{'name': 'dashboard-queries', 'rules': rules}]}))
