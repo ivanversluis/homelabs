@@ -4,7 +4,14 @@ metadata:
   name: allow-same-namespace
   namespace: home-exporters
 spec:
-  podSelector: {}
+  # Exclude weather from the legacy same-namespace allow-all so its
+  # dedicated NetworkPolicy can restrict ingress to Prometheus only.
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: NotIn
+        values:
+          - weather-prometheus-exporter
   policyTypes:
     - Ingress
     - Egress

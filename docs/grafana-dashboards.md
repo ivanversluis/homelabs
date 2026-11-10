@@ -9,9 +9,15 @@ between related dashboards.
 | --- | --- | --- |
 | Kubernetes | Kubernetes Platform Overview | Workloads, Node Health, Node Resource Capacity, PVC Capacity, Longhorn Scheduling & Disk Capacity, Time Sync |
 | DNS | DNS Overview | CoreDNS, Pi-hole visibility and client drill-down, Unbound |
-| Home | **Home Energy Usage & Costs** / Home Climate | DSMR Smart Meter & Solar, GoodWe inverter, Shelly sensors |
+| Home | **Home Energy Usage & Costs** / Home Climate / **Home Weather & Solar Forecast** | DSMR Smart Meter & Solar, GoodWe inverter, Shelly sensors |
 | Firewall Manager | Firewall Manager - Overview | Golden Signals, RED service signals, USE resource signals |
 | Platform Services | Prometheus Storage & Scrapers | HashiCorp Vault |
+
+## Home Weather & Solar Forecast
+
+The [Home Weather & Solar Forecast](../platform/observability/grafana/dashboards/home/home-weather.json) dashboard reads **Open-Meteo exporter** metrics from the standalone `observability` Prometheus job `weather-prometheus-exporter`. The exporter calls the API every 10 minutes; Prometheus intentionally scrapes **every 15 minutes**. Every weather current/forecast query uses `last_over_time(…[30m])` so Grafana does not show 5-minute default lookback gaps between samples. The dashboard exposes `weather_up`, scrape target health and `time() - weather_last_success_timestamp_seconds` for error/freshness visibility; stale cached values must never authorize automated heating or EV charging.
+
+The next 48 hours appear as a **forecast snapshot table**, with 48 bounded `horizon_hours` series joined across temperature, rain, cloud cover and solar radiation, plus the valid-at UTC timestamp converted to milliseconds for Grafana date formatting. These are *future forecast validity timestamps*, not historical Prometheus sample timestamps. GoodWe current PV power in W and Open-Meteo solar irradiance in W/m² are deliberately labelled differently: radiation alone is not an electricity-generation prediction. No home coordinates appear in the dashboard, metrics labels or source files. The public Amsterdam default may be changed securely through Vault as documented under `services/telemetry/home-exporters/weather-prometheus-exporter/`.
 
 ## Home Energy Usage & Costs
 

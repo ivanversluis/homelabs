@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: weather-prometheus-exporter-config
+  namespace: home-exporters
+data:
+  # Public Amsterdam city-centre default only; never commit home coordinates.
+  WEATHER_LATITUDE: "52.3676"
+  WEATHER_LONGITUDE: "4.9041"
+  WEATHER_POLL_INTERVAL_SECONDS: "600"
+  METRICS_PORT: "9100"
+  LOG_LEVEL: "INFO"

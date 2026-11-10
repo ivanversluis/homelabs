@@ -119,6 +119,15 @@ configMapGenerator:
         app.kubernetes.io/name: grafana
         app.kubernetes.io/component: dashboard
         grafana_dashboard: "true"
+  - name: grafana-dashboard-home-weather
+    files:
+      - home-weather.json=grafana/dashboards/home/home-weather.json
+    options:
+      # Never put private coordinates or Flux expressions into dashboard JSON.
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/component: dashboard
+        grafana_dashboard: "true"
   - name: grafana-dashboard-home-climate
     files:
       - home-climate.json=grafana/dashboards/home/home-climate.json

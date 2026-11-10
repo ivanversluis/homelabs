@@ -7,6 +7,9 @@ on:
       - platform/observability/kustomization.yaml
       - platform/observability/prometheus/prometheus.yml
       - scripts/test-grafana-dashboards.py
+      - scripts/test-weather-telemetry.py
+      - services/telemetry/home-exporters/weather-prometheus-exporter/**
+      - services/telemetry/home-exporters/daikin-prometheus-exporter/daikin-prometheus-exporter-networkpolicy.yaml
       - scripts/test-grafana-provisioning.py
       - scripts/test-node-resource-alerting.py
       - scripts/test-pvc-capacity-alerting.py
@@ -57,6 +60,8 @@ jobs:
         run: python3 scripts/test-node-resource-alerting.py
       - name: Validate all dashboards and query regressions
         run: python3 scripts/test-grafana-dashboards.py
+      - name: Validate weather exporter Vault, NetPol, scrape and Grafana wiring
+        run: python3 scripts/test-weather-telemetry.py
       - name: Smoke-test provisioning with the configured Grafana image
         run: python3 scripts/test-grafana-provisioning.py
       - name: Render observability and Longhorn manifests
