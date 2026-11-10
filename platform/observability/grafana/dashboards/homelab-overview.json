@@ -255,7 +255,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "- [Energy Usage & Costs](/d/home-energy-insights)\n- [DSMR Smart Meter & Solar](/d/dsmr-energy)\n- [Home Climate](/d/home-climate)\n- [Home Energy](/d/home-energy)\n- [Shelly Devices](/d/shelly-devices)"
+        "content": "- [Energy Usage & Costs](/d/home-energy-insights)\n- [DSMR Smart Meter & Solar](/d/dsmr-energy)\n- [Home Climate](/d/home-climate)\n- [Weather & Solar Forecast](/d/home-weather)\n- [Home Energy](/d/home-energy)\n- [Shelly Devices](/d/shelly-devices)"
       }
     },
     {
@@ -460,6 +460,15 @@
       "title": "Home",
       "type": "link",
       "url": "/d/home-climate",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false,
+      "icon": "dashboard"
+    },
+    {
+      "title": "Weather & Solar",
+      "type": "link",
+      "url": "/d/home-weather",
       "includeVars": true,
       "keepTime": true,
       "targetBlank": false,
