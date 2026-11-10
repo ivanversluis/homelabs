@@ -166,6 +166,18 @@ scrape_configs:
     scrape_interval: 30s
     scrape_timeout: 10s
 
+  # Open-Meteo weather exporter. API polls are cached every 10 minutes.
+  # Explicit 15-minute scrape requested; use last_over_time(...[30m]) in Grafana
+  # because the default Prometheus instant-query lookback is only 5 minutes.
+  - job_name: 'weather-prometheus-exporter'
+    static_configs:
+      - targets: ['weather-prometheus-exporter.home-exporters.svc.cluster.local:9100']
+        labels:
+          service: 'weather-prometheus-exporter'
+          app: 'home-weather'
+    scrape_interval: 15m
+    scrape_timeout: 10s
+
   # HashiCorp Vault metrics (in-cluster service)
   - job_name: 'vault'
     scheme: http

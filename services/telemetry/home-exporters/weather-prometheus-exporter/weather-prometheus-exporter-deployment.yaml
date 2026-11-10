@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-prometheus-exporter
+  namespace: home-exporters
+  labels:
+    app: weather-prometheus-exporter
+    app.kubernetes.io/name: weather-prometheus-exporter
+    app.kubernetes.io/part-of: homelabs
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: weather-prometheus-exporter
+  template:
+    metadata:
+      labels:
+        app: weather-prometheus-exporter
+        app.kubernetes.io/name: weather-prometheus-exporter
+    spec:
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: exporter
+          # Publish the explicit v0.1.0 GHCR release before merging this PR.
+          image: ghcr.io/ivanversluis/weather-prometheus-exporter:v0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: metrics
+              containerPort: 9100
+          envFrom:
+            - configMapRef:
+                name: weather-prometheus-exporter-config
+            # Optional private override created out-of-band in home-exporters.
+            # Put WEATHER_LATITUDE and WEATHER_LONGITUDE in this Secret.
+            # Restart pod after Secret creation or rotation.
+            - secretRef:
+                name: weather-prometheus-exporter-location
+                optional: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            periodSeconds: 30
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 150m
+              memory: 128Mi
