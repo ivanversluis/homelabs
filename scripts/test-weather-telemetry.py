@@ -146,4 +146,32 @@ assert "52.3676" not in json.dumps(dashboard)
 assert "4.9041" not in json.dumps(dashboard)
 assert not any(key in json.dumps(dashboard) for key in (
     "WEATHER_LATITUDE", "WEATHER_LONGITUDE"))
-print("PASS: Weather exporter: 15m scrape, Vault/registry wiring, isolated NetPol, Grafana 48h forecast")
+# Weather forecasts are anchored by validity times and retain the detail table.
+visuals = [p for p in dashboard["panels"] if p["id"] in {26, 27, 28, 29}]
+assert len(visuals) == 4 and all(p["type"] == "barchart" for p in visuals)
+for p in visuals:
+    assert len(p["targets"]) == 2
+    assert all(t["instant"] and t["format"] == "table" for t in p["targets"])
+    assert "weather_forecast_valid_timestamp_seconds" in p["targets"][1]["expr"]
+    assert " * 1000" in p["targets"][1]["expr"]
+    assert p["options"]["xField"] == "Forecast time"
+    assert any(t["id"] == "joinByField" and t["options"]["byField"] == "horizon_hours" for t in p["transformations"])
+    assert any(t["id"] == "convertFieldType" for t in p["transformations"])
+    assert p["datasource"]["uid"] == "prometheus"
+ev = [p for p in dashboard["panels"] if p["id"] in {23, 24, 25}]
+assert len(ev) == 3 and sorted(p["type"] for p in ev) == ["gauge", "gauge", "stat"]
+solar_goal = next(v for v in dashboard["templating"]["list"] if v["name"] == "solar_goal_kwh_m2")
+assert solar_goal["type"] == "textbox" and solar_goal["current"]["value"] == "1.0"
+for p in ev:
+    expr = p["targets"][0]["expr"]
+    assert "weather_forecast_solar_radiation_watts_per_square_meter" in expr
+    assert "weather_up" in expr and "weather_last_success_timestamp_seconds" in expr
+    assert "up{" in expr and 'job="weather-prometheus-exporter"' in expr
+    assert "== 24" in expr and "[30m]" in expr and "$solar_goal_kwh_m2" in expr
+assert "(2[4-9]|3[0-9]|4[0-7])" in ev[1]["targets"][0]["expr"]
+assert "(2[4-9]|3[0-9]|4[0-7])" in ev[2]["targets"][0]["expr"]
+assert all(p["fieldConfig"]["defaults"]["max"] == 100 for p in ev if p["type"] == "gauge")
+assert "suffix: mm" in str(forecast["fieldConfig"]["overrides"])
+assert "suffix: W/m²" in str(forecast["fieldConfig"]["overrides"])
+
+print("PASS: Weather exporter: 15m scrape, Vault/registry wiring, isolated NetPol, Grafana 48h forecast and EV outlook")

@@ -32,7 +32,7 @@ def panels(dashboard):
 def expand(expr, values=None):
     values = {'__rate_interval': '5m', '__interval': '5m', 'namespace': '.*', 'pvc': '.*',
               'pod': '.*', 'node': '.*', 'device': '.*', 'client': 'client-a',
-              'device_id': '.*', '__from': '0', '__to': '300',
+              'device_id': '.*', 'solar_goal_kwh_m2': '1.0', '__from': '0', '__to': '300',
               '__range_s': '300', 'elec_t1_eur_kwh': '0.2703',
               'elec_t2_eur_kwh': '0.2703', 'credit_t1_eur_kwh': '0.2703',
               'credit_t2_eur_kwh': '0.2703', 'feedin_fee_eur_kwh': '0',
