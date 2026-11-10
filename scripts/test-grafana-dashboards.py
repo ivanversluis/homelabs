@@ -263,11 +263,12 @@ def solar_forecast_fixture(first_wm2, second_wm2, *, stale=False, missing_hour=N
     return series
 
 
-def ev_checks(expected, evaluation='5m'):
+def ev_checks(expected, evaluation='5m', solar_goal=None):
     checks = []
     for panel_id, value in zip((23, 24, 25), expected):
         checks.append({
-            'expr': query('home-weather', panel_id),
+            'expr': query('home-weather', panel_id,
+                          values={'solar_goal_kwh_m2': str(solar_goal)} if solar_goal is not None else None),
             'eval_time': evaluation,
             'exp_samples': [] if value is None else [{'labels': '{}', 'value': value}],
         })
@@ -378,6 +379,26 @@ test_cases.extend([
         'interval': '5m',
         'input_series': forecast_with_entire_window_missing_on_latest_scrape("both"),
         'promql_expr_test': ev_checks((None, None, None), '16m'),
+    },
+])
+
+# The exporter is scraped every 15 minutes. A *healthy* scrape at minute
+# zero remains valid at minute 11, even though Prometheus' instant lookback is
+# only five minutes. Count snapshots must be recorded only while up{} exists.
+# An unconditional count(...) or vector(0) would invent a zero every minute and
+# blank the gauges between normal scrapes.
+test_cases.extend([
+    {
+        'name': 'EV outlook remains usable through normal 15m scrape gaps',
+        'interval': '5m',
+        'input_series': forecast_with_entire_window_missing_on_latest_scrape("none"),
+        'promql_expr_test': ev_checks((100, 100, 1), '11m'),
+    },
+    {
+        'name': 'EV solar-goal floor is consistent below 0.1 in gauge and advisor',
+        'interval': '1m',
+        'input_series': solar_forecast_fixture(2.5, 1.0),
+        'promql_expr_test': ev_checks((60, 24, 0), '5m', solar_goal='0.05'),
     },
 ])
 
