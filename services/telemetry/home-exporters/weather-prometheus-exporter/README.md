@@ -1,6 +1,6 @@
 # Weather Prometheus Exporter
 
-Open-Meteo weather exporter managed by the existing `home-exporters` Flux Kustomization. The image is pinned to digest `sha256:ca494d82...`, published successfully from exporter `main` at commit `e293853` on 2026-11-10. A `v0.1.0` image tag was not published; do not point the Deployment to it.
+The exporter is pinned to image `ghcr.io/ivanversluis/weather-prometheus-exporter:sha-026a483@sha256:ebbccd049963cf99a037d0534578758a4c12b1b7a8b7f98640bad2c55e428742`, built and pushed successfully from weather exporter `main` commit `026a483aaff909f919c8421ca2d6d5d9cf95a17c` on 2026-11-10. The source tag is `sha-026a483`, also pullable with `docker pull ghcr.io/ivanversluis/weather-prometheus-exporter:sha-026a483`. Kubernetes uses the accompanying immutable manifest digest, so a moved tag cannot silently change the running build. The previous `v0.1.0` tag does not exist.
 
 The exporter polls Open-Meteo every **600 seconds** (10 minutes); the standalone `observability` Prometheus scrapes `weather-prometheus-exporter.home-exporters.svc.cluster.local:9100/metrics` every **15 minutes**. Grafana queries use `last_over_time(metric[30m])` to bridge the five-minute default instant-query lookback. This is a cached *forecast and model-derived weather observation*, not a home weather station.
 

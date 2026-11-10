@@ -32,7 +32,7 @@ def panels(dashboard):
 def expand(expr, values=None):
     values = {'__rate_interval': '5m', '__interval': '5m', 'namespace': '.*', 'pvc': '.*',
               'pod': '.*', 'node': '.*', 'device': '.*', 'client': 'client-a',
-              'device_id': '.*', '__from': '0', '__to': '300',
+              'device_id': '.*', 'solar_goal_kwh_m2': '1.0', '__from': '0', '__to': '300',
               '__range_s': '300', 'elec_t1_eur_kwh': '0.2703',
               'elec_t2_eur_kwh': '0.2703', 'credit_t1_eur_kwh': '0.2703',
               'credit_t2_eur_kwh': '0.2703', 'feedin_fee_eur_kwh': '0',
@@ -241,6 +241,167 @@ test_cases.append({'name': 'zero solar power has no self-consumption ratio', 'in
 test_cases.append({'name': 'missing telemetry stays missing', 'interval': '1m', 'input_series': [],
     'promql_expr_test': [{'expr': query('home-climate', 10), 'eval_time': '5m', 'exp_samples': []},
                          {'expr': query('k8s-workloads', 5), 'eval_time': '5m', 'exp_samples': []}]})
+# Validate charging recommendations against synthetic complete/partial forecasts
+# and independent freshness conditions. A 15-minute Prometheus scrape interval
+# uses the same 30-minute last_over_time windows as the dashboard.
+def solar_forecast_fixture(first_wm2, second_wm2, *, stale=False, missing_hour=None):
+    length = 80 if stale else 10
+    series = [
+        {'series': 'weather_up{job="weather-prometheus-exporter"}', 'values': f'1+0x{length}'},
+        {'series': 'up{job="weather-prometheus-exporter"}', 'values': f'1+0x{length}'},
+        {'series': 'weather_last_success_timestamp_seconds{job="weather-prometheus-exporter"}',
+         'values': f'{0 if stale else 250}+0x{length}'},
+    ]
+    for hour in range(48):
+        if hour == missing_hour:
+            continue
+        watts = first_wm2 if hour < 24 else second_wm2
+        series.append({
+            'series': f'weather_forecast_solar_radiation_watts_per_square_meter{{job="weather-prometheus-exporter",horizon_hours="{hour}"}}',
+            'values': f'{watts}+0x{length}',
+        })
+    return series
+
+
+def ev_checks(expected, evaluation='5m', solar_goal=None):
+    checks = []
+    for panel_id, value in zip((23, 24, 25), expected):
+        checks.append({
+            'expr': query('home-weather', panel_id,
+                          values={'solar_goal_kwh_m2': str(solar_goal)} if solar_goal is not None else None),
+            'eval_time': evaluation,
+            'exp_samples': [] if value is None else [{'labels': '{}', 'value': value}],
+        })
+    return checks
+
+
+test_cases.extend([
+    {
+        'name': 'EV weather outlook prefers strong first 24h and shows weaker second 24h',
+        'interval': '1m',
+        'input_series': solar_forecast_fixture(50, 25),
+        'promql_expr_test': ev_checks((100, 60, 1)),
+    },
+    {
+        'name': 'EV weather outlook prefers strong second 24h',
+        'interval': '1m',
+        'input_series': solar_forecast_fixture(25, 50),
+        'promql_expr_test': ev_checks((60, 100, 2)),
+    },
+    {
+        'name': 'EV weather outlook declines both weak windows without inventing sunshine',
+        'interval': '1m',
+        'input_series': solar_forecast_fixture(20, 30),
+        'promql_expr_test': ev_checks((48, 72, 0)),
+    },
+    {
+        'name': 'EV weather outlook hides stale API data instead of suggesting charging',
+        'interval': '1m',
+        'input_series': solar_forecast_fixture(50, 50, stale=True),
+        'promql_expr_test': ev_checks((None, None, None), '60m'),
+    },
+    {
+        'name': 'EV outlook requires all 24 forecast hours per window',
+        'interval': '1m',
+        'input_series': solar_forecast_fixture(50, 50, missing_hour=20),
+        'promql_expr_test': ev_checks((None, 100, None)),
+    },
+])
+
+# A prior 30-minute sample of a horizon must NOT make the latest, incomplete
+# scrape look like a complete forecast. The first scrape contains 48 series;
+# at 15m the next snapshot intentionally lacks horizon 20, so raw range-vector
+# last_over_time still has its old value, but latest-scrape count is 23.
+def forecast_with_missing_horizon_on_latest_scrape():
+    data = [
+        {'series': 'weather_up{job="weather-prometheus-exporter"}',
+         'values': '1 _ _ 1 _'},
+        {'series': 'up{job="weather-prometheus-exporter"}',
+         'values': '1 _ _ 1 _'},
+        {'series': 'weather_last_success_timestamp_seconds{job="weather-prometheus-exporter"}',
+         'values': '0 _ _ 900 _'},
+    ]
+    for hour in range(48):
+        values = '50 _ _ _ _' if hour == 20 else '50 _ _ 50 _'
+        data.append({
+            'series': f'weather_forecast_solar_radiation_watts_per_square_meter{{job="weather-prometheus-exporter",horizon_hours="{hour}"}}',
+            'values': values,
+        })
+    return data
+
+
+test_cases.append({
+    'name': 'EV outlook does not combine 30m-old horizon with a newer incomplete scrape',
+    'interval': '5m',
+    'input_series': forecast_with_missing_horizon_on_latest_scrape(),
+    'promql_expr_test': ev_checks((None, 100, None), '16m'),
+})
+
+
+# Codex regression: an entire 24h solar forecast window disappears from the
+# latest effective scrape. count(...) by itself yields no sample, so a 30m
+# last_over_time without "or vector(0)" incorrectly returns the OLD count=24.
+def forecast_with_entire_window_missing_on_latest_scrape(window):
+    data = [
+        {'series': 'weather_up{job="weather-prometheus-exporter"}',
+         'values': '1 _ _ 1 _'},
+        {'series': 'up{job="weather-prometheus-exporter"}',
+         'values': '1 _ _ 1 _'},
+        {'series': 'weather_last_success_timestamp_seconds{job="weather-prometheus-exporter"}',
+         'values': '0 _ _ 900 _'},
+    ]
+    for hour in range(48):
+        omitted = window == "both" or (window == "first" and hour < 24) or (
+            window == "second" and hour >= 24)
+        values = '50 _ _ _ _' if omitted else '50 _ _ 50 _'
+        data.append({
+            'series': f'weather_forecast_solar_radiation_watts_per_square_meter{{job="weather-prometheus-exporter",horizon_hours="{hour}"}}',
+            'values': values,
+        })
+    return data
+
+
+test_cases.extend([
+    {
+        'name': 'EV rejects entirely missing latest first 24h window',
+        'interval': '5m',
+        'input_series': forecast_with_entire_window_missing_on_latest_scrape("first"),
+        'promql_expr_test': ev_checks((None, 100, None), '16m'),
+    },
+    {
+        'name': 'EV rejects entirely missing latest second 24h window',
+        'interval': '5m',
+        'input_series': forecast_with_entire_window_missing_on_latest_scrape("second"),
+        'promql_expr_test': ev_checks((100, None, None), '16m'),
+    },
+    {
+        'name': 'EV rejects entirely missing latest 48h forecast',
+        'interval': '5m',
+        'input_series': forecast_with_entire_window_missing_on_latest_scrape("both"),
+        'promql_expr_test': ev_checks((None, None, None), '16m'),
+    },
+])
+
+# The exporter is scraped every 15 minutes. A *healthy* scrape at minute
+# zero remains valid at minute 11, even though Prometheus' instant lookback is
+# only five minutes. Count snapshots must be recorded only while up{} exists.
+# An unconditional count(...) or vector(0) would invent a zero every minute and
+# blank the gauges between normal scrapes.
+test_cases.extend([
+    {
+        'name': 'EV outlook remains usable through normal 15m scrape gaps',
+        'interval': '5m',
+        'input_series': forecast_with_entire_window_missing_on_latest_scrape("none"),
+        'promql_expr_test': ev_checks((100, 100, 1), '11m'),
+    },
+    {
+        'name': 'EV solar-goal floor is consistent below 0.1 in gauge and advisor',
+        'interval': '1m',
+        'input_series': solar_forecast_fixture(2.5, 2.5),
+        'promql_expr_test': ev_checks((60, 60, 0), '5m', solar_goal='0.05'),
+    },
+])
+
 with tempfile.TemporaryDirectory() as temp:
     path = Path(temp)
     (path / 'queries.yaml').write_text(yaml.safe_dump({'groups': [{'name': 'dashboard-queries', 'rules': rules}]}))

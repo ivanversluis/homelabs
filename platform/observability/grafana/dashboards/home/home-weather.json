@@ -2,7 +2,7 @@
   "id": null,
   "uid": "home-weather",
   "title": "Home Weather & Solar Forecast",
-  "description": "Current conditions, 48-hour weather forecast, indoor heating context, solar irradiance and actual GoodWe PV generation. Open-Meteo model estimates; privacy-friendly location labels.",
+  "description": "Home weather observations and 48-hour forecast, solar irradiance and GoodWe power, with weather-only EV solar charging outlook; no private location data.",
   "tags": [
     "home",
     "weather",
@@ -12,7 +12,7 @@
   ],
   "timezone": "Europe/Amsterdam",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": false,
   "graphTooltip": 1,
   "refresh": "5m",
@@ -21,7 +21,22 @@
     "to": "now"
   },
   "templating": {
-    "list": []
+    "list": [
+      {
+        "name": "solar_goal_kwh_m2",
+        "label": "Solar goal · 24h (kWh/m²)",
+        "type": "textbox",
+        "hide": 0,
+        "query": "1.0",
+        "description": "Adjust this illustrative weather-only benchmark to local observed GoodWe production; it is not guaranteed EV kWh.",
+        "current": {
+          "selected": true,
+          "text": "1.0",
+          "value": "1.0"
+        },
+        "options": []
+      }
+    ]
   },
   "annotations": {
     "list": []
@@ -334,7 +349,7 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "wattm2",
+          "unit": "suffix: W/m²",
           "noValue": "No data",
           "decimals": 1
         },
@@ -505,7 +520,7 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "wattm2",
+          "unit": "suffix: W/m²",
           "noValue": "No data",
           "decimals": 1
         },
@@ -788,7 +803,7 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "wattm2",
+          "unit": "suffix: W/m²",
           "noValue": "No data",
           "custom": {
             "spanNulls": false,
@@ -1016,7 +1031,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "Forecast rows below are aligned by **hour-ahead** and carry each valid timestamp. Values update when the exporter refreshes; table queries use the last scrape within 30 minutes.  \nUse temperature to explore heating behaviour and solar radiation + clouds to identify candidate charging windows. **Do not automatically switch heating or EV charging using these estimates without freshness/quality gates and a separate safe controller.**"
+        "content": "**Forecast planning:** These are future hourly model values, not the earlier historic trend charts. Compare two rolling windows—**0–24h** and **24–48h**—using the weather-only solar opportunity gauges. Adjust the **Solar goal** variable at the top; no charger is controlled. The new 48-hour charts display forecasts at their intended times, with full details retained in the table below."
       },
       "transparent": true
     },
@@ -1081,10 +1096,779 @@
       }
     },
     {
+      "id": 23,
+      "type": "gauge",
+      "title": "EV solar outlook · next 24h",
+      "description": "Share of a configurable 24-hour solar irradiation goal, capped at 100%. Not actual EV charging energy. Stale forecast is hidden.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 29,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(clamp_max(100 * (sum(last_over_time(weather_forecast_solar_radiation_watts_per_square_meter{job=\"weather-prometheus-exporter\",horizon_hours=~\"([0-9]|1[0-9]|2[0-3])\"}[30m])) / 1000) / clamp_min(vector($solar_goal_kwh_m2), 0.1), 100)) and on() (last_over_time(weather_up{job=\"weather-prometheus-exporter\"}[30m]) == 1 and on() ((time() - last_over_time(weather_last_success_timestamp_seconds{job=\"weather-prometheus-exporter\"}[30m])) < 2100) and on() (last_over_time(up{job=\"weather-prometheus-exporter\"}[30m]) == 1)) and on() (last_over_time(((count(weather_forecast_solar_radiation_watts_per_square_meter{job=\"weather-prometheus-exporter\",horizon_hours=~\"([0-9]|1[0-9]|2[0-3])\"}) or vector(0)) and on() up{job=\"weather-prometheus-exporter\"})[30m:1m]) == 24)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "range": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 0,
+          "noValue": "Forecast unavailable",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 60
+              },
+              {
+                "color": "green",
+                "value": 100
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true,
+        "orientation": "auto"
+      }
+    },
+    {
+      "id": 24,
+      "type": "gauge",
+      "title": "EV solar outlook · 24–48h",
+      "description": "Share of the same solar irradiance goal over the following 24 hours. Not actual PV production or EV battery state.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 29,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(clamp_max(100 * (sum(last_over_time(weather_forecast_solar_radiation_watts_per_square_meter{job=\"weather-prometheus-exporter\",horizon_hours=~\"(2[4-9]|3[0-9]|4[0-7])\"}[30m])) / 1000) / clamp_min(vector($solar_goal_kwh_m2), 0.1), 100)) and on() (last_over_time(weather_up{job=\"weather-prometheus-exporter\"}[30m]) == 1 and on() ((time() - last_over_time(weather_last_success_timestamp_seconds{job=\"weather-prometheus-exporter\"}[30m])) < 2100) and on() (last_over_time(up{job=\"weather-prometheus-exporter\"}[30m]) == 1)) and on() (last_over_time(((count(weather_forecast_solar_radiation_watts_per_square_meter{job=\"weather-prometheus-exporter\",horizon_hours=~\"(2[4-9]|3[0-9]|4[0-7])\"}) or vector(0)) and on() up{job=\"weather-prometheus-exporter\"})[30m:1m]) == 24)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "range": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 0,
+          "noValue": "Forecast unavailable",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 60
+              },
+              {
+                "color": "green",
+                "value": 100
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true,
+        "orientation": "auto"
+      }
+    },
+    {
+      "id": 25,
+      "type": "stat",
+      "title": "Solar-based charging suggestion",
+      "description": "Weather-only advisory. Neither window exceeds the solar goal => wait; otherwise prefer the brighter eligible rolling window. It does not control charging or account for PV, tariffs, EV SOC or home load.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 29,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(((((sum(last_over_time(weather_forecast_solar_radiation_watts_per_square_meter{job=\"weather-prometheus-exporter\",horizon_hours=~\"([0-9]|1[0-9]|2[0-3])\"}[30m])) / 1000) >= bool (sum(last_over_time(weather_forecast_solar_radiation_watts_per_square_meter{job=\"weather-prometheus-exporter\",horizon_hours=~\"(2[4-9]|3[0-9]|4[0-7])\"}[30m])) / 1000)) * ((sum(last_over_time(weather_forecast_solar_radiation_watts_per_square_meter{job=\"weather-prometheus-exporter\",horizon_hours=~\"([0-9]|1[0-9]|2[0-3])\"}[30m])) / 1000) >= bool clamp_min(vector($solar_goal_kwh_m2), 0.1))) + (2 * (((sum(last_over_time(weather_forecast_solar_radiation_watts_per_square_meter{job=\"weather-prometheus-exporter\",horizon_hours=~\"(2[4-9]|3[0-9]|4[0-7])\"}[30m])) / 1000) > bool (sum(last_over_time(weather_forecast_solar_radiation_watts_per_square_meter{job=\"weather-prometheus-exporter\",horizon_hours=~\"([0-9]|1[0-9]|2[0-3])\"}[30m])) / 1000)) * ((sum(last_over_time(weather_forecast_solar_radiation_watts_per_square_meter{job=\"weather-prometheus-exporter\",horizon_hours=~\"(2[4-9]|3[0-9]|4[0-7])\"}[30m])) / 1000) >= bool clamp_min(vector($solar_goal_kwh_m2), 0.1)))))) and on() (last_over_time(weather_up{job=\"weather-prometheus-exporter\"}[30m]) == 1 and on() ((time() - last_over_time(weather_last_success_timestamp_seconds{job=\"weather-prometheus-exporter\"}[30m])) < 2100) and on() (last_over_time(up{job=\"weather-prometheus-exporter\"}[30m]) == 1)) and on() (last_over_time(((count(weather_forecast_solar_radiation_watts_per_square_meter{job=\"weather-prometheus-exporter\",horizon_hours=~\"([0-9]|1[0-9]|2[0-3])\"}) or vector(0)) and on() up{job=\"weather-prometheus-exporter\"})[30m:1m]) == 24) and on() (last_over_time(((count(weather_forecast_solar_radiation_watts_per_square_meter{job=\"weather-prometheus-exporter\",horizon_hours=~\"(2[4-9]|3[0-9]|4[0-7])\"}) or vector(0)) and on() up{job=\"weather-prometheus-exporter\"})[30m:1m]) == 24)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "range": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "noValue": "Forecast unavailable",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "orange",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Wait for more sun",
+                  "color": "orange"
+                },
+                "1": {
+                  "text": "Consider charging · next 24h",
+                  "color": "green"
+                },
+                "2": {
+                  "text": "Consider charging · 24–48h",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 30,
+      "type": "text",
+      "title": "EV charging outlook · interpretation",
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 24,
+        "h": 4
+      },
+      "transparent": true,
+      "options": {
+        "mode": "markdown",
+        "content": "**Sunshine outlook, not EV electricity:** The gauges show forecast horizontal solar irradiation accumulated over each rolling 24-hour window. **100%** means the window meets the editable **Solar goal (kWh/m²)**, initially 1.0. The suggestion chooses the brighter qualifying window or suggests waiting when neither qualifies. The rule requires a successful Open-Meteo API poll within **35 minutes**, a successful scrape and a complete set of 24 hourly values. **Forecast unavailable** means missing/stale data, not poor sunshine. This does not model roof PV efficiency, household consumption, EV battery SOC or electricity tariffs and never starts a charger."
+      }
+    },
+    {
+      "id": 26,
+      "type": "barchart",
+      "title": "48h forecast · temperature",
+      "description": "Forecast hourly temperature plotted at validity time, not collection time.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "last_over_time(weather_forecast_temperature_celsius{job=\"weather-prometheus-exporter\"}[30m])",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "B",
+          "expr": "last_over_time(weather_forecast_valid_timestamp_seconds{job=\"weather-prometheus-exporter\"}[30m]) * 1000",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "horizon_hours",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "pattern": "^(horizon_hours|Value #A|Value #B)$"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {
+              "horizon_hours": 0,
+              "Value #B": 1,
+              "Value #A": 2
+            },
+            "renameByName": {
+              "Value #B": "Forecast time",
+              "Value #A": "Forecast temperature"
+            }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "targetField": "Forecast time",
+                "destinationType": "time"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": [
+              {
+                "desc": false,
+                "displayName": "Forecast time"
+              }
+            ]
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "pattern": "^(Forecast time|Forecast temperature)$"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "decimals": 1,
+          "noValue": "Forecast unavailable",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "vertical",
+        "xField": "Forecast time",
+        "showValue": "never",
+        "stacking": "none",
+        "groupWidth": 0.8,
+        "barWidth": 0.8,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": false
+        }
+      }
+    },
+    {
+      "id": 27,
+      "type": "barchart",
+      "title": "48h forecast · solar radiation",
+      "description": "Forecast shortwave radiation in W/m², not actual electricity yield. Prefer bright hours for daytime EV charging.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "last_over_time(weather_forecast_solar_radiation_watts_per_square_meter{job=\"weather-prometheus-exporter\"}[30m])",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "B",
+          "expr": "last_over_time(weather_forecast_valid_timestamp_seconds{job=\"weather-prometheus-exporter\"}[30m]) * 1000",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "horizon_hours",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "pattern": "^(horizon_hours|Value #A|Value #B)$"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {
+              "horizon_hours": 0,
+              "Value #B": 1,
+              "Value #A": 2
+            },
+            "renameByName": {
+              "Value #B": "Forecast time",
+              "Value #A": "Forecast solar radiation"
+            }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "targetField": "Forecast time",
+                "destinationType": "time"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": [
+              {
+                "desc": false,
+                "displayName": "Forecast time"
+              }
+            ]
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "pattern": "^(Forecast time|Forecast solar radiation)$"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: W/m²",
+          "decimals": 0,
+          "noValue": "Forecast unavailable",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "vertical",
+        "xField": "Forecast time",
+        "showValue": "never",
+        "stacking": "none",
+        "groupWidth": 0.8,
+        "barWidth": 0.8,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": false
+        }
+      }
+    },
+    {
+      "id": 28,
+      "type": "barchart",
+      "title": "48h forecast · cloud cover",
+      "description": "Hourly forecast: 0% clear sky, 100% overcast.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "last_over_time(weather_forecast_cloud_cover_percent{job=\"weather-prometheus-exporter\"}[30m])",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "B",
+          "expr": "last_over_time(weather_forecast_valid_timestamp_seconds{job=\"weather-prometheus-exporter\"}[30m]) * 1000",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "horizon_hours",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "pattern": "^(horizon_hours|Value #A|Value #B)$"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {
+              "horizon_hours": 0,
+              "Value #B": 1,
+              "Value #A": 2
+            },
+            "renameByName": {
+              "Value #B": "Forecast time",
+              "Value #A": "Forecast cloud cover"
+            }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "targetField": "Forecast time",
+                "destinationType": "time"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": [
+              {
+                "desc": false,
+                "displayName": "Forecast time"
+              }
+            ]
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "pattern": "^(Forecast time|Forecast cloud cover)$"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 0,
+          "noValue": "Forecast unavailable",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "semi-dark-blue"
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "vertical",
+        "xField": "Forecast time",
+        "showValue": "never",
+        "stacking": "none",
+        "groupWidth": 0.8,
+        "barWidth": 0.8,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": false
+        }
+      }
+    },
+    {
+      "id": 29,
+      "type": "barchart",
+      "title": "48h forecast · precipitation",
+      "description": "Forecast hourly rainfall in millimetres, not a cumulative total.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "last_over_time(weather_forecast_precipitation_mm{job=\"weather-prometheus-exporter\"}[30m])",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "B",
+          "expr": "last_over_time(weather_forecast_valid_timestamp_seconds{job=\"weather-prometheus-exporter\"}[30m]) * 1000",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "horizon_hours",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "pattern": "^(horizon_hours|Value #A|Value #B)$"
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {
+              "horizon_hours": 0,
+              "Value #B": 1,
+              "Value #A": 2
+            },
+            "renameByName": {
+              "Value #B": "Forecast time",
+              "Value #A": "Forecast precipitation"
+            }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "targetField": "Forecast time",
+                "destinationType": "time"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": [
+              {
+                "desc": false,
+                "displayName": "Forecast time"
+              }
+            ]
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "pattern": "^(Forecast time|Forecast precipitation)$"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: mm",
+          "decimals": 1,
+          "noValue": "Forecast unavailable",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "vertical",
+        "xField": "Forecast time",
+        "showValue": "never",
+        "stacking": "none",
+        "groupWidth": 0.8,
+        "barWidth": 0.8,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": false
+        }
+      }
+    },
+    {
       "id": 20,
       "type": "table",
-      "title": "48-hour forecast · hourly planning (UTC timestamps shown in local dashboard timezone)",
-      "description": "Forecast is a snapshot indexed by lead hours, not a Prometheus time series in the future. Valid-at times originate from the exporter's UTC forecast valid timestamp. Values are model estimates; radiation is W/m², not predicted PV watts.",
+      "title": "48-hour forecast · hourly detail (Europe/Amsterdam)",
+      "description": "Hourly weather forecast. Valid-at timestamps originate as UTC and are shown in Europe/Amsterdam time. Temperatures in °C, rain in mm, cloud cover %, sunlight in W/m².",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1148,7 +1932,7 @@
       ],
       "gridPos": {
         "x": 0,
-        "y": 29,
+        "y": 56,
         "w": 24,
         "h": 14
       },
@@ -1181,7 +1965,11 @@
             "properties": [
               {
                 "id": "unit",
-                "value": "lengthmm"
+                "value": "suffix: mm"
+              },
+              {
+                "id": "decimals",
+                "value": 1
               }
             ]
           },
@@ -1205,7 +1993,11 @@
             "properties": [
               {
                 "id": "unit",
-                "value": "wattm2"
+                "value": "suffix: W/m²"
+              },
+              {
+                "id": "decimals",
+                "value": 0
               }
             ]
           }
@@ -1297,7 +2089,7 @@
       "title": "Source and data quality",
       "gridPos": {
         "x": 0,
-        "y": 43,
+        "y": 70,
         "w": 24,
         "h": 3
       },
