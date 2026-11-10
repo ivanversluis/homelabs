@@ -32,12 +32,13 @@ The weather pod is excluded from the namespace-wide `allow-same-namespace` polic
 ## Operational verification
 
 ```bash
-flux get kustomizations home-exporters observability -n flux-system
+flux get kustomizations -n flux-system
 kubectl -n home-exporters get externalsecrets weather-prometheus-exporter-location weather-prometheus-exporter-ghcr
 kubectl -n home-exporters rollout status deploy/weather-prometheus-exporter
 kubectl -n home-exporters get pods -l app=weather-prometheus-exporter
-# Query through cluster DNS from observability Prometheus pod:
-kubectl -n observability exec deploy/prometheus -- wget -qO- http://weather-prometheus-exporter.home-exporters.svc.cluster.local:9100/metrics | grep '^weather_up '
+# From a second local terminal, after starting port-forward below:
+# kubectl -n home-exporters port-forward svc/weather-prometheus-exporter 9100:9100
+# curl -s http://localhost:9100/metrics | grep '^weather_up '
 ```
 
 Prometheus target: `job="weather-prometheus-exporter"` (scrape every `15m`). Grafana dashboard: **Home / Weather & Solar Forecast** (`home-weather`). Check `weather_up`, `up{job="weather-prometheus-exporter"}` and `time() - last_over_time(weather_last_success_timestamp_seconds[30m])` before using data for automation. The 48 horizon-labelled forecast points describe *future validity times*, not Prometheus scrape timestamps. Dashboard separates snapshots from historical time-series data. Forecast solar radiation is **not** predicted PV electricity yield and does not yet schedule EV charging.
