@@ -32,8 +32,9 @@ spec:
           type: RuntimeDefault
       containers:
         - name: exporter
-          # Immutable digest verified in the exporter main-branch GHCR build.
-          image: ghcr.io/ivanversluis/weather-prometheus-exporter:sha-026a483
+          # Version tag from exporter commit 026a483 with its verified immutable GHCR digest.
+          # Kubernetes pulls by digest; retain the tag for human traceability.
+          image: ghcr.io/ivanversluis/weather-prometheus-exporter:sha-026a483@sha256:ebbccd049963cf99a037d0534578758a4c12b1b7a8b7f98640bad2c55e428742
           imagePullPolicy: IfNotPresent
           ports:
             - name: metrics

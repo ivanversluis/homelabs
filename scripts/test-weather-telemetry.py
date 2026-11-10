@@ -57,7 +57,8 @@ assert spec["securityContext"]["seccompProfile"]["type"] == "RuntimeDefault"
 assert spec["imagePullSecrets"] == [{"name": "weather-prometheus-exporter-ghcr"}]
 container = spec["containers"][0]
 image = container["image"]
-assert image.startswith("ghcr.io/ivanversluis/weather-prometheus-exporter@sha256:")
+# Keep the explicit source revision AND GHCR manifest digest; Kubernetes pulls by digest.
+assert image == "ghcr.io/ivanversluis/weather-prometheus-exporter:sha-026a483@sha256:ebbccd049963cf99a037d0534578758a4c12b1b7a8b7f98640bad2c55e428742"
 assert len(image.split("@sha256:")[1]) == 64
 assert container["securityContext"]["readOnlyRootFilesystem"] is True
 assert container["securityContext"]["allowPrivilegeEscalation"] is False

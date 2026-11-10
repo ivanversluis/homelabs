@@ -336,6 +336,51 @@ test_cases.append({
     'promql_expr_test': ev_checks((None, 100, None), '16m'),
 })
 
+
+# Codex regression: an entire 24h solar forecast window disappears from the
+# latest effective scrape. count(...) by itself yields no sample, so a 30m
+# last_over_time without "or vector(0)" incorrectly returns the OLD count=24.
+def forecast_with_entire_window_missing_on_latest_scrape(window):
+    data = [
+        {'series': 'weather_up{job="weather-prometheus-exporter"}',
+         'values': '1 _ _ 1 _'},
+        {'series': 'up{job="weather-prometheus-exporter"}',
+         'values': '1 _ _ 1 _'},
+        {'series': 'weather_last_success_timestamp_seconds{job="weather-prometheus-exporter"}',
+         'values': '0 _ _ 900 _'},
+    ]
+    for hour in range(48):
+        omitted = window == "both" or (window == "first" and hour < 24) or (
+            window == "second" and hour >= 24)
+        values = '50 _ _ _ _' if omitted else '50 _ _ 50 _'
+        data.append({
+            'series': f'weather_forecast_solar_radiation_watts_per_square_meter{{job="weather-prometheus-exporter",horizon_hours="{hour}"}}',
+            'values': values,
+        })
+    return data
+
+
+test_cases.extend([
+    {
+        'name': 'EV rejects entirely missing latest first 24h window',
+        'interval': '5m',
+        'input_series': forecast_with_entire_window_missing_on_latest_scrape("first"),
+        'promql_expr_test': ev_checks((None, 100, None), '16m'),
+    },
+    {
+        'name': 'EV rejects entirely missing latest second 24h window',
+        'interval': '5m',
+        'input_series': forecast_with_entire_window_missing_on_latest_scrape("second"),
+        'promql_expr_test': ev_checks((100, None, None), '16m'),
+    },
+    {
+        'name': 'EV rejects entirely missing latest 48h forecast',
+        'interval': '5m',
+        'input_series': forecast_with_entire_window_missing_on_latest_scrape("both"),
+        'promql_expr_test': ev_checks((None, None, None), '16m'),
+    },
+])
+
 with tempfile.TemporaryDirectory() as temp:
     path = Path(temp)
     (path / 'queries.yaml').write_text(yaml.safe_dump({'groups': [{'name': 'dashboard-queries', 'rules': rules}]}))
