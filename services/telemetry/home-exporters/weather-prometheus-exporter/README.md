@@ -1,30 +1,43 @@
 # Weather Prometheus Exporter
 
-Open-Meteo current weather (10-minute API poll) and 48-hour hourly forecast, sourced from [weather-prometheus-exporter](https://github.com/ivanversluis/weather-prometheus-exporter).
+Open-Meteo weather exporter managed by the existing `home-exporters` Flux Kustomization. The image is pinned to digest `sha256:ca494d82...`, published successfully from exporter `main` at commit `e293853` on 2026-11-10. A `v0.1.0` image tag was not published; do not point the Deployment to it.
 
-## Release dependency
+The exporter polls Open-Meteo every **600 seconds** (10 minutes); the standalone `observability` Prometheus scrapes `weather-prometheus-exporter.home-exporters.svc.cluster.local:9100/metrics` every **15 minutes**. Grafana queries use `last_over_time(metric[30m])` to bridge the five-minute default instant-query lookback. This is a cached *forecast and model-derived weather observation*, not a home weather station.
 
-**Merge the exporter PR and publish the `v0.1.0` release/tag first.** Confirm `ghcr.io/ivanversluis/weather-prometheus-exporter:v0.1.0` is available and anonymously pullable (or configure an imagePullSecret) before merging this deployment. The homelab is GitOps-managed by the existing `home-exporters` Flux Kustomization; it is not necessary to create another Flux object.
+## Vault-backed location (no coordinates in Git)
 
-The metrics endpoint is `weather-prometheus-exporter.home-exporters.svc.cluster.local:9100/metrics`. The standalone observability Prometheus job scrapes it every **15 minutes**. The exporter requests external data every **10 minutes** and caches results. Note: Prometheus default instant lookback is 5 minutes; use `last_over_time(weather_temperature_celsius[30m])` for current weather and inspect `time() - last_over_time(weather_last_success_timestamp_seconds[30m])` for stale API polls.
-
-## Location privacy
-
-Public default coordinates correspond to Amsterdam city centre; they do not represent a home. If using precise coordinates later, create a Secret **outside Git** in the `home-exporters` namespace named `weather-prometheus-exporter-location`, with `WEATHER_LATITUDE` and `WEATHER_LONGITUDE` keys. The optional Secret is loaded after the public ConfigMap so it overrides the defaults. Prefer Vault-backed ExternalSecret, managed independently without committing its values; never put home coordinates into this repository, ConfigMaps, Flux substitution variables tracked in Git, metric labels, dashboards, PRs or logs. Restart the deployment to pick up created/rotated environment values. Open-Meteo receives configured coordinates over TLS.
-
-## Security
-
-- One non-root pod, read-only filesystem, dropped capabilities, no service-account token.
-- Metrics reachable from `observability` only on TCP 9100; network policy allows DNS and external HTTPS but excludes RFC1918/metadata IPv4 ranges.
-- Kubernetes NetworkPolicy cannot restrict to api.open-meteo.com by hostname; optional Calico FQDN controls/egress proxy would be required for that higher level of precision.
-- Fail closed for automated control: use fresh successful API polls, not stale forecast data, for any future heating/EV planning.
-
-## Validation after merge
+The location uses an ExternalSecret with the existing `vault-backend` ClusterSecretStore (Vault KV v2 mounted at `secret/`). Seed the path with **public Amsterdam centre** coordinates before merging for a clean ExternalSecret status:
 
 ```bash
-flux get kustomizations home-exporters -n flux-system
-kubectl -n home-exporters rollout status deployment/weather-prometheus-exporter
-kubectl -n observability exec deploy/prometheus -- wget -qO- http://weather-prometheus-exporter.home-exporters.svc.cluster.local:9100/metrics
+# Run only from your trusted Vault-authenticated admin terminal.
+vault kv put -mount=secret infra/home-exporters/weather-prometheus-exporter \
+  WEATHER_LATITUDE="52.3676" \
+  WEATHER_LONGITUDE="4.9041"
+
+# Read status only; do not print Secret values into a public log.
+kubectl -n home-exporters get externalsecret weather-prometheus-exporter-location
+kubectl -n home-exporters get externalsecret weather-prometheus-exporter-ghcr
 ```
 
-Grafana PromQL example: `last_over_time(weather_temperature_celsius[30m])`. Compare outside temperature to existing Home Climate/DSMR metrics; do not implement automatic heating/charging control in this exporter.
+To change to your own location later, run the same `vault kv put -mount=secret ...` command with private values from a trusted terminal (prefer private/secure input); **never paste personal coordinates into GitHub or a chat/PR**. The optional Kubernetes Secret loaded after the public ConfigMap overrides `WEATHER_LATITUDE` and `WEATHER_LONGITUDE` (two keys, no extra labels). Vault ESO refreshes hourly, but environment variables are read at pod startup; restart the weather Deployment after rotation. If the optional Secret is not available, the public Amsterdam defaults apply. Missing KV data makes the ExternalSecret report NotReady even while the pod uses Amsterdam; seed it before approving the PR. Open-Meteo receives the configured coordinates via HTTPS.
+
+## GHCR pull auth (P1 fix)
+
+This cluster requires GHCR credentials even for some public packages. A **separate** `weather-prometheus-exporter-ghcr` DockerConfigJson ExternalSecret uses the existing Vault secret at `infra/argocd` and the same read-only GHCR keys already used by DNS/unbound. The pod references this imagePullSecret. Confirm the referenced token has `read:packages` permission to this exporter image (may require package visibility/access grant). Never commit credentials. The new location Secret is not used for registry access.
+
+## NetworkPolicy
+
+The weather pod is excluded from the namespace-wide `allow-same-namespace` policy, leaving only its dedicated policy: ingress from the *Prometheus pods* in `observability` on TCP 9100; DNS to `kube-system` on TCP/UDP 53; outbound HTTPS on TCP 443 only to public IPv4 ranges. No service-account token, no privileges, run as UID 1000, read-only root filesystem. Standard Kubernetes NetworkPolicy cannot restrict HTTPS to `api.open-meteo.com` by hostname; that would require Calico FQDN controls or an egress proxy. Check that GlobalNetworkPolicy allows this egress.
+
+## Operational verification
+
+```bash
+flux get kustomizations home-exporters observability -n flux-system
+kubectl -n home-exporters get externalsecrets weather-prometheus-exporter-location weather-prometheus-exporter-ghcr
+kubectl -n home-exporters rollout status deploy/weather-prometheus-exporter
+kubectl -n home-exporters get pods -l app=weather-prometheus-exporter
+# Query through cluster DNS from observability Prometheus pod:
+kubectl -n observability exec deploy/prometheus -- wget -qO- http://weather-prometheus-exporter.home-exporters.svc.cluster.local:9100/metrics | grep '^weather_up '
+```
+
+Prometheus target: `job="weather-prometheus-exporter"` (scrape every `15m`). Grafana dashboard: **Home / Weather & Solar Forecast** (`home-weather`). Check `weather_up`, `up{job="weather-prometheus-exporter"}` and `time() - last_over_time(weather_last_success_timestamp_seconds[30m])` before using data for automation. The 48 horizon-labelled forecast points describe *future validity times*, not Prometheus scrape timestamps. Dashboard separates snapshots from historical time-series data. Forecast solar radiation is **not** predicted PV electricity yield and does not yet schedule EV charging.

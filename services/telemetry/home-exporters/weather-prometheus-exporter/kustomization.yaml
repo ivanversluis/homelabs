@@ -4,4 +4,6 @@ resources:
   - weather-prometheus-exporter-configmap.yaml
   - weather-prometheus-exporter-deployment.yaml
   - weather-prometheus-exporter-service.yaml
+  - weather-prometheus-exporter-location-externalsecret.yaml
+  - weather-prometheus-exporter-ghcr-externalsecret.yaml
   - weather-prometheus-exporter-networkpolicy.yaml

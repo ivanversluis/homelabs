@@ -15,6 +15,9 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: observability
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
       ports:
         - protocol: TCP
           port: 9100
@@ -38,6 +41,9 @@ spec:
               - 172.16.0.0/12
               - 192.168.0.0/16
               - 169.254.0.0/16
+              - 100.64.0.0/10
+              - 127.0.0.0/8
+              - 198.18.0.0/15
       ports:
         - protocol: TCP
           port: 443
