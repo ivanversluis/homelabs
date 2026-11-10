@@ -241,6 +241,72 @@ test_cases.append({'name': 'zero solar power has no self-consumption ratio', 'in
 test_cases.append({'name': 'missing telemetry stays missing', 'interval': '1m', 'input_series': [],
     'promql_expr_test': [{'expr': query('home-climate', 10), 'eval_time': '5m', 'exp_samples': []},
                          {'expr': query('k8s-workloads', 5), 'eval_time': '5m', 'exp_samples': []}]})
+# Validate charging recommendations against synthetic complete/partial forecasts
+# and independent freshness conditions. A 15-minute Prometheus scrape interval
+# uses the same 30-minute last_over_time windows as the dashboard.
+def solar_forecast_fixture(first_wm2, second_wm2, *, stale=False, missing_hour=None):
+    length = 80 if stale else 10
+    series = [
+        {'series': 'weather_up{job="weather-prometheus-exporter"}', 'values': f'1+0x{length}'},
+        {'series': 'up{job="weather-prometheus-exporter"}', 'values': f'1+0x{length}'},
+        {'series': 'weather_last_success_timestamp_seconds{job="weather-prometheus-exporter"}',
+         'values': f'{0 if stale else 250}+0x{length}'},
+    ]
+    for hour in range(48):
+        if hour == missing_hour:
+            continue
+        watts = first_wm2 if hour < 24 else second_wm2
+        series.append({
+            'series': f'weather_forecast_solar_radiation_watts_per_square_meter{{job="weather-prometheus-exporter",horizon_hours="{hour}"}}',
+            'values': f'{watts}+0x{length}',
+        })
+    return series
+
+
+def ev_checks(expected, evaluation='5m'):
+    checks = []
+    for panel_id, value in zip((23, 24, 25), expected):
+        checks.append({
+            'expr': query('home-weather', panel_id),
+            'eval_time': evaluation,
+            'exp_samples': [] if value is None else [{'labels': '{}', 'value': value}],
+        })
+    return checks
+
+
+test_cases.extend([
+    {
+        'name': 'EV weather outlook prefers strong first 24h and shows weaker second 24h',
+        'interval': '1m',
+        'input_series': solar_forecast_fixture(50, 25),
+        'promql_expr_test': ev_checks((100, 60, 1)),
+    },
+    {
+        'name': 'EV weather outlook prefers strong second 24h',
+        'interval': '1m',
+        'input_series': solar_forecast_fixture(25, 50),
+        'promql_expr_test': ev_checks((60, 100, 2)),
+    },
+    {
+        'name': 'EV weather outlook declines both weak windows without inventing sunshine',
+        'interval': '1m',
+        'input_series': solar_forecast_fixture(20, 30),
+        'promql_expr_test': ev_checks((48, 72, 0)),
+    },
+    {
+        'name': 'EV weather outlook hides stale API data instead of suggesting charging',
+        'interval': '1m',
+        'input_series': solar_forecast_fixture(50, 50, stale=True),
+        'promql_expr_test': ev_checks((None, None, None), '60m'),
+    },
+    {
+        'name': 'EV outlook requires all 24 forecast hours per window',
+        'interval': '1m',
+        'input_series': solar_forecast_fixture(50, 50, missing_hour=20),
+        'promql_expr_test': ev_checks((None, 100, None)),
+    },
+])
+
 with tempfile.TemporaryDirectory() as temp:
     path = Path(temp)
     (path / 'queries.yaml').write_text(yaml.safe_dump({'groups': [{'name': 'dashboard-queries', 'rules': rules}]}))
