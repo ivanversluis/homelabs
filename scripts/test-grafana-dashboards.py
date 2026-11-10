@@ -397,8 +397,8 @@ test_cases.extend([
     {
         'name': 'EV solar-goal floor is consistent below 0.1 in gauge and advisor',
         'interval': '1m',
-        'input_series': solar_forecast_fixture(2.5, 1.0),
-        'promql_expr_test': ev_checks((60, 24, 0), '5m', solar_goal='0.05'),
+        'input_series': solar_forecast_fixture(2.5, 2.5),
+        'promql_expr_test': ev_checks((60, 60, 0), '5m', solar_goal='0.05'),
     },
 ])
 
