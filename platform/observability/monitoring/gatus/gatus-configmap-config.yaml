@@ -305,6 +305,18 @@ data:
               - "[RESPONSE_TIME] < 2000"
             alerts: *discord_alert
 
+          - name: oasm
+            group: 40-workloads
+            url: "https://oasm.${DOMAIN}/"
+            interval: 60s
+            client: *cloudflare_client
+            ui: *safe_public_ui
+            conditions:
+              - "[STATUS] == any(200, 302)"
+              - "[CERTIFICATE_EXPIRATION] > 168h"
+              - "[RESPONSE_TIME] < 3000"
+            alerts: *discord_alert
+
           - name: homebox
             group: 40-workloads
             url: "https://homebox.${DOMAIN}/"

@@ -11,6 +11,7 @@ resources:
   - vms-kustomization.yaml
   - linkding-kustomization.yaml
   - termix-kustomization.yaml
+  - openasm-kustomization.yaml
   - ai-kustomization.yaml
   - kong-mcp-bootstrap-kustomization.yaml
   - kong-mcp-kustomization.yaml
