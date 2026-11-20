@@ -66,7 +66,7 @@ spec:
               memory: 256Mi
             limits:
               cpu: 1000m
-              memory: 512Mi
+              memory: 768Mi
           livenessProbe:
             httpGet:
               path: /admin/login
@@ -83,7 +83,14 @@ spec:
               mountPath: /etc/pihole
             - name: pihole-dnsmasq
               mountPath: /etc/dnsmasq.d
+            - name: dshm
+              mountPath: /dev/shm
       volumes:
+        # FTL keeps its query history in shared memory; the 64Mi default overflows
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 256Mi
         - name: pihole-data
           persistentVolumeClaim:
             claimName: pihole-data
