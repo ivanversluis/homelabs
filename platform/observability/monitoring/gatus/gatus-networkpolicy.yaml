@@ -64,6 +64,19 @@ spec:
         - protocol: TCP
           port: 443
 
+    # Pi-hole DNS probes (in-cluster service and LAN LoadBalancer address)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: pihole
+        - ipBlock:
+            cidr: 172.16.20.215/32
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
     # Kong API gateway — in-cluster TLS proxy for RouterOS REST API checks
     # Service port 443 → pod port 8443; CNI evaluates post-DNAT so pod port is used
     - to:

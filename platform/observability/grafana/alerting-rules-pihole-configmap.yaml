@@ -1,0 +1,461 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-alerting-rules-pihole
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: alerting
+data:
+  rules-pihole.yaml: |
+    apiVersion: 1
+
+    groups:
+      - orgId: 1
+        name: pihole-availability
+        folder: Homelab
+        interval: 30s
+        rules:
+          - uid: pihole_dns_probe_failing
+            title: PiholeDNSProbeFailing
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 300
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  datasource:
+                    type: prometheus
+                    uid: prometheus
+                  editorMode: code
+                  expr: gatus_results_endpoint_success{name=~"pihole-dns.*"}
+                  instant: true
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  range: false
+                  refId: A
+              - refId: B
+                relativeTimeRange:
+                  from: 0
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  reducer: last
+                  refId: B
+                  type: reduce
+              - refId: C
+                relativeTimeRange:
+                  from: 0
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 1
+                        type: lt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - C
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: B
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: C
+                  type: threshold
+            noDataState: Alerting
+            execErrState: Alerting
+            for: 2m
+            labels:
+              severity: critical
+              component: pihole
+              engine: grafana
+            annotations:
+              summary: "Pi-hole DNS lookups failing ({{ $labels.name }})"
+              description: Gatus cannot resolve names through Pi-hole, or the probe metric is missing. Clients using Pi-hole have no DNS.
+
+          - uid: pihole_not_available
+            title: PiholeDeploymentUnavailable
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 300
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  datasource:
+                    type: prometheus
+                    uid: prometheus
+                  editorMode: code
+                  expr: sum(kube_deployment_status_replicas_available{job="kube-state-metrics",namespace="pihole",deployment="pihole"})
+                  instant: true
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  range: false
+                  refId: A
+              - refId: B
+                relativeTimeRange:
+                  from: 0
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  reducer: last
+                  refId: B
+                  type: reduce
+              - refId: C
+                relativeTimeRange:
+                  from: 0
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 1
+                        type: lt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - C
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: B
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: C
+                  type: threshold
+            noDataState: Alerting
+            execErrState: Alerting
+            for: 2m
+            labels:
+              severity: critical
+              component: pihole
+              engine: grafana
+            annotations:
+              summary: Pi-hole has no available replicas
+              description: The pihole deployment has had no ready pod for 2m.
+
+          - uid: pihole_container_restarting
+            title: PiholeContainerRestarting
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 300
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  datasource:
+                    type: prometheus
+                    uid: prometheus
+                  editorMode: code
+                  expr: sum(increase(kube_pod_container_status_restarts_total{job="kube-state-metrics",namespace="pihole",container="pihole"}[15m]))
+                  instant: true
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  range: false
+                  refId: A
+              - refId: B
+                relativeTimeRange:
+                  from: 0
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  reducer: last
+                  refId: B
+                  type: reduce
+              - refId: C
+                relativeTimeRange:
+                  from: 0
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - C
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: B
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: C
+                  type: threshold
+            noDataState: OK
+            execErrState: Alerting
+            for: 0s
+            labels:
+              severity: warning
+              component: pihole
+              engine: grafana
+            annotations:
+              summary: Pi-hole container restarted in the last 15m
+              description: "The pihole container restarted {{ printf \"%.0f\" $values.B.Value }} time(s) in 15m. Check the previous container logs (kubectl logs --previous)."
+
+          - uid: pihole_crashloop
+            title: PiholeCrashLoopBackOff
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 300
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  datasource:
+                    type: prometheus
+                    uid: prometheus
+                  editorMode: code
+                  expr: max(kube_pod_container_status_waiting_reason{job="kube-state-metrics",namespace="pihole",container="pihole",reason="CrashLoopBackOff"})
+                  instant: true
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  range: false
+                  refId: A
+              - refId: B
+                relativeTimeRange:
+                  from: 0
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  reducer: last
+                  refId: B
+                  type: reduce
+              - refId: C
+                relativeTimeRange:
+                  from: 0
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - C
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: B
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: C
+                  type: threshold
+            noDataState: OK
+            execErrState: Alerting
+            for: 1m
+            labels:
+              severity: critical
+              component: pihole
+              engine: grafana
+            annotations:
+              summary: Pi-hole container is in CrashLoopBackOff
+              description: The pihole container keeps crashing. Check kubectl logs --previous for the failing component (for example FTL shared memory).
+
+          - uid: pihole_memory_high
+            title: PiholeMemoryNearLimit
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 300
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  datasource:
+                    type: prometheus
+                    uid: prometheus
+                  editorMode: code
+                  expr: 100 * max(container_memory_working_set_bytes{job="kubernetes-cadvisor",namespace="pihole",container="pihole"}) / max(kube_pod_container_resource_limits{job="kube-state-metrics",namespace="pihole",container="pihole",resource="memory"})
+                  instant: true
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  range: false
+                  refId: A
+              - refId: B
+                relativeTimeRange:
+                  from: 0
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  reducer: last
+                  refId: B
+                  type: reduce
+              - refId: C
+                relativeTimeRange:
+                  from: 0
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 85
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - C
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: B
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: C
+                  type: threshold
+            noDataState: OK
+            execErrState: Alerting
+            for: 10m
+            labels:
+              severity: warning
+              component: pihole
+              engine: grafana
+            annotations:
+              summary: Pi-hole memory above 85% of its limit
+              description: "Pi-hole working set (includes the /dev/shm query cache) is {{ printf \"%.1f\" $values.B.Value }}% of the memory limit. Raise the limit or shorten history before FTL runs out of memory."
+
+          - uid: pihole_no_queries
+            title: PiholeNoQueries
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 900
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  datasource:
+                    type: prometheus
+                    uid: prometheus
+                  editorMode: code
+                  expr: sum(increase(pihole_dns_queries_today[15m]))
+                  instant: true
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  range: false
+                  refId: A
+              - refId: B
+                relativeTimeRange:
+                  from: 0
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  reducer: last
+                  refId: B
+                  type: reduce
+              - refId: C
+                relativeTimeRange:
+                  from: 0
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 1
+                        type: lt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - C
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: B
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: C
+                  type: threshold
+            noDataState: OK
+            execErrState: Alerting
+            for: 5m
+            labels:
+              severity: warning
+              component: pihole
+              engine: grafana
+            annotations:
+              summary: Pi-hole is not receiving any DNS queries
+              description: Pi-hole answered no queries in the last 15m although about 30 clients normally use it. Clients may have lost their DNS server.

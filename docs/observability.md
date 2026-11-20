@@ -103,6 +103,12 @@ DNS dashboards include:
 - Unbound Recursive Resolver
 
 Prometheus alert rules are stored in `platform/observability/prometheus/prometheus-alerts.yml` and cover CoreDNS error/latency conditions plus Pi-hole and Unbound exporter/upstream failures. Grafana's provisioned alert rules remain under `platform/observability/grafana/`.
+
+Pi-hole availability is monitored end to end, because the exporter staying up does not prove Pi-hole answers DNS:
+
+- Gatus runs real DNS lookups (`pihole-dns-service`, `pihole-dns-lan`) and alerts to Discord; Prometheus scrapes the result as `gatus_results_endpoint_success`.
+- Grafana rules in `grafana/alerting-rules-pihole-configmap.yaml` alert on a failing probe, no available replica, container restarts, `CrashLoopBackOff`, memory near the limit (includes the `/dev/shm` query cache) and zero queries.
+- The DNS Overview dashboard shows probe status, restarts and memory next to the query-rate panels.
 Longhorn disk/node scheduling metrics are scraped from each Longhorn Manager endpoint
 at TCP/9500 and displayed in the managed Longhorn Scheduling & Disk Capacity dashboard.
 The ingress exception is owned by the Longhorn Kustomization and restricts the

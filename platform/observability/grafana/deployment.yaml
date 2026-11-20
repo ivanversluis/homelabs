@@ -122,6 +122,10 @@ spec:
               mountPath: /etc/grafana/provisioning/alerting/rules-time-sync.yaml
               subPath: rules-time-sync.yaml
               readOnly: true
+            - name: alerting-rules-pihole
+              mountPath: /etc/grafana/provisioning/alerting/rules-pihole.yaml
+              subPath: rules-pihole.yaml
+              readOnly: true
             - name: dashboards-dns
               mountPath: /var/lib/grafana/dashboards/DNS
               readOnly: true
@@ -192,6 +196,9 @@ spec:
         - name: alerting-rules-time-sync
           configMap:
             name: grafana-alerting-rules-time-sync
+        - name: alerting-rules-pihole
+          configMap:
+            name: grafana-alerting-rules-pihole
         - name: dashboards-dns
           projected:
             sources:

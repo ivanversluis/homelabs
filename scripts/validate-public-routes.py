@@ -98,6 +98,8 @@ def gatus_endpoints():
                 current["host"] = url.group(1)
             elif re.match(r"^\s+enabled: false\s*$", line):
                 current["enabled"] = False
+            elif re.match(r"^\s+dns:\s*$", line):
+                current["dns"] = True
     return endpoints
 
 
@@ -151,7 +153,7 @@ def main():
     for endpoint in endpoints:
         if endpoint.get("group") not in GROUPS:
             errors.append(f"Gatus endpoint '{endpoint['name']}' has an invalid/missing group")
-        if "host" not in endpoint:
+        if "host" not in endpoint and not endpoint.get("dns"):
             errors.append(f"Gatus endpoint '{endpoint['name']}' has no supported URL host")
     for name, count in Counter(e["name"] for e in endpoints).items():
         if count != 1:

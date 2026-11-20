@@ -43,6 +43,9 @@ spec:
               value: "true"
             - name: FTLCONF_dns_queryLogging
               value: "true"
+            # Keep 30 days of query history on disk instead of the 91-day default
+            - name: FTLCONF_database_maxDBdays
+              value: "30"
             - name: FTLCONF_misc_etc_dnsmasq_d
               value: "true"
             - name: FTLCONF_webserver_api_password

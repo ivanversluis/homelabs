@@ -24,6 +24,7 @@ resources:
   - grafana/alerting-contact-points-configmap.yaml
   - grafana/alerting-notification-policies-configmap.yaml
   - grafana/alerting-rules-time-sync-configmap.yaml
+  - grafana/alerting-rules-pihole-configmap.yaml
   - grafana/alerting-rules-node-resources-configmap.yaml
   - grafana/alerting-rules-pvc-configmap.yaml
   - grafana/alerting-rules-longhorn-configmap.yaml

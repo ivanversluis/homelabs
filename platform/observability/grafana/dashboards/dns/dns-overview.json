@@ -8,13 +8,220 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "refresh": "30s",
   "time": {
     "from": "now-1h",
     "to": "now"
   },
   "panels": [
+    {
+      "type": "stat",
+      "title": "Pi-hole DNS probe (Gatus)",
+      "description": "Active DNS lookups against the Pi-hole service and LAN address, run by Gatus. DOWN means clients cannot resolve names via Pi-hole.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "min(gatus_results_endpoint_success{name=~\"pihole-dns.*\"})",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "range": false
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 0,
+        "y": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              {
+                "value": null,
+                "color": "red"
+              },
+              {
+                "value": 1,
+                "color": "green"
+              }
+            ]
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "id": 10,
+      "options": {
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Pi-hole container restarts (24h)",
+      "description": "Restarts of the pihole container. Repeated restarts indicate a crash loop.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(kube_pod_container_status_restarts_total{job=\"kube-state-metrics\",namespace=\"pihole\",container=\"pihole\"}[24h]))",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "range": false
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 8,
+        "y": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 1,
+                "color": "yellow"
+              },
+              {
+                "value": 3,
+                "color": "red"
+              }
+            ]
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "id": 11,
+      "options": {
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Pi-hole memory vs limit",
+      "description": "Working set (includes the /dev/shm query cache) as a percentage of the container memory limit.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "100 * max(container_memory_working_set_bytes{job=\"kubernetes-cadvisor\",namespace=\"pihole\",container=\"pihole\"}) / max(kube_pod_container_resource_limits{job=\"kube-state-metrics\",namespace=\"pihole\",container=\"pihole\",resource=\"memory\"})",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "range": false
+        }
+      ],
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 70,
+                "color": "yellow"
+              },
+              {
+                "value": 85,
+                "color": "red"
+              }
+            ]
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "id": 12,
+      "options": {
+        "graphMode": "none",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background"
+      }
+    },
     {
       "type": "stat",
       "title": "CoreDNS Queries/s",
@@ -285,7 +492,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 4
+        "y": 8
       },
       "fieldConfig": {
         "defaults": {
@@ -338,7 +545,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 4
+        "y": 8
       },
       "fieldConfig": {
         "defaults": {
@@ -392,7 +599,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 4
+        "y": 8
       },
       "fieldConfig": {
         "defaults": {
@@ -454,7 +661,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 12
+        "y": 16
       },
       "fieldConfig": {
         "defaults": {
@@ -507,7 +714,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 12
+        "y": 16
       },
       "fieldConfig": {
         "defaults": {

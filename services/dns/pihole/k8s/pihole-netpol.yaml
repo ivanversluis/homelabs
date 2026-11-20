@@ -97,6 +97,31 @@ spec:
         - protocol: TCP
           port: 53
 ---
+# Gatus (monitoring) -> Pi-hole DNS synthetic probes
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gatus-dns-probe
+  namespace: pihole
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: pihole
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: gatus
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
 # Pi-hole -> Unbound
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

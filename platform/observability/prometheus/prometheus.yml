@@ -123,6 +123,17 @@ scrape_configs:
     scrape_interval: 30s
     scrape_timeout: 10s
 
+  # Gatus synthetic checks (monitoring namespace): active Pi-hole DNS probes
+  - job_name: 'gatus'
+    static_configs:
+      - targets: ['gatus.monitoring.svc.cluster.local:80']
+        labels:
+          service: 'gatus'
+          app: 'monitoring'
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
   # Daikin exporter (home-exporters namespace)
   - job_name: 'daikin-prometheus-exporter'
     static_configs:

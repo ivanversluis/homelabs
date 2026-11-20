@@ -264,6 +264,48 @@ data:
               - "[BODY].status == ok"
             alerts: *discord_alert
 
+  45-services-dns.yaml: |
+    # 30-services | 2 checks
+    # Real DNS lookups against Pi-hole: catches FTL crashes that HTTP/exporter checks miss.
+    endpoints:
+      - name: pihole-dns-service
+        group: 30-services
+        url: "pihole.pihole.svc.cluster.local"
+        interval: 60s
+        dns:
+          query-type: "A"
+          query-name: "cloudflare.com"
+        client: &dns_client
+          timeout: 5s
+        ui: &dns_ui
+          hide-url: true
+          hide-hostname: true
+          hide-port: true
+          hide-errors: false
+        conditions:
+          - "[DNS_RCODE] == NOERROR"
+          - "[RESPONSE_TIME] < 1000"
+        alerts: &dns_alert
+          - type: discord
+            description: "Pi-hole DNS lookup failed"
+            failure-threshold: 3
+            success-threshold: 2
+            send-on-resolved: true
+
+      - name: pihole-dns-lan
+        group: 30-services
+        url: "172.16.20.215"
+        interval: 60s
+        dns:
+          query-type: "A"
+          query-name: "cloudflare.com"
+        client: *dns_client
+        ui: *dns_ui
+        conditions:
+          - "[DNS_RCODE] == NOERROR"
+          - "[RESPONSE_TIME] < 1000"
+        alerts: *dns_alert
+
   50-workloads.yaml: |
     # 40-workloads | 8 checks
     endpoints:
