@@ -50,6 +50,8 @@ unset DOMAIN
 
 ## Phase 2 — prerequisites for major upgrade to v3
 
+**Before merging the v2 preparation PR or any later image update**, verify recent and restorable PostgreSQL + application-PVC backups and the retained encryption key. Even a minor image change can run schema migrations. Make sure the live PersistentVolumes are protected by an appropriate reclaim policy. 
+
 1. Upgrade stable v2 first to **2.48.7** and verify the service and important workflows.
 2. In n8n go to **Settings → Migration Report**. Review both **Workflow issues** and **Instance issues**, resolve or explicitly triage findings, and test any automatically migrated workflows. Export the report for the change record.
 3. Look for removed legacy nodes (Function / Function Item / Item Lists / Cron / older OpenAI nodes / older AI Agent types), incompatible expression helpers, custom/community nodes, and updated task-runner defaults.
