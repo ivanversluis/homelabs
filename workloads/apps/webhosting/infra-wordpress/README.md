@@ -3,13 +3,14 @@
 The local Portainer stack `infra-wordpress` is still the owner of the original
 `dmz-wordpress` network and currently has **three running services**:
 `infra-hosting-mariadb`, `infra-hosting-redis`, and
-`infra-hosting-iso2010-nginx`. The two WordPress PHP 7.4 containers are exited
-and MUST remain off. The Networknet Hugo nginx container is already managed
+`infra-hosting-iso2010-nginx`. The two original WordPress PHP 7.4 containers are exited and MUST remain off. The Networknet Hugo nginx container is already managed
 separately from Git at `../docker-compose.yml`.
 
 `docker-compose.yml` in this directory is a **cutover candidate**, not a
-drop-in live update. It intentionally omits both WordPress/PHP services and the
-Networknet nginx service. It retains original static IPs, aliases and host
+drop-in live update. It intentionally omits the **original production** WordPress/PHP services and the
+Networknet nginx service. Two *different* WordPress/PHP-FPM containers and two
+lab databases are opt-in only using Compose profile `wordpress-lab`; all use
+isolated test directories and a separate internal bridge. It retains original static IPs, aliases and host
 ports and declares the DMZ as **external**, so it never creates/destroys the
 shared network. No Kubernetes Flux reconciliation or automatic deployment is
 configured.
@@ -75,6 +76,77 @@ do not disable working SSO or change global authentication as part of this PR.
    while it owns the DMZ network; this could remove a shared bridge and break
    the active Cloudflare Tunnel and Networknet nginx.
 
+
+## Optional WordPress/PHP restore lab — off by default
+
+The historical Compose identified **two** original PHP-FPM 7.4 services:
+`iso2010-wordpress` (database `iso2010`, table prefix `q3gi_`) and
+`networknet-wordpress` (database `networknet`, prefix `ntwk_`).
+The new Compose preserves both roles as **isolated, separately named lab
+containers** (`lab-iso2010-wordpress` and `lab-networknet-wordpress`). It
+also defines one isolated MariaDB test database per site.
+
+- Profile: `wordpress-lab`, **disabled** in ordinary Compose/Portainer
+  deployment; only activate after checking Podman/Portainer profile support.
+- WordPress image: official `wordpress:7.1.5-php8.3-fpm-alpine`
+  (a **modern PHP 8.3 test**, not the retired PHP 7.4 runtime).
+- Lab network: private `wordpress-lab` bridge with `internal: true`;
+  **no** `dmz-wordpress`, Cloudflare Tunnel or production nginx membership.
+- No host ports, no live production database, and no production webroot mounts.
+- `restart: "no"` so the lab does not reappear after a restart by itself.
+- Lab content/database directories are separate:
+  `/containers/infra-wordpress/lab/<site>/html` and `.../<site>/db`.
+
+**A PHP-FPM listener is not a website.** It cannot be accessed through
+a browser until you create a separate test-only HTTP reverse proxy attached
+to the lab bridge. Never publish PHP-FPM TCP/9000 on the host, attach the lab
+to the DMZ, or point production nginx to these backends.
+
+### Before activating the profile
+
+1. Use **sanitized copies** of backups, not live production WordPress mounts.
+   Never copy an old `wp-config.php` unchanged: it may contain production DB
+   credentials and server addresses. Remove it in the *lab copy only* so the
+   WordPress image can generate a new configuration from lab credentials.
+2. Restore the appropriate site dump to its own isolated lab database.
+   Use backup/restore steps appropriate to the existing MariaDB version, and
+   do not import real user details into a reachable demo. Disable mail,
+   scheduled jobs, external integrations and plugin callbacks in the lab.
+3. Prepare lab directories and four separate secrets paths locally (no
+   secrets in Git, screenshots, the Portainer editor or Git stack variables):
+
+   ```text
+   /containers/infra-wordpress/lab/iso2010/
+     html/  db/  db-secrets/  wp-secrets/
+   /containers/infra-wordpress/lab/networknet/
+     html/  db/  db-secrets/  wp-secrets/
+   ```
+
+   Each `db-secrets/` must contain files named `root-password` and
+   `wordpress-db-password`. Each `wp-secrets/` contains only
+   `wordpress-db-password` with the **same generated test-user value** for
+   that site. Use unique values for both lab databases; generate them locally
+   with a secure password generator and store them with restricted ownership/
+   permissions readable by the container. Do not reuse production passwords.
+4. Validate with `docker compose config` or the installed Podman Compose
+   provider before using Portainer. Check that an ordinary configuration starts
+   only MariaDB, Redis and ISO2010 nginx, and that activation of
+   `wordpress-lab` adds four isolated containers with **zero published
+   ports**. Check that no old stopped container names are reused.
+5. Opt in only in a dedicated test window with a verified offline copy.
+   Compose profile activation uses `--profile wordpress-lab` or
+   `COMPOSE_PROFILES=wordpress-lab` where supported. Portainer's support
+   depends on the Compose provider; verify it before depending on the profile.
+   Do **not** run `compose down` for the whole live stack merely to stop
+   tests: stop the four lab services selectively after inspecting runtime.
+6. Check actual WordPress/PHP compatibility against the old plugins/themes.
+   These images are intentionally newer than the legacy sites; a successful
+   container start does not establish that the migrated application works.
+
+The Git definition records a **possible future isolated experiment**,
+not permission to restart the vulnerable PHP 7.4 images. Nothing here is a
+reversible production rollback to WordPress.
+
 ## Inspect read-only before cutover
 
 ```sh
@@ -126,7 +198,9 @@ because they may contain credentials.
 
 - **Networknet Hugo**: `workloads/apps/webhosting/docker-compose.yml`.
 - **Legacy infra services**: this folder's candidate Compose after cutover.
-- **Retired WordPress PHP**: deliberately absent; do not restart.
+- **Retired WordPress PHP 7.4**: absent from the Git-managed production
+  services; do not restart. The new optional PHP 8.3 lab containers below are
+  not drop-in replacements for the original legacy runtime.
 - **Secrets**: Pi4-protected host secret files or a future Vault/ESO-backed
   materialization process. Never commit plaintext, even in a sample.
 - **Portainer itself**: separately managed; check actual authentication,
