@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oasm-redis
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: oasm-redis}
+  template:
+    metadata:
+      labels: {app: oasm-redis}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 999
+        runAsGroup: 999
+        runAsNonRoot: true
+        fsGroup: 999
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: redis
+          image: redis:7.4-alpine
+          command: [sh, -ec]
+          args:
+            - 'exec redis-server --appendonly yes --requirepass "$REDIS_PASSWORD"'
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: oasm-env, key: REDIS_PASSWORD}
+          ports:
+            - {name: redis, containerPort: 6379}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: tmp, mountPath: /tmp}
+          readinessProbe:
+            tcpSocket: {port: redis}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 512Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: oasm-redis-data}
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oasm-redis
+spec:
+  selector: {app: oasm-redis}
+  ports:
+    - {name: redis, port: 6379, targetPort: redis}

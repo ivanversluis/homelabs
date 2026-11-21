@@ -31,10 +31,10 @@ Terraform is executed through **Semaphore UI**; it does not own the Kubernetes I
 | `10-platform` | `platform/`: observability, monitoring, storage | 3 |
 | `20-infra` | `infra/`: operations, GitOps control, secrets, automation | 5 |
 | `30-services` | `services/`: identity and shared API gateway | 3 |
-| `40-workloads` | `workloads/apps/`: end-user and application workloads | 11 |
+| `40-workloads` | `workloads/apps/`: end-user and application workloads | 12 |
 | `50-compute-synology` | Synology-specific checks (disabled until publicly published) | 0 |
 
-The declared public inventory comprises **22 hostnames**. Every row below has exactly one *primary* Gatus check and one Homepage link. The synthetic `cloudflare-domain` monitor separately rechecks `homepage` under `00-edge` for domain and certificate expiry.
+The declared public inventory comprises **23 hostnames**. Every row below has exactly one *primary* Gatus check and one Homepage link. The synthetic `cloudflare-domain` monitor separately rechecks `homepage` under `00-edge` for domain and certificate expiry.
 
 ## Declared public routes
 
@@ -58,6 +58,7 @@ The first column is the hostname **prefix**, not a complete address. The table's
 | `fm-prod` | `40-workloads` | `http://fm-webui.firewall-manager-prod.svc.cluster.local` | `firewall-manager-prod` |
 | `fm-staging` | `40-workloads` | `http://fm-webui.firewall-manager-staging.svc.cluster.local` | `firewall-manager-staging` |
 | `forgejo` | `40-workloads` | `http://forgejo.forgejo.svc.cluster.local:3000` | `forgejo` |
+| `oasm` | `40-workloads` | `http://kong-kong-proxy.kong.svc.cluster.local:80` | `oasm` |
 | `homebox` | `40-workloads` | `http://homebox.homebox.svc.cluster.local:80` | `homebox` |
 | `homepage` | `40-workloads` | `http://homepage.homepage.svc.cluster.local:80` | `homepage` |
 | `n8n` | `40-workloads` | `http://n8n.n8n.svc.cluster.local` | `n8n` |

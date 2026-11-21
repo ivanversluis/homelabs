@@ -1,0 +1,46 @@
+# Upstream publishes refreshed DB-IP Lite datasets daily to the :latest tag.
+# This is a reviewed exception to the mutable-image baseline.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oasm-geoip
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: oasm-geoip}
+  template:
+    metadata:
+      labels: {app: oasm-geoip}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: geoip
+          image: ghcr.io/l1ttps/geoip-proxy:latest
+          env:
+            - {name: PORT, value: "4360"}
+          ports:
+            - {name: http, containerPort: 4360}
+          readinessProbe:
+            tcpSocket: {port: http}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 512Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oasm-geoip
+spec:
+  selector: {app: oasm-geoip}
+  ports:
+    - {name: http, port: 4360, targetPort: http}

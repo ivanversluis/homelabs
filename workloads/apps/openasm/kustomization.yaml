@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: openasm
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - externalsecret.yaml
+  - pvc.yaml
+  - postgres.yaml
+  - redis.yaml
+  - rustfs.yaml
+  - geoip.yaml
+  - api.yaml
+  - console.yaml
+  - networkpolicy.yaml
+  - oauth2-proxy/
+configMapGenerator:
+  - name: oasm-nginx
+    files:
+      - default.conf=nginx.conf
+generatorOptions:
+  disableNameSuffixHash: true
