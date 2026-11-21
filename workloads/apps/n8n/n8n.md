@@ -1,31 +1,28 @@
-# n8n Homelab wiki
-
-## Documentation
-https://docs.n8n.io/
-
-## Repo
-https://github.com/n8n-io/n8n
-
-## Releases
-https://hub.docker.com/r/n8nio/n8n
-
-## Latest version
-2.20.6
+# n8n (homelab)
 
 ## Objective
-As home-admin I want a self-hosted workflow automation platform to connect services, automate tasks, and build integrations without vendor lock-in.
 
-## Implementation
-Deployed as a Kubernetes Deployment with a dedicated PostgreSQL sidecar database. Secrets managed via ExternalSecret operator backed by Vault.
+Self-hosted workflow automation on Kubernetes, managed by Flux CD with PostgreSQL and Vault-backed External Secrets.
 
-## Stack
-Kubernetes Deployment (Kustomize via Flux)
+## Deployment (source of truth)
 
-## LLD
-- Namespace: n8n
-- Image: n8nio/n8n:2.20.6
-- Port: tcp/5678
-- Volume: n8n-pvc mounted at /home/node/.n8n (Longhorn)
-- Database: PostgreSQL (separate deployment in same namespace)
-- Security: runAsUser 1000, runAsNonRoot
-- Dependencies: ExternalSecret (Vault) for DB password, encryption key, basic auth credentials
+- Manifest path: `workloads/apps/n8n/`
+- Flux: `compute/eliteboxes/workloads/n8n-kustomization.yaml`
+- Namespace: `n8n`; service: `n8n:80` -> container port `5678`
+- Image: `n8nio/n8n:2.48.7` (v2 migration-preparation release; see the deployment manifest for the actual pin)
+- Application data: PVC `n8n-pvc`, mounted at `/home/node/.n8n`
+- Database: PostgreSQL StatefulSet `n8n-postgres` with `n8n-postgres-pvc`
+- Secrets: Vault KV `secret/apps/n8n` -> ExternalSecret `n8n-secrets`
+- Security: non-root UID/GID 1000, namespace NetworkPolicies, `Recreate` rollout for the RWO app PVC
+
+## AI Gateway
+
+Kong provides an internal OpenAI-compatible endpoint at `https://llm-gw.<domain>/v1`. Connect with the n8n **OpenAI** credential, the internal gateway client key (Vault `secret/infra/kong`, property `AI_GATEWAY_CLIENT_KEY`) and model `claude-sonnet-4-6`. Do not put the API key or private domain in Git.
+
+The n8n 3.0 migration and credential setup procedures are in [n8n AI Gateway / v3 migration runbook](../../../docs/lifecycle/n8n-v3-ai-gateway-migration.md).
+
+## Documentation
+
+- https://docs.n8n.io/
+- https://github.com/n8n-io/n8n
+- https://hub.docker.com/r/n8nio/n8n/tags
