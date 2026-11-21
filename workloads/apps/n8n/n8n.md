@@ -9,7 +9,7 @@ Self-hosted workflow automation on Kubernetes, managed by Flux CD with PostgreSQ
 - Manifest path: `workloads/apps/n8n/`
 - Flux: `compute/eliteboxes/workloads/n8n-kustomization.yaml`
 - Namespace: `n8n`; service: `n8n:80` -> container port `5678`
-- Image: `n8nio/n8n:2.48.7` (v2 migration-preparation release; see the deployment manifest for the actual pin)
+- Image: `n8nio/n8n:3.3.0-4078a9d` (early-access v3 candidate, **not approved for production**; deployment manifest pins the image digest)
 - Application data: PVC `n8n-pvc`, mounted at `/home/node/.n8n`
 - Database: PostgreSQL StatefulSet `n8n-postgres` with `n8n-postgres-pvc`
 - Secrets: Vault KV `secret/apps/n8n` -> ExternalSecret `n8n-secrets`
