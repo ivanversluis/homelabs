@@ -41,7 +41,7 @@ spec:
       #         mountPath: /home/node/.n8n
       containers:
         - name: n8n
-          image: n8nio/n8n:2.43.3
+          image: n8nio/n8n:2.48.7
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5678
@@ -72,6 +72,14 @@ spec:
                 secretKeyRef:
                   name: n8n-secrets
                   key: N8N_BASIC_AUTH_PASSWORD
+          # Major-version migrations can require extra startup time. Suppress
+          # liveness checks until the application is ready.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 5678
+            periodSeconds: 10
+            failureThreshold: 60
           readinessProbe:
             httpGet:
               path: /healthz
