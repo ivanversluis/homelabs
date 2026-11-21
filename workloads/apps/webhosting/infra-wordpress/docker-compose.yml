@@ -2,7 +2,8 @@
 # services on the Pi4. DO NOT deploy over the existing local Portainer stack.
 # Networknet Hugo nginx is separately managed in ../docker-compose.yml.
 #
-# The WordPress/PHP 7.4 containers are deliberately absent.
+# Legacy PHP 7.4 is excluded. Modern WordPress/PHP lab services below are
+# profile-gated and isolated from production; no containers start by default.
 services:
   mariadb:
     # Set a verified, versioned image reference or repository digest using
@@ -67,9 +68,90 @@ services:
         aliases:
           - infra-hosting-redis.networknet.local
 
+
+  # Optional restore lab. These services never use production WordPress
+  # directories, the dmz-wordpress network, or published host ports.
+  # Compose profiles default to OFF; no PHP service starts in a normal up.
+  iso2010-lab-db:
+    profiles: ["wordpress-lab"]
+    image: ${MARIADB_IMAGE:?Set_pinned_MariaDB_image_in_Portainer}
+    container_name: lab-iso2010-mariadb
+    restart: "no"
+    environment:
+      MARIADB_DATABASE: iso2010
+      MARIADB_USER: iso2010
+      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/root-password
+      MARIADB_PASSWORD_FILE: /run/secrets/wordpress-db-password
+    volumes:
+      - /containers/infra-wordpress/lab/iso2010/db:/var/lib/mysql
+      - /containers/infra-wordpress/lab/iso2010/db-secrets:/run/secrets:ro
+    networks:
+      - wordpress-lab
+
+  iso2010-wordpress-lab:
+    profiles: ["wordpress-lab"]
+    # This is NOT the retired PHP 7.4 runtime.
+    image: docker.io/library/wordpress:7.1.5-php8.3-fpm-alpine
+    container_name: lab-iso2010-wordpress
+    restart: "no"
+    depends_on:
+      - iso2010-lab-db
+    environment:
+      WORDPRESS_DB_HOST: iso2010-lab-db:3306
+      WORDPRESS_DB_NAME: iso2010
+      WORDPRESS_DB_USER: iso2010
+      WORDPRESS_DB_PASSWORD_FILE: /run/secrets/wordpress-db-password
+      WORDPRESS_TABLE_PREFIX: q3gi_
+    volumes:
+      - /containers/infra-wordpress/lab/iso2010/html:/var/www/html
+      - /containers/infra-wordpress/lab/iso2010/wp-secrets:/run/secrets:ro
+    networks:
+      - wordpress-lab
+
+  networknet-lab-db:
+    profiles: ["wordpress-lab"]
+    image: ${MARIADB_IMAGE:?Set_pinned_MariaDB_image_in_Portainer}
+    container_name: lab-networknet-mariadb
+    restart: "no"
+    environment:
+      MARIADB_DATABASE: networknet
+      MARIADB_USER: networknet
+      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/root-password
+      MARIADB_PASSWORD_FILE: /run/secrets/wordpress-db-password
+    volumes:
+      - /containers/infra-wordpress/lab/networknet/db:/var/lib/mysql
+      - /containers/infra-wordpress/lab/networknet/db-secrets:/run/secrets:ro
+    networks:
+      - wordpress-lab
+
+  networknet-wordpress-lab:
+    profiles: ["wordpress-lab"]
+    # Existing Hugo site stays static on its separate nginx container.
+    image: docker.io/library/wordpress:7.1.5-php8.3-fpm-alpine
+    container_name: lab-networknet-wordpress
+    restart: "no"
+    depends_on:
+      - networknet-lab-db
+    environment:
+      WORDPRESS_DB_HOST: networknet-lab-db:3306
+      WORDPRESS_DB_NAME: networknet
+      WORDPRESS_DB_USER: networknet
+      WORDPRESS_DB_PASSWORD_FILE: /run/secrets/wordpress-db-password
+      WORDPRESS_TABLE_PREFIX: ntwk_
+    volumes:
+      - /containers/infra-wordpress/lab/networknet/html:/var/www/html
+      - /containers/infra-wordpress/lab/networknet/wp-secrets:/run/secrets:ro
+    networks:
+      - wordpress-lab
+
 # Network already owned by the old Pi4 stack and shared by Cloudflare Tunnel,
 # ISO2010, Networknet nginx, and the legacy database/cache. Never recreate it.
 networks:
   dmz-wordpress:
     name: dmz-wordpress
     external: true
+
+  # Private, isolated test-only bridge; deliberately no attachment to DMZ.
+  wordpress-lab:
+    driver: bridge
+    internal: true
