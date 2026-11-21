@@ -1,0 +1,37 @@
+# Networknet Hugo origin on the Pi4 (rootful Podman).
+# This reuses the existing DMZ bridge and does not start WordPress/PHP.
+services:
+  networknet-nginx:
+    # NGINX2Root fixes are included from nginx 1.30.7 (stable).
+    image: docker.io/library/nginx:1.30.7-alpine3.24
+    container_name: infra-hosting-networknet-nginx
+    hostname: infra-hosting-networknet-nginx
+    restart: always
+    cap_drop:
+      - AUDIT_WRITE
+      - MKNOD
+      - NET_RAW
+    volumes:
+      # Keep this RW: the Networknet guarded 301/404 deployment updates
+      # nginx.conf and the 404.jsonl log inside this existing bind mount.
+      - type: bind
+        source: /containers/infra-wordpress/nginx-networknet
+        target: /etc/nginx/conf.d
+      - type: bind
+        source: /containers/infra-wordpress/wordpress/data/networknet
+        target: /var/www/html
+        read_only: true
+    networks:
+      dmz-wordpress:
+        # Retain the last verified Pi4 origin address until the Cloudflare
+        # Tunnel service URL is verified to use an internal DNS name.
+        ipv4_address: 10.10.10.5
+        aliases:
+          - networknet-nginx
+          - infra-hosting-networknet-nginx
+          - infra-hosting-networknet-nginx.networknet.local
+
+networks:
+  dmz-wordpress:
+    name: dmz-wordpress
+    external: true
