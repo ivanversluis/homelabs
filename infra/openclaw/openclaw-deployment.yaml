@@ -27,38 +27,8 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       initContainers:
-        # Kubelet's fsGroup handling can make an emptyDir group-writable without
-        # the sticky bit. OpenClaw's safe-temp validation rejects that /tmp root
-        # before the gateway can access its shared SQLite state.
-        # Only this pod-scoped scratch volume is modified; the PVC is untouched.
-        - name: prepare-tmp
-          image: ghcr.io/openclaw/openclaw:2026.11.6
-          imagePullPolicy: IfNotPresent
-          command:
-            - sh
-            - -ec
-            - |
-              # With fsGroup, the emptyDir root may have the setgid bit (2xxx).
-              # GNU chmod 1777 preserves directory setgid and yields 3777,
-              # causing the old exact-mode test to fail. 01777 clears it.
-              echo "OpenClaw /tmp before: $(stat -c '%a uid=%u gid=%g' /tmp)"
-              chmod 01777 /tmp
-              echo "OpenClaw /tmp after: $(stat -c '%a uid=%u gid=%g' /tmp)"
-              test "$(stat -c %a /tmp)" = 1777
-          securityContext:
-            # Root ownership is required only to chmod the root of emptyDir.
-            # The gateway and subsequent init containers still run as UID 1000.
-            runAsUser: 0
-            runAsGroup: 0
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop: ["ALL"]
-          volumeMounts:
-            - name: tmp-volume
-              mountPath: /tmp
         - name: install-skills
-          image: ghcr.io/openclaw/openclaw:2026.11.6
+          image: ghcr.io/openclaw/openclaw:2026.9.9
           imagePullPolicy: IfNotPresent
           command:
             - sh
@@ -346,7 +316,7 @@ spec:
               mountPath: /tmp
       containers:
         - name: openclaw
-          image: ghcr.io/openclaw/openclaw:2026.11.6
+          image: ghcr.io/openclaw/openclaw:2026.9.9
           imagePullPolicy: IfNotPresent
           command:
             - node
