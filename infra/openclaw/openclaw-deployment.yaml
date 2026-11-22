@@ -27,6 +27,32 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       initContainers:
+        # Kubelet's fsGroup handling can make an emptyDir group-writable without
+        # the sticky bit. OpenClaw's safe-temp validation rejects that /tmp root
+        # before the gateway can access its shared SQLite state.
+        # Only this pod-scoped scratch volume is modified; the PVC is untouched.
+        - name: prepare-tmp
+          image: ghcr.io/openclaw/openclaw:2026.11.6
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -ec
+            - |
+              chmod 1777 /tmp
+              test "$(stat -c %a /tmp)" = 1777
+              echo "OpenClaw /tmp permissions: $(stat -c %a /tmp)"
+          securityContext:
+            # Root ownership is required only to chmod the root of emptyDir.
+            # The gateway and subsequent init containers still run as UID 1000.
+            runAsUser: 0
+            runAsGroup: 0
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp-volume
+              mountPath: /tmp
         - name: install-skills
           image: ghcr.io/openclaw/openclaw:2026.11.6
           imagePullPolicy: IfNotPresent
