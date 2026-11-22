@@ -38,9 +38,13 @@ spec:
             - sh
             - -ec
             - |
-              chmod 1777 /tmp
+              # With fsGroup, the emptyDir root may have the setgid bit (2xxx).
+              # GNU chmod 1777 preserves directory setgid and yields 3777,
+              # causing the old exact-mode test to fail. 01777 clears it.
+              echo "OpenClaw /tmp before: $(stat -c '%a uid=%u gid=%g' /tmp)"
+              chmod 01777 /tmp
+              echo "OpenClaw /tmp after: $(stat -c '%a uid=%u gid=%g' /tmp)"
               test "$(stat -c %a /tmp)" = 1777
-              echo "OpenClaw /tmp permissions: $(stat -c %a /tmp)"
           securityContext:
             # Root ownership is required only to chmod the root of emptyDir.
             # The gateway and subsequent init containers still run as UID 1000.
