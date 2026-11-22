@@ -1,0 +1,157 @@
+# Future Git-managed replacement for the remaining legacy infra-wordpress
+# services on the Pi4. DO NOT deploy over the existing local Portainer stack.
+# Networknet Hugo nginx is separately managed in ../docker-compose.yml.
+#
+# Legacy PHP 7.4 is excluded. Modern WordPress/PHP lab services below are
+# profile-gated and isolated from production; no containers start by default.
+services:
+  mariadb:
+    # Set a verified, versioned image reference or repository digest using
+    # Portainer's non-secret stack environment variables before cutover.
+    # Do not retain the former floating mariadb:latest.
+    image: ${MARIADB_IMAGE:?Set_pinned_MariaDB_image_in_Portainer}
+    container_name: infra-hosting-mariadb
+    hostname: infra-hosting-mariadb
+    restart: always
+    stop_grace_period: 60s
+    environment:
+      MARIADB_DATABASE: wordpressdb
+      MARIADB_USER: wordpressuser
+      # Actual secret files live ONLY on the Pi4; never in Git or Portainer env.
+      # The upstream MariaDB image supports these *_FILE variables.
+      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/mariadb-root-password
+      MARIADB_PASSWORD_FILE: /run/secrets/mariadb-user-password
+    volumes:
+      - /containers/infra-wordpress/mariadb/data:/var/lib/mysql
+      - /containers/infra-wordpress/secrets/mariadb:/run/secrets:ro
+    # Keep the legacy host binding for cutover parity. Audit consumers and
+    # eliminate/restrict this exposure in a separately validated hardening.
+    ports:
+      - "3306:3306"
+    networks:
+      dmz-wordpress:
+        ipv4_address: 10.10.10.1
+        aliases:
+          - infra-hosting-mariadb.networknet.local
+
+  iso2010-nginx:
+    # Patched official ARM64-compatible nginx image; no PHP upstream service.
+    image: docker.io/library/nginx:1.30.7-alpine3.24
+    container_name: infra-hosting-iso2010-nginx
+    hostname: infra-hosting-iso2010-nginx
+    restart: always
+    volumes:
+      - /containers/infra-wordpress/nginx:/etc/nginx/conf.d
+      - /containers/infra-wordpress/wordpress/data/html:/var/www/html
+    # Existing Pi4 host HTTP publication; review origin routing before change.
+    ports:
+      - "80:80"
+    networks:
+      dmz-wordpress:
+        ipv4_address: 10.10.10.3
+        aliases:
+          - infra-hosting-iso2010-nginx.networknet.local
+
+  redis:
+    image: ${REDIS_IMAGE:?Set_pinned_Redis_image_in_Portainer}
+    container_name: infra-hosting-redis
+    hostname: infra-hosting-redis
+    restart: always
+    command: ["redis-server", "--appendonly", "yes"]
+    # New persistent bind: copy the CURRENT container /data contents here
+    # before cutover. Otherwise replacing the old container loses its AOF.
+    volumes:
+      - /containers/infra-wordpress/redis/data:/data
+    networks:
+      dmz-wordpress:
+        ipv4_address: 10.10.10.6
+        aliases:
+          - infra-hosting-redis.networknet.local
+
+
+  # Optional restore lab. These services never use production WordPress
+  # directories, the dmz-wordpress network, or published host ports.
+  # Compose profiles default to OFF; no PHP service starts in a normal up.
+  iso2010-lab-db:
+    profiles: ["wordpress-lab"]
+    image: ${MARIADB_IMAGE:?Set_pinned_MariaDB_image_in_Portainer}
+    container_name: lab-iso2010-mariadb
+    restart: "no"
+    environment:
+      MARIADB_DATABASE: iso2010
+      MARIADB_USER: iso2010
+      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/root-password
+      MARIADB_PASSWORD_FILE: /run/secrets/wordpress-db-password
+    volumes:
+      - /containers/infra-wordpress/lab/iso2010/db:/var/lib/mysql
+      - /containers/infra-wordpress/lab/iso2010/db-secrets:/run/secrets:ro
+    networks:
+      - wordpress-lab
+
+  iso2010-wordpress-lab:
+    profiles: ["wordpress-lab"]
+    # This is NOT the retired PHP 7.4 runtime.
+    image: docker.io/library/wordpress:7.1.5-php8.3-fpm-alpine
+    container_name: lab-iso2010-wordpress
+    restart: "no"
+    depends_on:
+      - iso2010-lab-db
+    environment:
+      WORDPRESS_DB_HOST: iso2010-lab-db:3306
+      WORDPRESS_DB_NAME: iso2010
+      WORDPRESS_DB_USER: iso2010
+      WORDPRESS_DB_PASSWORD_FILE: /run/secrets/wordpress-db-password
+      WORDPRESS_TABLE_PREFIX: q3gi_
+    volumes:
+      - /containers/infra-wordpress/lab/iso2010/html:/var/www/html
+      - /containers/infra-wordpress/lab/iso2010/wp-secrets:/run/secrets:ro
+    networks:
+      - wordpress-lab
+
+  networknet-lab-db:
+    profiles: ["wordpress-lab"]
+    image: ${MARIADB_IMAGE:?Set_pinned_MariaDB_image_in_Portainer}
+    container_name: lab-networknet-mariadb
+    restart: "no"
+    environment:
+      MARIADB_DATABASE: networknet
+      MARIADB_USER: networknet
+      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/root-password
+      MARIADB_PASSWORD_FILE: /run/secrets/wordpress-db-password
+    volumes:
+      - /containers/infra-wordpress/lab/networknet/db:/var/lib/mysql
+      - /containers/infra-wordpress/lab/networknet/db-secrets:/run/secrets:ro
+    networks:
+      - wordpress-lab
+
+  networknet-wordpress-lab:
+    profiles: ["wordpress-lab"]
+    # Existing Hugo site stays static on its separate nginx container.
+    image: docker.io/library/wordpress:7.1.5-php8.3-fpm-alpine
+    container_name: lab-networknet-wordpress
+    restart: "no"
+    depends_on:
+      - networknet-lab-db
+    environment:
+      WORDPRESS_DB_HOST: networknet-lab-db:3306
+      WORDPRESS_DB_NAME: networknet
+      WORDPRESS_DB_USER: networknet
+      WORDPRESS_DB_PASSWORD_FILE: /run/secrets/wordpress-db-password
+      WORDPRESS_TABLE_PREFIX: ntwk_
+    volumes:
+      - /containers/infra-wordpress/lab/networknet/html:/var/www/html
+      - /containers/infra-wordpress/lab/networknet/wp-secrets:/run/secrets:ro
+    networks:
+      - wordpress-lab
+
+# Network already owned by the old Pi4 stack and shared by Cloudflare Tunnel,
+# ISO2010, Networknet nginx, and the legacy database/cache. Never recreate it.
+networks:
+  dmz-wordpress:
+    name: dmz-wordpress
+    external: true
+
+  # Private, isolated test-only bridge; deliberately no attachment to DMZ.
+  wordpress-lab:
+    driver: bridge
+    internal: true
