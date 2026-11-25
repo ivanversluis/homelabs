@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oasm-config
+data:
+  NODE_ENV: production
+  POSTGRES_HOST: oasm-postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_USERNAME: oasm
+  POSTGRES_DB: oasm
+  POSTGRES_SSL: "false"
+  PORT: "6276"
+  GRPC_PORT: "16276"
+  GEO_IP_URL: oasm-geoip:4360
+  RUSTFS_ENDPOINT: http://oasm-rustfs:9000
+  AUDIT_ARCHIVE_DIR: /audit-archive
+  STORAGE_URL_BASE: /api/storage

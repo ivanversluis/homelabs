@@ -74,6 +74,10 @@ data:
             href: "https://homepage.${DOMAIN}"
             description: Homelab service catalog
             icon: homepage.png
+        - Open ASM:
+            href: "https://oasm.${DOMAIN}"
+            description: Attack surface inventory and authorized scanning (Authentik protected)
+            icon: mdi-shield-search
         - Homebox:
             href: "https://homebox.${DOMAIN}"
             description: Home inventory

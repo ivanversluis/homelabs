@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oasm-api
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: oasm-api}
+  template:
+    metadata:
+      labels: {app: oasm-api}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      # Migrations are idempotent and run on every restart. Do not use a static
+      # immutable Job: that prevents safe image/version upgrades under Flux.
+      initContainers:
+        - name: migrate
+          image: oasm/oasm-api:v0.9.0
+          command: [sh, -ec]
+          args: ["cd /app && ./node_modules/.bin/typeorm migration:run -d dist/database/database-config.js"]
+          envFrom:
+            - configMapRef: {name: oasm-config}
+            - secretRef: {name: oasm-env}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+      containers:
+        - name: api
+          image: oasm/oasm-api:v0.9.0
+          ports:
+            - {name: http, containerPort: 6276}
+            - {name: grpc, containerPort: 16276}
+          envFrom:
+            - configMapRef: {name: oasm-config}
+            - secretRef: {name: oasm-env}
+          volumeMounts:
+            - {name: open-api, mountPath: /.open-api}
+            - {name: audit, mountPath: /audit-archive}
+            - {name: tmp, mountPath: /tmp}
+          readinessProbe:
+            httpGet: {path: /api/health, port: http}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /api/health, port: http}
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          resources:
+            requests: {cpu: 250m, memory: 512Mi}
+            limits: {cpu: 1500m, memory: 2Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+      volumes:
+        - name: open-api
+          emptyDir: {}
+        - name: audit
+          persistentVolumeClaim: {claimName: oasm-audit-data}
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oasm-api
+spec:
+  selector: {app: oasm-api}
+  ports:
+    - {name: http, port: 6276, targetPort: http}
+    - {name: grpc, port: 16276, targetPort: grpc}
