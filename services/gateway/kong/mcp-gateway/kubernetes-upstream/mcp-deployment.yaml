@@ -38,7 +38,7 @@ spec:
         - name: mcpo
           # mcpo serves the OpenAPI wrapper; it spawns kubernetes-mcp-server internally
           # v0.0.20 build from upstream commit 788ff92e5288a899a743a252edd5748f4ad4ab1f
-          image: ghcr.io/open-webui/mcpo@sha256:1e82c9555c19e50b80745705f32b47a2647589f35279527b5118ecd3a71bd467
+          image: ghcr.io/open-webui/mcpo@sha256:569ea417d1f15cfd9e18455f4df236f2e77f6d7280fecfc0044900f91f26adbb
           args:
             - "--host=0.0.0.0"
             - "--port=8000"
