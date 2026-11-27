@@ -3,7 +3,7 @@
 services:
   networknet-nginx:
     # NGINX2Root fixes are included from nginx 1.30.7 (stable).
-    image: docker.io/library/nginx:1.30.7-alpine3.24
+    image: docker.io/library/nginx:1.31.10-alpine3.24
     container_name: infra-hosting-networknet-nginx
     hostname: infra-hosting-networknet-nginx
     restart: always
